@@ -86,15 +86,18 @@ func (rs *ragServer) uploadFileHandler(w http.ResponseWriter, req *http.Request)
 			if !isRelevantSentence(aSentence.Text) {
 				continue
 			}
+			log.Printf("sentence: %s", aSentence.Text)
 			// If we can parse the sentence as a table, do so and extract relevant contexts from it
-			aTable, err := NewTable(aSentence.Text)
+			tables, err := NewTables(aSentence.Text)
 			if err == nil {
-				tableContexts := aTable.ToContexts()
-				for _, aContext := range tableContexts {
-					log.Printf("tablecontext: %s", aContext)
+				for _, aTable := range tables {
+					tableContexts := aTable.ToContexts()
+					for _, aContext := range tableContexts {
+						log.Printf("tablecontext: %s", aContext)
+					}
+					contexts = append(contexts, tableContexts...)
 				}
-				contexts = append(contexts, tableContexts...)
-				continue
+
 			} else {
 				log.Printf("could not parse sentence as table: %s : %v", aSentence.Text, err)
 			}
