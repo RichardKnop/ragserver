@@ -1,5 +1,13 @@
 # RAG Server 
 
+## Setup
+
+You will need to install [Tesseract](https://github.com/tesseract-ocr/tessdoc) C++ OCR library.
+
+```sh
+brew install tesseract
+```
+
 ## Weaviate
 
 To start the Weaviate server:
@@ -30,11 +38,22 @@ source .env
 go run .
 ```
 
-Add some documents first:
+### Adding Data To Knowledge Base
+
+You can either add some text documents:
 
 ```sh
 ./scripts/add-documents.sh
 ```
+
+Or upload a PDF file which will be used to extract documents:
+
+```sh
+./scripts/upload-file.sh '/Users/richardknop/Desktop/Statement on Emissions.pdf'
+./scripts/upload-file.sh '/Users/richardknop/Desktop/TCFD Report.pdf'
+```
+
+### Querying LLM For Answers
 
 Query for scope 1 emissions:
 

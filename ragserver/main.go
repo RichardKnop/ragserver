@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	_ "embed"
 	"errors"
 	"log"
 	"net/http"
@@ -11,8 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ledongthuc/pdf"
+	"github.com/neurosnap/sentences"
 	"google.golang.org/genai"
 )
+
+//go:embed testdata/english.json
+var testEn string
 
 var (
 	port    = cmp.Or(os.Getenv("SERVERPORT"), "9020")
@@ -34,15 +40,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// load the training data
+	training, err := sentences.LoadTraining([]byte(testEn))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pdf.DebugOn = true
+
 	ragServer := &ragServer{
-		ctx:      ctx,
 		wvClient: wvClient,
 		client:   genaiClient,
+		training: training,
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /add/", ragServer.addDocumentsHandler)
-	mux.HandleFunc("POST /query/", ragServer.queryHandler)
+	ragServer.registerHandlers(mux)
 
 	httpServer := &http.Server{
 		ReadTimeout:       5 * time.Second,
