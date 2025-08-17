@@ -14,7 +14,7 @@ set -x
 FILE=$1
 
 # Upload a file to the ragserver
-curl \
+curl -i \
     -X POST \
     -H 'Content-Type: multipart/form-data' \
     -F file=@"$FILE" \

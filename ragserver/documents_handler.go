@@ -28,7 +28,7 @@ func (rs *ragServer) addDocumentsHandler(w http.ResponseWriter, req *http.Reques
 	ctx := req.Context()
 
 	// Use the batch embedding API to embed all documents at once.
-	//  result, err := client.Models.Embeddings.
+	// result, err := client.Models.Embeddings.
 	contents := make([]*genai.Content, 0, len(ar.Documents))
 	for _, doc := range ar.Documents {
 		contents = append(contents, genai.NewContentFromText(doc.Text, genai.RoleUser))

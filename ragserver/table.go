@@ -55,6 +55,16 @@ func (n Number) ToString() string {
 	return fmt.Sprintf("%.2f", n.Value)
 }
 
+func (t Table) IsValid() bool {
+	if len(t.Rows) == 0 {
+		return false
+	}
+	if len(t.years) == 0 {
+		return false
+	}
+	return true
+}
+
 func (t Table) ToContexts() []string {
 	if len(t.Rows) == 0 {
 		return nil
@@ -218,7 +228,15 @@ func newUnitTable(text string) ([]*Table, error) {
 		table.removeExtraRows()
 	}
 
-	return tables, nil
+	validTables := make([]*Table, 0, len(tables))
+	for _, table := range tables {
+		if !table.IsValid() {
+			continue
+		}
+		validTables = append(validTables, table)
+	}
+
+	return validTables, nil
 }
 
 type orderedNumber struct {

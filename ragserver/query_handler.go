@@ -113,7 +113,7 @@ func (rs *ragServer) queryHandler(w http.ResponseWriter, req *http.Request) {
 		},
 	)
 	if err != nil {
-		log.Printf("calling generative model: %v", err.Error())
+		log.Printf("calling generative model: %v", err)
 		http.Error(w, "generative model error", http.StatusInternalServerError)
 		return
 	}
