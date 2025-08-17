@@ -2,16 +2,20 @@ package rest
 
 import (
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 
+	"github.com/gofrs/uuid/v5"
+
+	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
 type RagServer interface {
-	CreateDocuments(ctx context.Context, documents []ragserver.Document) error
-	CreateFile(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*ragserver.File, error)
-	Generate(ctx context.Context, queryy ragserver.Query) ([]ragserver.Response, error)
+	CreateDocuments(ctx context.Context, principal authz.Principal, documents []ragserver.Document) error
+	CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*ragserver.File, error)
+	Generate(ctx context.Context, principal authz.Principal, queryy ragserver.Query) ([]ragserver.Response, error)
 }
 
 type Adapter struct {
@@ -28,4 +32,14 @@ func (a *Adapter) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("POST /documents/", a.createDocumentsHandler)
 	mux.HandleFunc("POST /files/", a.uploadFileHandler)
 	mux.HandleFunc("POST /query/", a.queryHandler)
+}
+
+var staticPrincipal = authz.New(authz.ID{
+	UUID: uuid.Must(uuid.FromString("b486ea88-95c4-4140-86c9-dd19f6fa879f")),
+})
+
+func (a *Adapter) principalFromRequest(req *http.Request) authz.Principal {
+	// TODO - get actual principal from the request later when auth is implemented.
+	// For now, we use a static hardcoded principal for testing purposes.
+	return staticPrincipal
 }

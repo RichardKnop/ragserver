@@ -12,6 +12,11 @@ type CreateDocumentsRequest struct {
 }
 
 func (a *Adapter) createDocumentsHandler(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx       = req.Context()
+		principal = a.principalFromRequest(req)
+	)
+
 	cdr := new(CreateDocumentsRequest)
 
 	if err := readRequestJSON(req, cdr); err != nil {
@@ -19,9 +24,7 @@ func (a *Adapter) createDocumentsHandler(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	ctx := req.Context()
-
-	if err := a.ragServer.CreateDocuments(ctx, cdr.Documents); err != nil {
+	if err := a.ragServer.CreateDocuments(ctx, principal, cdr.Documents); err != nil {
 		log.Printf("error creating documents: %v", err)
 		http.Error(w, "error creating documents", http.StatusInternalServerError)
 	}

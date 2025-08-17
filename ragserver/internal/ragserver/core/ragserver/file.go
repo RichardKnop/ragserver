@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid/v5"
+
+	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
 )
 
 type FileID struct{ uuid.UUID }
@@ -31,7 +33,7 @@ type File struct {
 	Documents []Document `json:"-"`
 }
 
-func (rs *ragServer) CreateFile(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*File, error) {
+func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
 	tempFile, err := os.CreateTemp("", "file*")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %v", err)

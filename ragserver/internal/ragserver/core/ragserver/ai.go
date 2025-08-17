@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"google.golang.org/genai"
+
+	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
 )
 
 type QueryType string
@@ -28,7 +30,7 @@ type Response struct {
 	Metric float64   `json:"metric,omitempty"` // Only used for QueryTypeMetric
 }
 
-func (rs *ragServer) Generate(ctx context.Context, query Query) ([]Response, error) {
+func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query) ([]Response, error) {
 	switch query.Type {
 	case QueryTypeText, QueryTypeMetric:
 	default:

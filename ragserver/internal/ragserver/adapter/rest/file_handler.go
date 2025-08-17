@@ -11,6 +11,11 @@ const (
 )
 
 func (a *Adapter) uploadFileHandler(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx       = req.Context()
+		principal = a.principalFromRequest(req)
+	)
+
 	// Limit memory usage to 20MB, anythin over this limit will be stored in a temporary file.
 	req.ParseMultipartForm(MaxFileSize)
 
@@ -25,7 +30,7 @@ func (a *Adapter) uploadFileHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	defer file.Close()
 
-	aFile, err := a.ragServer.CreateFile(req.Context(), file, header)
+	aFile, err := a.ragServer.CreateFile(ctx, principal, file, header)
 	if err != nil {
 		log.Printf("error creating file: %v", err)
 		http.Error(w, "error creating file", http.StatusInternalServerError)

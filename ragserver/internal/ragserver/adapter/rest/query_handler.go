@@ -17,13 +17,18 @@ type QueryResponse struct {
 }
 
 func (a *Adapter) queryHandler(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx       = req.Context()
+		principal = a.principalFromRequest(req)
+	)
+
 	qr := new(QueryRequest)
 	if err := readRequestJSON(req, qr); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	responses, err := a.ragServer.Generate(req.Context(), ragserver.Query{
+	responses, err := a.ragServer.Generate(ctx, principal, ragserver.Query{
 		Type: qr.Type,
 		Text: qr.Content,
 	})
