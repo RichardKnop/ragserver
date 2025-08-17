@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,9 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ledongthuc/pdf"
 	"github.com/neurosnap/sentences"
+	"github.com/weaviate/weaviate-go-client/v5/weaviate"
+	"github.com/weaviate/weaviate/entities/models"
 	"google.golang.org/genai"
+
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/pdf"
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/rest"
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
 //go:embed testdata/english.json
@@ -46,16 +52,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pdf.DebugOn = true
-
-	ragServer := &ragServer{
-		wvClient: wvClient,
-		client:   genaiClient,
-		training: training,
-	}
+	pdfAdapter := pdf.New(training)
+	rs := ragserver.New(wvClient, genaiClient, training, pdfAdapter)
 
 	mux := http.NewServeMux()
-	ragServer.registerHandlers(mux)
+	restAdapter := rest.New(rs)
+	restAdapter.RegisterHandlers(mux)
 
 	httpServer := &http.Server{
 		ReadTimeout:       5 * time.Second,
@@ -86,4 +88,33 @@ func main() {
 		log.Fatalf("HTTP shutdown error: %v", err)
 	}
 	log.Println("Graceful shutdown complete.")
+}
+
+// initWeaviate initializes a weaviate client for our application.
+func initWeaviate(ctx context.Context) (*weaviate.Client, error) {
+	client, err := weaviate.NewClient(weaviate.Config{
+		Host:   "localhost:" + cmp.Or(os.Getenv("WVPORT"), "9035"),
+		Scheme: "http",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("initializing weaviate: %w", err)
+	}
+
+	// Create a new class (collection) in weaviate if it doesn't exist yet.
+	cls := &models.Class{
+		Class:      "Document",
+		Vectorizer: "none",
+	}
+	exists, err := client.Schema().ClassExistenceChecker().WithClassName(cls.Class).Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("weaviate error: %w", err)
+	}
+	if !exists {
+		err = client.Schema().ClassCreator().WithClass(cls).Do(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("weaviate error: %w", err)
+		}
+	}
+
+	return client, nil
 }

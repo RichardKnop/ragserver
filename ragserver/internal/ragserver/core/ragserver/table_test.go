@@ -1,4 +1,4 @@
-package main
+package ragserver
 
 import (
 	"testing"
@@ -246,7 +246,8 @@ by Wells Fargo. Some assets have not yet achieved commercial operation and are u
 				YearNumbers: []YearNumber{
 					{Year: 2020, Number: NewNumber(1654354, "1,654,354")},
 					{Year: 2021, Number: NewNumber(1550417, "1,550,417")},
-					{Year: 2022, Number: NewNumber(1579854, "1,579,854")}},
+					{Year: 2022, Number: NewNumber(1579854, "1,579,854")},
+				},
 			},
 			{
 				Name: "Total renewable energy purchased",

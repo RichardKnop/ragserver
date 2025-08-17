@@ -1,4 +1,4 @@
-package main
+package ragserver
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/weaviate/weaviate/entities/models"
 )
 
-func TestGetResults(t *testing.T) {
+func TestDecodeGetDocumentResults(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -45,7 +45,7 @@ func TestGetResults(t *testing.T) {
 
 	for i, tst := range tests {
 		t.Run(fmt.Sprintf("#%v_%v", i, tst.title), func(t *testing.T) {
-			actual, err := decodeGetResults(tst.given)
+			actual, err := decodeGetDocumentResults(tst.given)
 			if tst.expectedErr != nil {
 				require.Error(t, err)
 				assert.Equal(t, tst.expectedErr, err)

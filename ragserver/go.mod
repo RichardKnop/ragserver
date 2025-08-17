@@ -1,9 +1,9 @@
-module github.com/RichardKnop/ai/ragserver/ragserver
+module github.com/RichardKnop/ai/ragserver
 
 go 1.25.0
 
 require (
-	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
+	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/neurosnap/sentences v1.1.2
 	github.com/stretchr/testify v1.10.0
 	github.com/weaviate/weaviate v1.32.3

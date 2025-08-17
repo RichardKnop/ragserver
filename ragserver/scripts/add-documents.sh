@@ -22,4 +22,4 @@ echo '{
 		-X POST \
     -H 'Content-Type: application/json' \
     -d @- \
-    http://localhost:9020/add/
+    http://localhost:9020/documents/

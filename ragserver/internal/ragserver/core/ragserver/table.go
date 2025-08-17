@@ -1,4 +1,4 @@
-package main
+package ragserver
 
 import (
 	"fmt"
@@ -72,14 +72,14 @@ func (t Table) ToContexts() []string {
 	contexts := make([]string, 0, len(t.Rows)*len(t.Rows[0].YearNumbers))
 	for _, aRow := range t.Rows {
 		for _, yearNumber := range aRow.YearNumbers {
-			aContext := fmt.Sprintf(
+			aContext := strings.TrimSpace(fmt.Sprintf(
 				"%s: %s for year %d is %s %s",
 				t.Title,
 				aRow.Name,
 				yearNumber.Year,
 				yearNumber.Number.ToString(),
 				aRow.Unit,
-			)
+			))
 			contexts = append(contexts, aContext)
 		}
 	}
@@ -445,9 +445,7 @@ func (t *Table) newRow(lines []string, i int) (int, error) {
 	return j - i - consecutiveNumbers, nil
 }
 
-var (
-	numRe, _ = regexp.Compile(`^(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?)$`)
-)
+var numRe, _ = regexp.Compile(`^(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?)$`)
 
 func isNumberOrNotAvailable(s string) (Number, bool) {
 	if isNotAvailable(s) {

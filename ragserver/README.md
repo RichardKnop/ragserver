@@ -35,7 +35,7 @@ Start the server (specify your GEMINI_API_KEY env var in .env file):
 ```sh
 cd ragserver
 source .env
-go run .
+make run
 ```
 
 ### Adding Data To Knowledge Base

@@ -14,7 +14,7 @@ set -x
 PAYLOAD=$1
 
 # Send the request
-echo "$PAYLOAD" | tr -d "\n" | curl \
+echo "$PAYLOAD" | tr -d "\n" | curl -i \
     -X POST \
     -H 'Content-Type: application/json' \
     -d @- \
