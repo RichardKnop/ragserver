@@ -1,8 +1,6 @@
 package ragserver
 
 import (
-	"context"
-	"io"
 	"time"
 
 	"github.com/neurosnap/sentences"
@@ -17,24 +15,22 @@ const (
 
 type clock func() time.Time
 
-type PDF interface {
-	Extract(ctx context.Context, contents io.ReadSeeker) ([]Document, error)
-}
-
 type ragServer struct {
 	wvClient *weaviate.Client
 	client   *genai.Client
 	training *sentences.Storage
 	pdf      PDF
+	store    Store
 	now      clock
 }
 
-func New(wvClient *weaviate.Client, genaiClient *genai.Client, training *sentences.Storage, pdfAdapter PDF) *ragServer {
+func New(wvClient *weaviate.Client, genaiClient *genai.Client, training *sentences.Storage, pdfAdapter PDF, storeAdapter Store) *ragServer {
 	return &ragServer{
 		wvClient: wvClient,
 		client:   genaiClient,
 		training: training,
 		pdf:      pdfAdapter,
+		store:    storeAdapter,
 		now:      time.Now,
 	}
 }

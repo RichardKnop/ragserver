@@ -17,8 +17,10 @@ type Adapter struct {
 	training  *sentences.Storage
 }
 
-func New(training *sentences.Storage) *Adapter {
-	return &Adapter{
+type Option func(*Adapter)
+
+func New(training *sentences.Storage, options ...Option) *Adapter {
+	a := &Adapter{
 		extractor: &extractor{
 			pageMin:         1,
 			pageMax:         1000,
@@ -28,6 +30,12 @@ func New(training *sentences.Storage) *Adapter {
 		},
 		training: training,
 	}
+
+	for _, o := range options {
+		o(a)
+	}
+
+	return a
 }
 
 func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragserver.Document, error) {

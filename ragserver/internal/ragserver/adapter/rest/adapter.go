@@ -15,6 +15,7 @@ import (
 type RagServer interface {
 	CreateDocuments(ctx context.Context, principal authz.Principal, documents []ragserver.Document) error
 	CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*ragserver.File, error)
+	ListFiles(ctx context.Context, principal authz.Principal) ([]*ragserver.File, error)
 	Generate(ctx context.Context, principal authz.Principal, queryy ragserver.Query) ([]ragserver.Response, error)
 }
 
@@ -31,6 +32,7 @@ func New(ragServer RagServer) *Adapter {
 func (a *Adapter) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("POST /documents/", a.createDocumentsHandler)
 	mux.HandleFunc("POST /files/", a.uploadFileHandler)
+	mux.HandleFunc("GET /files/", a.listFileHandler)
 	mux.HandleFunc("POST /query/", a.queryHandler)
 }
 

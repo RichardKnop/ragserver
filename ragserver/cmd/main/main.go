@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -13,6 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
 	"github.com/weaviate/weaviate/entities/models"
@@ -20,6 +25,7 @@ import (
 
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/pdf"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/rest"
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/store"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
@@ -27,8 +33,9 @@ import (
 var testEn string
 
 var (
-	port    = cmp.Or(os.Getenv("SERVERPORT"), "9020")
-	address = "localhost:" + port
+	port           = cmp.Or(os.Getenv("SERVERPORT"), "9020")
+	migrationsPath = cmp.Or(os.Getenv("DB_MIGRATIONS_PATH"), "internal/db/migrations")
+	address        = "localhost:" + port
 )
 
 func main() {
@@ -37,23 +44,48 @@ func main() {
 
 	wvClient, err := initWeaviate(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("weaviate client: ", err)
 	}
 
 	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
 	genaiClient, err := genai.NewClient(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("genai client: ", err)
 	}
 
-	// load the training data
+	// Load the training data
 	training, err := sentences.LoadTraining([]byte(testEn))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("load training: ", err)
+	}
+
+	// Connect to the database
+	db, err := sql.Open("sqlite3", "file:db.sqlite?mode=rwc&cache=shared")
+	if err != nil {
+		log.Fatal("db open: ", err)
+	}
+	if err := db.Ping(); err != nil {
+		log.Fatal("db ping: ", err)
+	}
+
+	// Run db migrations
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		log.Fatal("migration driver: ", err)
+	}
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationsPath,
+		"sqlite3", driver)
+	if err != nil {
+		log.Fatal("migrations: ", err)
+	}
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		log.Fatal("migrations up: ", err)
 	}
 
 	pdfAdapter := pdf.New(training)
-	rs := ragserver.New(wvClient, genaiClient, training, pdfAdapter)
+	storeAdapter := store.New(db)
+	rs := ragserver.New(wvClient, genaiClient, training, pdfAdapter, storeAdapter)
 
 	mux := http.NewServeMux()
 	restAdapter := rest.New(rs)

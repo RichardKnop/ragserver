@@ -4,6 +4,8 @@ go 1.25.0
 
 require (
 	github.com/gofrs/uuid/v5 v5.3.2
+	github.com/golang-migrate/migrate/v4 v4.18.3
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/neurosnap/sentences v1.1.2
 	github.com/stretchr/testify v1.10.0
 	github.com/weaviate/weaviate v1.32.3
@@ -40,6 +42,8 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -54,6 +58,7 @@ require (
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/net v0.43.0 // indirect

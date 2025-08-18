@@ -3,6 +3,7 @@ package ragserver
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -65,19 +66,22 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		ID:        NewFileID(),
 		FileName:  header.Filename,
 		MimeType:  contentType,
-		Extension: strings.TrimPrefix(contentType, "image/"),
 		Size:      fileSize,
 		CreatedAt: rs.now(),
 	}
 
 	switch contentType {
 	case "application/pdf":
+		aFile.Extension = strings.TrimPrefix(contentType, "application/")
+
 		var err error
 		aFile.Documents, err = rs.pdf.Extract(ctx, tempFile)
 		if err != nil {
 			return nil, fmt.Errorf("error processing PDF file: %w", err)
 		}
 	case "image/jpeg", "image/png":
+		aFile.Extension = strings.TrimPrefix(contentType, "image/")
+
 		// client := gosseract.NewClient()
 		// defer client.Close()
 
@@ -98,7 +102,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("image file processing not implemented yet")
 	}
 
-	// Use the batch embedding API to embed all documents at once.
+	//Use the batch embedding API to embed all documents at once.
 	vectors, err := rs.embedDocuments(ctx, aFile.Documents)
 	if err != nil {
 		return nil, fmt.Errorf("error generating vectors: %v", err)
@@ -106,13 +110,37 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 
 	log.Printf("generated vectors: %d", len(vectors))
 
-	if err := rs.saveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
-		return aFile, fmt.Errorf("error saving embeddings: %v", err)
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		// TODO - add file reference to embeddings
+		if err := rs.saveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
+			return fmt.Errorf("error saving embeddings: %v", err)
+		}
+
+		if err := rs.store.SaveFile(ctx, aFile); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("error saving file: %v", err)
 	}
 
-	// TODO - save file in the database as well
-
 	return aFile, nil
+}
+
+func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) ([]*File, error) {
+	var files []*File
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		var err error
+		files, err = rs.store.ListFiles(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 func (rs *ragServer) ExtractPDF(ctx context.Context, contents io.ReadSeeker) ([]Document, error) {

@@ -3,6 +3,8 @@ package rest
 import (
 	"log"
 	"net/http"
+
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
 const (
@@ -27,6 +29,7 @@ func (a *Adapter) uploadFileHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("error reading form file: %v", err)
 		http.Error(w, "error reading form file", http.StatusInternalServerError)
+		return
 	}
 	defer file.Close()
 
@@ -34,8 +37,31 @@ func (a *Adapter) uploadFileHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("error creating file: %v", err)
 		http.Error(w, "error creating file", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	renderJSON(w, aFile)
+}
+
+type FilesResponse struct {
+	Files []*ragserver.File `json:"files"`
+}
+
+func (a *Adapter) listFileHandler(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx       = req.Context()
+		principal = a.principalFromRequest(req)
+	)
+
+	files, err := a.ragServer.ListFiles(ctx, principal)
+	if err != nil {
+		log.Printf("error listing files: %v", err)
+		http.Error(w, "error listing files", http.StatusInternalServerError)
+		return
+	}
+
+	renderJSON(w, FilesResponse{
+		Files: files,
+	})
 }

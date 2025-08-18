@@ -27,6 +27,7 @@ func (a *Adapter) createDocumentsHandler(w http.ResponseWriter, req *http.Reques
 	if err := a.ragServer.CreateDocuments(ctx, principal, cdr.Documents); err != nil {
 		log.Printf("error creating documents: %v", err)
 		http.Error(w, "error creating documents", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
