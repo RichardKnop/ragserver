@@ -19,9 +19,7 @@ import (
 	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
 )
 
-var (
-	ErrNotFound = errors.New("not found")
-)
+var ErrNotFound = errors.New("not found")
 
 type FileID struct{ uuid.UUID }
 
@@ -112,7 +110,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	}
 
 	// Use the batch embedding API to embed all documents at once.
-	vectors, err := rs.embedDocuments(ctx, aFile.Documents)
+	vectors, err := rs.genai.EmbedDocuments(ctx, aFile.Documents)
 	if err != nil {
 		return nil, fmt.Errorf("error generating vectors: %v", err)
 	}
@@ -120,7 +118,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	log.Printf("generated vectors: %d", len(vectors))
 
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		if err := rs.saveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
+		if err := rs.weaviate.SaveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
 			return fmt.Errorf("error saving embeddings: %v", err)
 		}
 

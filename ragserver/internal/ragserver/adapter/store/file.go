@@ -58,8 +58,7 @@ func (a *Adapter) SaveFile(ctx context.Context, file *ragserver.File) error {
 	return nil
 }
 
-type selectFilesQuery struct {
-}
+type selectFilesQuery struct{}
 
 func (q selectFilesQuery) SQL() (string, []any) {
 	return `
@@ -128,7 +127,7 @@ func (q findFileQuery) SQL() (string, []any) {
 }
 
 func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver.File, error) {
-	var file = new(ragserver.File)
+	file := new(ragserver.File)
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := findFileQuery{id: id}.SQL()
 

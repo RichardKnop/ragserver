@@ -1,4 +1,4 @@
-package ragserver
+package weaviate
 
 import (
 	"context"
@@ -8,43 +8,11 @@ import (
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/graphql"
 	"github.com/weaviate/weaviate/entities/models"
-	"google.golang.org/genai"
+
+	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
-type Vector []float32
-
-func (rs *ragServer) embedDocuments(ctx context.Context, documents []Document) ([]Vector, error) {
-	// Use the batch embedding API to embed all documents at once.
-	contents := make([]*genai.Content, 0, len(documents))
-	for _, aDocument := range documents {
-		contents = append(contents, genai.NewContentFromText(aDocument.Text, genai.RoleUser))
-	}
-	embedResponse, err := rs.client.Models.EmbedContent(ctx,
-		embeddingModelName,
-		contents,
-		nil,
-	)
-	log.Printf("invoking embedding model with %v documents", len(documents))
-	if err != nil {
-		return nil, fmt.Errorf("embed content error: %w", err)
-	}
-
-	if len(embedResponse.Embeddings) != len(documents) {
-		return nil, fmt.Errorf("embedded batch size mismatch")
-	}
-
-	vectors := make([]Vector, 0, len(embedResponse.Embeddings))
-
-	for i := range embedResponse.Embeddings {
-		vectors = append(vectors, embedResponse.Embeddings[i].Values)
-	}
-
-	return vectors, nil
-}
-
-const DocumentClassName = "Document"
-
-func (rs *ragServer) saveEmbeddings(ctx context.Context, documents []Document, vectors []Vector) error {
+func (a *Adapter) SaveEmbeddings(ctx context.Context, documents []ragserver.Document, vectors []ragserver.Vector) error {
 	// Convert our documents - along with their embedding vectors - into types
 	// used by the Weaviate client library.
 	objects := make([]*models.Object, len(documents))
@@ -59,14 +27,14 @@ func (rs *ragServer) saveEmbeddings(ctx context.Context, documents []Document, v
 			properties["file_id"] = doc.FileID.String()
 		}
 		objects[i] = &models.Object{
-			Class:      DocumentClassName,
+			Class:      className,
 			Properties: properties,
 			Vector:     models.C11yVector(vectors[i]),
 		}
 	}
 
 	// Store documents with embeddings in the Weaviate DB.
-	_, err := rs.wvClient.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
+	_, err := a.client.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
 	if err != nil {
 		return err
 	}
@@ -75,20 +43,8 @@ func (rs *ragServer) saveEmbeddings(ctx context.Context, documents []Document, v
 	return err
 }
 
-func (rs *ragServer) embedContent(ctx context.Context, content string) (Vector, error) {
-	embedResponse, err := rs.client.Models.EmbedContent(ctx,
-		embeddingModelName,
-		[]*genai.Content{genai.NewContentFromText(content, genai.RoleUser)},
-		nil,
-	)
-	if err != nil {
-		return Vector{}, err
-	}
-	return embedResponse.Embeddings[0].Values, nil
-}
-
-func (rs *ragServer) searchDocuments(ctx context.Context, vector Vector, fileIDs ...FileID) ([]string, error) {
-	gql := rs.wvClient.GraphQL()
+func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, fileIDs ...ragserver.FileID) ([]string, error) {
+	gql := a.client.GraphQL()
 	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(vector))
 
 	builder := gql.Get().
@@ -113,7 +69,7 @@ func (rs *ragServer) searchDocuments(ctx context.Context, vector Vector, fileIDs
 	return decodeGetDocumentResults(graphqlResponse)
 }
 
-func fileIDsToStrings(fileIDs []FileID) []string {
+func fileIDsToStrings(fileIDs []ragserver.FileID) []string {
 	ids := make([]string, 0, len(fileIDs))
 	for _, fileID := range fileIDs {
 		ids = append(ids, fileID.String())

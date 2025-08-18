@@ -93,7 +93,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragser
 		// In case of scope-related sentence, we want to first try to extract yearly scope tables,
 		// to get better context for the LLM. These are tables with years as columns and categories
 		// as rows, with numeric values for each year.
-		tables, err := ragserver.NewTables(aSentence.Text)
+		tables, err := NewTables(aSentence.Text)
 		if err != nil {
 			documents = append(documents, ragserver.Document{Text: aSentence.Text})
 			continue

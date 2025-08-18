@@ -1,4 +1,4 @@
-package ragserver
+package weaviate
 
 import (
 	"fmt"

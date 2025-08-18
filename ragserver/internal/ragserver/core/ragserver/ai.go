@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/genai"
-
 	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
 )
+
+type Vector []float32
 
 type QueryType string
 
@@ -48,14 +48,14 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	}
 
 	// Embed the query contents.
-	vector, err := rs.embedContent(ctx, query.Text)
+	vector, err := rs.genai.EmbedContent(ctx, query.Text)
 	if err != nil {
 		return nil, fmt.Errorf("embedding query content: %v", err)
 	}
 
 	// Search weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
-	contents, err := rs.searchDocuments(ctx, vector)
+	contents, err := rs.weaviate.SearchDocuments(ctx, vector)
 	if err != nil {
 		return nil, fmt.Errorf("searching documents: %v", err)
 	}
@@ -106,41 +106,23 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 }
 
 func (rs *ragServer) generateResponses(ctx context.Context, query Query, contexts []string) ([]string, error) {
-	// Create a RAG query for the LLM with the most relevant documents as
-	// context.
-	var part string
+	// Create a RAG query for the LLM with the most relevant documents as context.
+	var input string
 	switch query.Type {
 	case QueryTypeText:
-		part = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
+		input = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
 	case QueryTypeMetric:
-		part = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
+		input = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
 	default:
 		return nil, fmt.Errorf("invalid query type")
 	}
 
-	log.Printf("gen AI query part: %s", part)
+	log.Printf("gen AI query input: %s", input)
 
-	resp, err := rs.client.Models.GenerateContent(
-		ctx,
-		generativeModelName,
-		genai.Text(part),
-		&genai.GenerateContentConfig{
-			ThinkingConfig: &genai.ThinkingConfig{
-				ThinkingBudget: nil, // Disables thinking
-			},
-		},
-	)
+	responses, err := rs.genai.Generate(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}
-	if len(resp.Candidates) != 1 {
-		return nil, fmt.Errorf("got %v candidates, expected 1", len(resp.Candidates))
-	}
 
-	var respTexts []string
-	if aTest := resp.Text(); strings.TrimSpace(aTest) != "" {
-		respTexts = append(respTexts, resp.Text())
-	}
-
-	return respTexts, nil
+	return responses, nil
 }

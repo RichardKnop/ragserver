@@ -1,4 +1,4 @@
-package ragserver
+package pdf
 
 import (
 	"fmt"

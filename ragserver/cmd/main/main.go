@@ -20,12 +20,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
-	"github.com/weaviate/weaviate/entities/models"
 	"google.golang.org/genai"
 
+	genaiAdapter "github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/genai"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/pdf"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/rest"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/store"
+	weaviateAdapter "github.com/RichardKnop/ai/ragserver/internal/ragserver/adapter/weaviate"
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
@@ -43,9 +44,16 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wvClient, err := initWeaviate(ctx)
+	wvClient, err := weaviate.NewClient(weaviate.Config{
+		Host:   "localhost:" + cmp.Or(os.Getenv("WVPORT"), "9035"),
+		Scheme: "http",
+	})
 	if err != nil {
 		log.Fatal("weaviate client: ", err)
+	}
+	wvAdapter, err := weaviateAdapter.New(ctx, wvClient)
+	if err != nil {
+		log.Fatal("weaviate adapter: ", err)
 	}
 
 	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
@@ -53,6 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatal("genai client: ", err)
 	}
+	gAdapter := genaiAdapter.New(genaiClient)
 
 	// Load the training data
 	training, err := sentences.LoadTraining([]byte(testEn))
@@ -84,9 +93,12 @@ func main() {
 		log.Fatal("migrations up: ", err)
 	}
 
-	pdfAdapter := pdf.New(training)
-	storeAdapter := store.New(db)
-	rs := ragserver.New(wvClient, genaiClient, training, pdfAdapter, storeAdapter)
+	var (
+		pdfAdapter   = pdf.New(training)
+		storeAdapter = store.New(db)
+	)
+
+	rs := ragserver.New(gAdapter, wvAdapter, training, pdfAdapter, storeAdapter)
 
 	mux := http.NewServeMux()
 	restAdapter := rest.New(rs)
@@ -121,33 +133,4 @@ func main() {
 		log.Fatalf("HTTP shutdown error: %v", err)
 	}
 	log.Println("Graceful shutdown complete.")
-}
-
-// initWeaviate initializes a weaviate client for our application.
-func initWeaviate(ctx context.Context) (*weaviate.Client, error) {
-	client, err := weaviate.NewClient(weaviate.Config{
-		Host:   "localhost:" + cmp.Or(os.Getenv("WVPORT"), "9035"),
-		Scheme: "http",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("initializing weaviate: %w", err)
-	}
-
-	// Create a new class (collection) in weaviate if it doesn't exist yet.
-	cls := &models.Class{
-		Class:      ragserver.DocumentClassName,
-		Vectorizer: "none",
-	}
-	exists, err := client.Schema().ClassExistenceChecker().WithClassName(cls.Class).Do(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("weaviate error: %w", err)
-	}
-	if !exists {
-		err = client.Schema().ClassCreator().WithClass(cls).Do(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("weaviate error: %w", err)
-		}
-	}
-
-	return client, nil
 }
