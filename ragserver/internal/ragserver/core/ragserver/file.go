@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,10 @@ import (
 	"github.com/gofrs/uuid/v5"
 
 	"github.com/RichardKnop/ai/ragserver/internal/pkg/authz"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 type FileID struct{ uuid.UUID }
@@ -75,10 +80,14 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")
 
 		var err error
-		aFile.Documents, err = rs.pdf.Extract(ctx, tempFile)
+		documents, err := rs.pdf.Extract(ctx, tempFile)
 		if err != nil {
 			return nil, fmt.Errorf("error processing PDF file: %w", err)
 		}
+		for i := 0; i < len(documents); i++ {
+			documents[i].FileID = aFile.ID
+		}
+		aFile.Documents = documents
 	case "image/jpeg", "image/png":
 		aFile.Extension = strings.TrimPrefix(contentType, "image/")
 
@@ -102,7 +111,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("image file processing not implemented yet")
 	}
 
-	//Use the batch embedding API to embed all documents at once.
+	// Use the batch embedding API to embed all documents at once.
 	vectors, err := rs.embedDocuments(ctx, aFile.Documents)
 	if err != nil {
 		return nil, fmt.Errorf("error generating vectors: %v", err)
@@ -111,7 +120,6 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	log.Printf("generated vectors: %d", len(vectors))
 
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		// TODO - add file reference to embeddings
 		if err := rs.saveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
 			return fmt.Errorf("error saving embeddings: %v", err)
 		}
@@ -141,6 +149,21 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 		return nil, err
 	}
 	return files, nil
+}
+
+func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id FileID) (*File, error) {
+	var file *File
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		var err error
+		file, err = rs.store.FindFile(ctx, id)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
 func (rs *ragServer) ExtractPDF(ctx context.Context, contents io.ReadSeeker) ([]Document, error) {

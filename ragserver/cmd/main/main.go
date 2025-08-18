@@ -33,8 +33,9 @@ import (
 var testEn string
 
 var (
-	port           = cmp.Or(os.Getenv("SERVERPORT"), "9020")
+	dbPath         = cmp.Or(os.Getenv("DB_PATH"), "db.sqlite")
 	migrationsPath = cmp.Or(os.Getenv("DB_MIGRATIONS_PATH"), "internal/db/migrations")
+	port           = cmp.Or(os.Getenv("SERVERPORT"), "9020")
 	address        = "localhost:" + port
 )
 
@@ -60,7 +61,7 @@ func main() {
 	}
 
 	// Connect to the database
-	db, err := sql.Open("sqlite3", "file:db.sqlite?mode=rwc&cache=shared")
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", dbPath))
 	if err != nil {
 		log.Fatal("db open: ", err)
 	}
@@ -134,7 +135,7 @@ func initWeaviate(ctx context.Context) (*weaviate.Client, error) {
 
 	// Create a new class (collection) in weaviate if it doesn't exist yet.
 	cls := &models.Class{
-		Class:      "Document",
+		Class:      ragserver.DocumentClassName,
 		Vectorizer: "none",
 	}
 	exists, err := client.Schema().ClassExistenceChecker().WithClassName(cls.Class).Do(ctx)

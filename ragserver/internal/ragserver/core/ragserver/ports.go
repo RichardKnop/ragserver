@@ -22,4 +22,5 @@ type Transactional interface {
 type FileStore interface {
 	SaveFile(ctx context.Context, file *File) error
 	ListFiles(ctx context.Context) ([]*File, error)
+	FindFile(ctx context.Context, id FileID) (*File, error)
 }

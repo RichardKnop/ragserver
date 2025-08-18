@@ -9,7 +9,8 @@ import (
 )
 
 type Document struct {
-	Text string `json:"text"`
+	Text   string `json:"text"`
+	FileID FileID `json:"-"`
 }
 
 func (rs *ragServer) CreateDocuments(ctx context.Context, principal authz.Principal, documents []Document) error {

@@ -30,14 +30,22 @@ type Response struct {
 	Metric float64   `json:"metric,omitempty"` // Only used for QueryTypeMetric
 }
 
-func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query) ([]Response, error) {
+func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query, fileIDs ...FileID) ([]Response, error) {
 	switch query.Type {
 	case QueryTypeText, QueryTypeMetric:
 	default:
 		return nil, fmt.Errorf("invalid query type: %s", query.Type)
 	}
 
-	log.Printf("received query: %s", query)
+	log.Printf("received query: %s, file IDs: %v", query, fileIDs)
+
+	// Check all file IDs exist in the database
+	for _, fileID := range fileIDs {
+		_, err := rs.store.FindFile(ctx, fileID)
+		if err != nil {
+			return nil, fmt.Errorf("error finding file: %v", err)
+		}
+	}
 
 	// Embed the query contents.
 	vector, err := rs.embedContent(ctx, query.Text)
@@ -103,9 +111,9 @@ func (rs *ragServer) generateResponses(ctx context.Context, query Query, context
 	var part string
 	switch query.Type {
 	case QueryTypeText:
-		part = fmt.Sprintf(ragTemplateStr, query, strings.Join(contexts, "\n"))
+		part = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
 	case QueryTypeMetric:
-		part = fmt.Sprintf(ragTemplateMetricValue, query, strings.Join(contexts, "\n"))
+		part = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
 	default:
 		return nil, fmt.Errorf("invalid query type")
 	}

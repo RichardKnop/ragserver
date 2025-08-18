@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/graphql"
 	"github.com/weaviate/weaviate/entities/models"
 	"google.golang.org/genai"
@@ -41,6 +42,8 @@ func (rs *ragServer) embedDocuments(ctx context.Context, documents []Document) (
 	return vectors, nil
 }
 
+const DocumentClassName = "Document"
+
 func (rs *ragServer) saveEmbeddings(ctx context.Context, documents []Document, vectors []Vector) error {
 	// Convert our documents - along with their embedding vectors - into types
 	// used by the Weaviate client library.
@@ -49,12 +52,16 @@ func (rs *ragServer) saveEmbeddings(ctx context.Context, documents []Document, v
 		if len(vectors[i]) == 0 {
 			return fmt.Errorf("empty vector")
 		}
+		properties := map[string]any{
+			"text": doc.Text,
+		}
+		if !doc.FileID.IsNil() {
+			properties["file_id"] = doc.FileID.String()
+		}
 		objects[i] = &models.Object{
-			Class: "Document",
-			Properties: map[string]any{
-				"text": doc.Text,
-			},
-			Vector: models.C11yVector(vectors[i]),
+			Class:      DocumentClassName,
+			Properties: properties,
+			Vector:     models.C11yVector(vectors[i]),
 		}
 	}
 
@@ -80,20 +87,38 @@ func (rs *ragServer) embedContent(ctx context.Context, content string) (Vector, 
 	return embedResponse.Embeddings[0].Values, nil
 }
 
-func (rs *ragServer) searchDocuments(ctx context.Context, vector Vector) ([]string, error) {
+func (rs *ragServer) searchDocuments(ctx context.Context, vector Vector, fileIDs ...FileID) ([]string, error) {
 	gql := rs.wvClient.GraphQL()
 	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(vector))
-	graphqlResponse, err := gql.Get().
+
+	builder := gql.Get().
 		WithNearVector(nearVector).
 		WithClassName("Document").
 		WithFields(graphql.Field{Name: "text"}).
-		WithLimit(3).
-		Do(ctx)
+		WithLimit(10)
+
+	if len(fileIDs) > 0 {
+		filter := filters.Where()
+		filter.WithOperator(filters.ContainsAny)
+		filter.WithPath([]string{"file_id"})
+		filter.WithValueString(fileIDsToStrings(fileIDs)...)
+		builder = builder.WithWhere(filter)
+	}
+
+	graphqlResponse, err := builder.Do(ctx)
 	if err := combinedWeaviateError(graphqlResponse, err); err != nil {
 		return nil, err
 	}
 
 	return decodeGetDocumentResults(graphqlResponse)
+}
+
+func fileIDsToStrings(fileIDs []FileID) []string {
+	ids := make([]string, 0, len(fileIDs))
+	for _, fileID := range fileIDs {
+		ids = append(ids, fileID.String())
+	}
+	return ids
 }
 
 // decodeGetResults decodes the result returned by Weaviate's GraphQL Get

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
@@ -27,10 +28,10 @@ func (q insertFileQuery) SQL() (string, []any) {
 }
 
 func (a *Adapter) SaveFile(ctx context.Context, file *ragserver.File) error {
-	if err := a.inTxDo(ctx, func(ctx context.Context, tx *sql.Tx) error {
-		sql, args := insertFileQuery{file}.SQL()
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		query, args := insertFileQuery{file}.SQL()
 
-		stmt, err := tx.Prepare(sql)
+		stmt, err := tx.Prepare(query)
 		if err != nil {
 			return fmt.Errorf("prepare statement failed: %w", err)
 		}
@@ -70,16 +71,17 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			"file_size", 
 			"created_at"
 		FROM "file"
+		ORDER BY "created_at" DESC
 	`, nil
 }
 
 func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
 	var files []*ragserver.File
 
-	if err := a.inTxDo(ctx, func(ctx context.Context, tx *sql.Tx) error {
-		sql, args := selectFilesQuery{}.SQL()
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		query, args := selectFilesQuery{}.SQL()
 
-		rows, err := tx.QueryContext(ctx, sql, args...)
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return fmt.Errorf("query failed: %w", err)
 		}
@@ -106,4 +108,55 @@ func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
 	}
 
 	return files, nil
+}
+
+type findFileQuery struct {
+	id ragserver.FileID
+}
+
+func (q findFileQuery) SQL() (string, []any) {
+	return `
+		SELECT 
+			"id", 
+			"file_name", 
+			"mime_type", 
+			"extension", 
+			"file_size", 
+			"created_at"
+		FROM "file" where "id" = ?
+	`, []any{q.id}
+}
+
+func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver.File, error) {
+	var file = new(ragserver.File)
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		query, args := findFileQuery{id: id}.SQL()
+
+		stmt, err := tx.Prepare(query)
+		if err != nil {
+			return fmt.Errorf("prepare statement failed: %w", err)
+		}
+		defer stmt.Close()
+
+		row := stmt.QueryRowContext(ctx, args...)
+		if err := row.Scan(
+			&file.ID,
+			&file.FileName,
+			&file.MimeType,
+			&file.Extension,
+			&file.Size,
+			&file.CreatedAt,
+		); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ragserver.ErrNotFound
+			}
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }

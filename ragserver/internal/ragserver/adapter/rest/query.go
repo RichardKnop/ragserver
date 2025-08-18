@@ -4,12 +4,15 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gofrs/uuid/v5"
+
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
 
 type QueryRequest struct {
-	Content string              `json:"content"`
-	Type    ragserver.QueryType `json:"type"`
+	Content string   `json:"content"`
+	Type    string   `json:"type"`
+	FileIDs []string `json:"file_ids"`
 }
 
 type QueryResponse struct {
@@ -28,10 +31,30 @@ func (a *Adapter) queryHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	responses, err := a.ragServer.Generate(ctx, principal, ragserver.Query{
-		Type: qr.Type,
-		Text: qr.Content,
-	})
+	var (
+		query = ragserver.Query{
+			Type: ragserver.QueryType(qr.Type),
+			Text: qr.Content,
+		}
+		fileIDs []ragserver.FileID
+	)
+
+	for _, id := range qr.FileIDs {
+		fileID, err := uuid.FromString(id)
+		if err != nil {
+			log.Printf("invalid file ID: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		fileIDs = append(fileIDs, ragserver.FileID{fileID})
+	}
+
+	if len(fileIDs) == 0 {
+		http.Error(w, "missing file_ids", http.StatusBadRequest)
+		return
+	}
+
+	responses, err := a.ragServer.Generate(ctx, principal, query, fileIDs...)
 	if err != nil {
 		log.Printf("error generating response: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

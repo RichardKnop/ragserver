@@ -1,8 +1,11 @@
 package rest
 
 import (
+	"errors"
 	"log"
 	"net/http"
+
+	"github.com/gofrs/uuid/v5"
 
 	"github.com/RichardKnop/ai/ragserver/internal/ragserver/core/ragserver"
 )
@@ -48,7 +51,7 @@ type FilesResponse struct {
 	Files []*ragserver.File `json:"files"`
 }
 
-func (a *Adapter) listFileHandler(w http.ResponseWriter, req *http.Request) {
+func (a *Adapter) listFilesHandler(w http.ResponseWriter, req *http.Request) {
 	var (
 		ctx       = req.Context()
 		principal = a.principalFromRequest(req)
@@ -64,4 +67,31 @@ func (a *Adapter) listFileHandler(w http.ResponseWriter, req *http.Request) {
 	renderJSON(w, FilesResponse{
 		Files: files,
 	})
+}
+
+func (a *Adapter) getFileHandler(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx       = req.Context()
+		principal = a.principalFromRequest(req)
+	)
+
+	id, err := uuid.FromString(req.PathValue("id"))
+	if err != nil {
+		log.Printf("invalid file ID: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	file, err := a.ragServer.FindFile(ctx, principal, ragserver.FileID{id})
+	if err != nil {
+		if errors.Is(err, ragserver.ErrNotFound) {
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("error finding file: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	renderJSON(w, file)
 }
