@@ -1,6 +1,16 @@
-# RAG (Retrieval-Augmented Generation) Server
+# RAG Server
 
 > RAG (Retrieval-Augmented Generation) is an AI framework that combines the strengths of traditional information retrieval systems (such as search and databases) with the capabilities of generative large language models (LLMs).
+
+- [RAG Server](#rag-server)
+  - [Setup](#setup)
+    - [Prerequisites](#prerequisites)
+    - [Weaviate](#weaviate)
+    - [Database](#database)
+  - [API](#api)
+  - [Examples](#examples)
+    - [Adding Data To Knowledge Base](#adding-data-to-knowledge-base)
+    - [Querying LLM For Answers](#querying-llm-for-answers)
 
 ## Setup
 
@@ -38,17 +48,15 @@ Show all objects in the database:
 ./scripts/weaviate-show-all.sh
 ```
 
-To disable Weaviate's telemetry, add this environment variable:
-
-```sh
-DISABLE_TELEMETRY=true
-```
-
 ### Database
 
 When you ran the application, it will create a new `db.sqlite` database. You can change the database location by setting `DB_PATH` environment variable.
 
-## RAG Server
+## API
+
+See the [OpenAPI spec](/api/api.yaml) for API reference.
+
+## Examples
 
 Start the server (specify your `GEMINI_API_KEY` env var in .env file):
 
@@ -76,8 +84,6 @@ You can list all current files:
 
 ### Querying LLM For Answers
 
-#### Request
-
 A query request looks like this:
 
 ```json
@@ -95,8 +101,6 @@ A query request looks like this:
 | type     | Can be either `metric` or `text`. More types will be added later. |
 | content  | The question you want to ask the LLM. |
 | file_ids | Array of file IDs that you want to use as additional context. |
-
-#### Example
 
 For content, you could choose some of these example ESG related questions:
 
