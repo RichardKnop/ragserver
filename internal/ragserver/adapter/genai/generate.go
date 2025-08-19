@@ -66,6 +66,8 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		return nil, fmt.Errorf("invalid query type")
 	}
 
+	log.Println("genai prompt:", prompt)
+
 	resp, err := a.client.Models.GenerateContent(
 		ctx,
 		a.generativeModelName,

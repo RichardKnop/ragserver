@@ -3,7 +3,9 @@ package ragserver
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +19,11 @@ import (
 	"github.com/gofrs/uuid/v5"
 
 	"github.com/RichardKnop/ragserver/internal/pkg/authz"
+)
+
+const (
+	MB          = 1 << 20
+	MaxFileSize = 20 * MB
 )
 
 var ErrNotFound = errors.New("not found")
@@ -33,6 +40,7 @@ type File struct {
 	MimeType  string
 	Extension string
 	Size      int64
+	Hash      string
 	CreatedAt time.Time
 	Documents []Document
 }
@@ -60,7 +68,9 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 
 	log.Printf("uploading file: %s, size: %d, mime header: %v", header.Filename, header.Size, header.Header)
 
-	fileSize, err := io.Copy(bufio.NewWriter(tempFile), file)
+	hashWriter := sha256.New()
+	newReader := io.TeeReader(file, hashWriter)
+	fileSize, err := io.Copy(bufio.NewWriter(tempFile), newReader)
 	if err != nil {
 		return nil, fmt.Errorf("error copying to temp file: %w", err)
 	}
@@ -70,6 +80,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		FileName:  header.Filename,
 		MimeType:  contentType,
 		Size:      fileSize,
+		Hash:      hex.EncodeToString(hashWriter.Sum(nil)),
 		CreatedAt: rs.now(),
 	}
 

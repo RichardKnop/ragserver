@@ -21,10 +21,11 @@ func (q insertFileQuery) SQL() (string, []any) {
 			"mime_type", 
 			"extension",
 			"file_size", 
+			"file_hash",
 			"created_at"
 		)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, []any{q.ID, q.FileName, q.MimeType, q.Extension, q.Size, q.CreatedAt}
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, []any{q.ID, q.FileName, q.MimeType, q.Extension, q.Size, q.Hash, q.CreatedAt}
 }
 
 func (a *Adapter) SaveFile(ctx context.Context, file *ragserver.File) error {
@@ -68,6 +69,7 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			"mime_type", 
 			"extension", 
 			"file_size", 
+			"file_hash",
 			"created_at"
 		FROM "file"
 		ORDER BY "created_at" DESC
@@ -94,6 +96,7 @@ func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
 				&file.MimeType,
 				&file.Extension,
 				&file.Size,
+				&file.Hash,
 				&file.CreatedAt,
 			); err != nil {
 				return fmt.Errorf("scan failed: %w", err)
@@ -121,6 +124,7 @@ func (q findFileQuery) SQL() (string, []any) {
 			"mime_type", 
 			"extension", 
 			"file_size", 
+			"file_hash",
 			"created_at"
 		FROM "file" where "id" = ?
 	`, []any{q.id}
@@ -144,6 +148,7 @@ func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver
 			&file.MimeType,
 			&file.Extension,
 			&file.Size,
+			&file.Hash,
 			&file.CreatedAt,
 		); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {

@@ -13,11 +13,6 @@ import (
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
-const (
-	MB          = 1 << 20
-	MaxFileSize = 20 * MB
-)
-
 // Upload a file and add documents extracted from it to the knowledge base
 // (POST /files)
 func (a *Adapter) UploadFile(w http.ResponseWriter, r *http.Request) {
@@ -27,11 +22,11 @@ func (a *Adapter) UploadFile(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// Limit memory usage to 20MB, anythin over this limit will be stored in a temporary file.
-	r.ParseMultipartForm(MaxFileSize)
+	r.ParseMultipartForm(ragserver.MaxFileSize)
 
 	// Limit the size of the request body to prevent large uploads. This will return
 	// io.MaxBytesError if the request body exceeds the limit while being read.
-	r.Body = http.MaxBytesReader(w, r.Body, MaxFileSize)
+	r.Body = http.MaxBytesReader(w, r.Body, ragserver.MaxFileSize)
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -57,6 +52,7 @@ func mapFile(file *ragserver.File) api.File {
 		MimeType:  file.MimeType,
 		Extension: file.Extension,
 		Size:      file.Size,
+		Hash:      file.Hash,
 		CreatedAt: file.CreatedAt,
 	}
 }

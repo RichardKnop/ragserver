@@ -41,6 +41,7 @@ type File struct {
 	CreatedAt time.Time `json:"created_at"`
 	Extension string    `json:"extension"`
 	FileName  string    `json:"file_name"`
+	Hash      string    `json:"hash"`
 	Id        string    `json:"id"`
 	MimeType  string    `json:"mime_type"`
 	Size      int64     `json:"size"`

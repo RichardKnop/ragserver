@@ -118,6 +118,7 @@ components:
         - mime_type
         - extension
         - size
+        - hash
         - created_at
       properties:
         id:
@@ -132,6 +133,8 @@ components:
         size:
           type: integer
           format: int64
+        hash:
+          type: string
         created_at:
           type: string
           format: date-time

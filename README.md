@@ -117,7 +117,7 @@ You also probably want to specify year. For example:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-        "9b6c39ab-d471-4240-9185-99de92a99550"
+        "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
     ]
 }
 EOF
@@ -140,7 +140,7 @@ Example response:
   "question": {
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
     "file_ids": [
-      "9b6c39ab-d471-4240-9185-99de92a99550"
+      "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
     ],
     "type": "metric"
   }
@@ -163,7 +163,7 @@ If you ask a question model cannot answer from the provided context, it will sim
   "question": {
     "content": "What color is my hair?",
     "file_ids": [
-      "9b6c39ab-d471-4240-9185-99de92a99550"
+      "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
     ],
     "type": "metric"
   }
