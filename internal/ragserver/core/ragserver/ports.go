@@ -17,7 +17,7 @@ type WeaviateAdapter interface {
 	SearchDocuments(ctx context.Context, vector Vector, fileIDs ...FileID) ([]Document, error)
 }
 
-type PDF interface {
+type ExtractAdapter interface {
 	Extract(ctx context.Context, contents io.ReadSeeker) ([]Document, error)
 }
 

@@ -1,9 +1,14 @@
 package ragserver
 
 import (
+	"errors"
 	"time"
 
 	"github.com/neurosnap/sentences"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 type clock func() time.Time
@@ -12,19 +17,19 @@ type ragServer struct {
 	genai    GenaiAdapter
 	training *sentences.Storage
 	weaviate WeaviateAdapter
-	pdf      PDF
+	extract  ExtractAdapter
 	store    Store
 	now      clock
 }
 
 type Option func(*ragServer)
 
-func New(gAdapter GenaiAdapter, wvAdapter WeaviateAdapter, training *sentences.Storage, pdfAdapter PDF, storeAdapter Store, options ...Option) *ragServer {
+func New(gAdapter GenaiAdapter, wvAdapter WeaviateAdapter, training *sentences.Storage, extractAdapter ExtractAdapter, storeAdapter Store, options ...Option) *ragServer {
 	rs := &ragServer{
 		genai:    gAdapter,
 		weaviate: wvAdapter,
 		training: training,
-		pdf:      pdfAdapter,
+		extract:  extractAdapter,
 		store:    storeAdapter,
 		now:      time.Now,
 	}

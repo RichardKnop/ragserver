@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,8 +24,6 @@ const (
 	MB          = 1 << 20
 	MaxFileSize = 20 * MB
 )
-
-var ErrNotFound = errors.New("not found")
 
 type FileID struct{ uuid.UUID }
 
@@ -84,7 +81,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		CreatedAt: rs.now(),
 	}
 
-	// TODO - use document understandingvision to parse the PDF, not the hacky PDF adapter
+	// TODO - use document vision to parse the PDF, not the hacky PDF adapter
 	// https://ai.google.dev/gemini-api/docs/document-processing
 
 	switch contentType {
@@ -92,7 +89,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")
 
 		var err error
-		documents, err := rs.pdf.Extract(ctx, tempFile)
+		documents, err := rs.extract.Extract(ctx, tempFile)
 		if err != nil {
 			return nil, fmt.Errorf("error processing PDF file: %w", err)
 		}
@@ -176,10 +173,6 @@ func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id
 		return nil, err
 	}
 	return file, nil
-}
-
-func (rs *ragServer) ExtractPDF(ctx context.Context, contents io.ReadSeeker) ([]Document, error) {
-	return rs.pdf.Extract(ctx, contents)
 }
 
 var allowedContentTypes = map[string]struct{}{
