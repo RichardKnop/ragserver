@@ -1,16 +1,25 @@
 # RAG Server
 
+What is a RAG server?
+
 > RAG (Retrieval-Augmented Generation) is an AI framework that combines the strengths of traditional information retrieval systems (such as search and databases) with the capabilities of generative large language models (LLMs).
 
+This project is a generic RAG server that can be used to answer questions about any document. However I am mainly using ESG documents to test which is why examples are about scope 1 and 2 emissions, net zero targets etc. 
+
+I have implemented a bit of ESG specific code in the PDF adapter to try to extract yearly tables from the documents (this type of tables often appears in ESG reports). I might eventually remove that part as I am planning to switch to Google's document vision for PDF extraction instead of doing it in code. Or  I might use something like a simple factory pattern to support multiple ways of extracting data from PDFs.
+
+## Table of Contents
+
 - [RAG Server](#rag-server)
+  - [Table of Contents](#table-of-contents)
   - [Setup](#setup)
     - [Prerequisites](#prerequisites)
     - [Weaviate](#weaviate)
     - [Database](#database)
   - [API](#api)
-  - [Examples](#examples)
-    - [Adding Data To Knowledge Base](#adding-data-to-knowledge-base)
-    - [Querying LLM For Answers](#querying-llm-for-answers)
+  - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
+  - [Querying LLM For Answers](#querying-llm-for-answers)
+    - [Metric Query](#metric-query)
 
 ## Setup
 
@@ -56,8 +65,6 @@ When you ran the application, it will create a new `db.sqlite` database. You can
 
 See the [OpenAPI spec](/api/api.yaml) for API reference.
 
-## Examples
-
 Start the server (specify your `GEMINI_API_KEY` env var in .env file):
 
 ```sh
@@ -65,7 +72,7 @@ source .env
 make run
 ```
 
-### Adding Data To Knowledge Base
+## Adding Documents To Knowledge Base
 
 Upload PDF files which will be used to extract documents:
 
@@ -82,7 +89,7 @@ You can list all current files:
 ./scripts/list-files.sh
 ```
 
-### Querying LLM For Answers
+## Querying LLM For Answers
 
 A query request looks like this:
 
@@ -104,12 +111,12 @@ A query request looks like this:
 
 For content, you could choose some of these example ESG related questions:
 
-1. *What was the company's location-based Scope 2 emissions value (in tCO2e)?*
-2. *What was the company's location-based Scope 2 emissions value (in tCO2e)?*
-3. *What was the company's market-based Scope 2 emissions value (in tCO2e)?*
-4. *What is the company's specified net zero target year?*
+1. *What was the company's location-based Scope 2 emissions value (in tCO2e) in 2022?*
+2. *What was the company's location-based Scope 2 emissions value (in tCO2e) in 2022?*
+3. *What was the company's market-based Scope 2 emissions value (in tCO2e) in 2022?*
+4. *What is the company's specified net zero target year in 2022?*
 
-You also probably want to specify year. For example:
+### Metric Query
 
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
@@ -147,7 +154,7 @@ Example response:
 }
 ```
 
-If you ask a question model cannot answer from the provided context, it will simply return empyty answer
+If you ask a question model cannot answer from the provided context, it will simply return an empty answer
 
 ```json
 {
