@@ -3,19 +3,6 @@ info:
   version: 1.0.0
   title: RAG Server API
 paths:
-  /documents:
-    post:
-      summary: Add documents to the knowledge base
-      operationId: addDocuments
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Documents"
-      responses:
-        "201":
-          description: Created
   /files:
     post:
       summary: Upload a file and add documents extracted from it to the knowledge base
@@ -85,22 +72,6 @@ paths:
 
 components:
   schemas:
-    Documents: 
-      type: object
-      required:
-        - documents
-      properties:
-        documents:
-          type: array
-          items:
-            $ref: "#/components/schemas/Document"
-    Document:
-      type: object
-      required:
-        - text
-      properties:
-        text:
-          type: string
     Files: 
       type: object
       required:
@@ -123,7 +94,7 @@ components:
       properties:
         id:
           type: string
-          fomat: uuid
+          format: uuid
         file_name:
           type: string
         mime_type:
@@ -172,12 +143,33 @@ components:
       type: object
       required:
         - text
+        - evidence
       properties:
         text:
           type: string
         metric:
           type: object
           $ref: "#/components/schemas/MetricValue"
+        evidence:
+          type: array
+          items:
+            type: object
+            $ref: "#/components/schemas/Evidence"
+    Evidence:
+      type: object
+      required:
+        - file_id
+        - page
+        - text
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        page:
+          type: integer
+          format: int32
+        text:
+          type: string
     MetricValue:
       type: object
       required:

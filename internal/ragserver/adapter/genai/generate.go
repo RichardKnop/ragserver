@@ -2,9 +2,11 @@ package genai
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"google.golang.org/genai"
@@ -17,6 +19,12 @@ var (
 		Type: genai.TypeObject,
 		Properties: map[string]*genai.Schema{
 			"text": {Type: genai.TypeString},
+			"relevant_documents": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeInteger,
+				},
+			},
 		},
 	}
 
@@ -31,9 +39,20 @@ var (
 					"unit":  {Type: genai.TypeString},
 				},
 			},
+			"relevant_documents": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+			},
 		},
 	}
 )
+
+type Response struct {
+	ragserver.Response
+	RelevantDocuments []string `json:"relevant_documents"`
+}
 
 func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
 	config := &genai.GenerateContentConfig{
@@ -45,7 +64,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
-		contexts = append(contexts, doc.Text)
+		contexts = append(contexts, strconv.Quote(doc.Text))
 	}
 
 	switch query.Type {
@@ -83,10 +102,26 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	log.Println("genai response:", resp.Text())
 
-	response := ragserver.Response{}
+	response := Response{}
 	if err := json.Unmarshal([]byte(resp.Text()), &response); err != nil {
 		return nil, fmt.Errorf("unmarshalling response: %v", err)
 	}
 
-	return []ragserver.Response{response}, nil
+	documentMap := make(map[string]ragserver.Document)
+	for _, doc := range documents {
+		hash := md5.Sum([]byte(doc.Text))
+		documentMap[string(hash[:])] = doc
+	}
+
+	for _, docTxt := range response.RelevantDocuments {
+		hash := md5.Sum([]byte(docTxt))
+		doc, ok := documentMap[string(hash[:])]
+		if !ok {
+			log.Printf("could not find document for: %s", docTxt)
+			continue
+		}
+		response.Documents = append(response.Documents, doc)
+	}
+
+	return []ragserver.Response{response.Response}, nil
 }

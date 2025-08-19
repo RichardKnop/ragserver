@@ -47,7 +47,7 @@ func (a *Adapter) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 func mapFile(file *ragserver.File) api.File {
 	return api.File{
-		Id:        file.ID.String(),
+		Id:        openapi_types.UUID(file.ID.UUID[0:16]),
 		FileName:  file.FileName,
 		MimeType:  file.MimeType,
 		Extension: file.Extension,

@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"mime"
 	"net/http"
 )
@@ -29,6 +30,7 @@ func readRequestJSON(req *http.Request, target any) error {
 func renderJSON(w http.ResponseWriter, v any) {
 	js, err := json.Marshal(v)
 	if err != nil {
+		log.Printf("error marshalling JSON: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -41,6 +43,7 @@ func renderJSONError(w http.ResponseWriter, code int, message error) {
 		"error": message.Error(),
 	})
 	if err != nil {
+		log.Printf("error marshalling JSON: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

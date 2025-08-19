@@ -28,8 +28,9 @@ type MetricValue struct {
 }
 
 type Response struct {
-	Text   string      `json:"text"`
-	Metric MetricValue `json:"metric"`
+	Text      string      `json:"text"`
+	Metric    MetricValue `json:"metric"`
+	Documents []Document  `json:"-"`
 }
 
 func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query, fileIDs ...FileID) ([]Response, error) {

@@ -27,7 +27,7 @@ type extractor struct {
 	showPageNumbers      bool
 }
 
-func (e *extractor) extractText(data io.ReadSeeker) ([]byte, int, error) {
+func (e *extractor) extractText(data io.ReadSeeker) ([]*bytes.Buffer, int, error) {
 	r, err := pdf.NewReader(data, nil)
 	if err != nil {
 		return nil, 0, err
@@ -49,7 +49,8 @@ func (e *extractor) extractText(data io.ReadSeeker) ([]byte, int, error) {
 	extraTextCache := make(map[font.Embedded]map[cid.CID]string)
 	spaceWidth := make(map[font.Embedded]float64)
 
-	w := bytes.NewBuffer(nil)
+	var w *bytes.Buffer
+	buffers := make([]*bytes.Buffer, 0, endPage-startPage+1)
 
 	contents := reader.New(r, nil)
 	contents.TextEvent = func(op reader.TextEvent, arg float64) {
@@ -98,6 +99,9 @@ func (e *extractor) extractText(data io.ReadSeeker) ([]byte, int, error) {
 			return nil, 0, err
 		}
 
+		w = bytes.NewBuffer(nil)
+		buffers = append(buffers, w)
+
 		if e.showPageNumbers {
 			fmt.Fprintln(w, "Page", pageNo)
 			fmt.Fprintln(w)
@@ -110,7 +114,8 @@ func (e *extractor) extractText(data io.ReadSeeker) ([]byte, int, error) {
 
 		fmt.Fprintln(w)
 	}
-	return w.Bytes(), numPages, nil
+
+	return buffers, numPages, nil
 }
 
 func getSpaceWidth(F font.Embedded) float64 {

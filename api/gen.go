@@ -22,29 +22,27 @@ const (
 
 // Answer defines model for Answer.
 type Answer struct {
-	Metric *MetricValue `json:"metric,omitempty"`
-	Text   string       `json:"text"`
+	Evidence []Evidence   `json:"evidence"`
+	Metric   *MetricValue `json:"metric,omitempty"`
+	Text     string       `json:"text"`
 }
 
-// Document defines model for Document.
-type Document struct {
-	Text string `json:"text"`
-}
-
-// Documents defines model for Documents.
-type Documents struct {
-	Documents []Document `json:"documents"`
+// Evidence defines model for Evidence.
+type Evidence struct {
+	FileId openapi_types.UUID `json:"file_id"`
+	Page   int32              `json:"page"`
+	Text   string             `json:"text"`
 }
 
 // File defines model for File.
 type File struct {
-	CreatedAt time.Time `json:"created_at"`
-	Extension string    `json:"extension"`
-	FileName  string    `json:"file_name"`
-	Hash      string    `json:"hash"`
-	Id        string    `json:"id"`
-	MimeType  string    `json:"mime_type"`
-	Size      int64     `json:"size"`
+	CreatedAt time.Time          `json:"created_at"`
+	Extension string             `json:"extension"`
+	FileName  string             `json:"file_name"`
+	Hash      string             `json:"hash"`
+	Id        openapi_types.UUID `json:"id"`
+	MimeType  string             `json:"mime_type"`
+	Size      int64              `json:"size"`
 }
 
 // Files defines model for Files.
@@ -79,9 +77,6 @@ type UploadFileMultipartBody struct {
 	File *openapi_types.File `json:"file,omitempty"`
 }
 
-// AddDocumentsJSONRequestBody defines body for AddDocuments for application/json ContentType.
-type AddDocumentsJSONRequestBody = Documents
-
 // UploadFileMultipartRequestBody defines body for UploadFile for multipart/form-data ContentType.
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
@@ -90,9 +85,6 @@ type QueryJSONRequestBody = Question
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Add documents to the knowledge base
-	// (POST /documents)
-	AddDocuments(w http.ResponseWriter, r *http.Request)
 	// List uploaded files
 	// (GET /files)
 	ListFiles(w http.ResponseWriter, r *http.Request)
@@ -115,20 +107,6 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
-
-// AddDocuments operation middleware
-func (siw *ServerInterfaceWrapper) AddDocuments(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddDocuments(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
 
 // ListFiles operation middleware
 func (siw *ServerInterfaceWrapper) ListFiles(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +295,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("POST "+options.BaseURL+"/documents", wrapper.AddDocuments)
 	m.HandleFunc("GET "+options.BaseURL+"/files", wrapper.ListFiles)
 	m.HandleFunc("POST "+options.BaseURL+"/files", wrapper.UploadFile)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}", wrapper.GetFileById)

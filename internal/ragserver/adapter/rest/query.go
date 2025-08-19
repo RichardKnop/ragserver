@@ -20,8 +20,8 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		principal = a.principalFromRequest(r)
 	)
 
-	apiRequest := new(api.Question)
-	if err := readRequestJSON(r, apiRequest); err != nil {
+	apiRequest := api.Question{}
+	if err := readRequestJSON(r, &apiRequest); err != nil {
 		renderJSONError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -49,7 +49,7 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderJSON(w, mapResponse(*apiRequest, responses))
+	renderJSON(w, mapResponse(apiRequest, responses))
 }
 
 func mapOpenApiFileIDs(ids []openapi_types.UUID) ([]ragserver.FileID, error) {
@@ -70,16 +70,24 @@ func mapResponse(question api.Question, responses []ragserver.Response) api.Resp
 		Answers:  make([]api.Answer, 0, len(responses)),
 	}
 	for _, response := range responses {
-		answerItem := api.Answer{
+		answer := api.Answer{
 			Text: response.Text,
 		}
 		if question.Type == api.QuestionType(ragserver.QueryTypeMetric) {
-			answerItem.Metric = &api.MetricValue{
+			answer.Metric = &api.MetricValue{
 				Value: response.Metric.Value,
 				Unit:  api.String(response.Metric.Unit),
 			}
 		}
-		apiResponse.Answers = append(apiResponse.Answers, answerItem)
+		answer.Evidence = make([]api.Evidence, 0, len(response.Documents))
+		for _, doc := range response.Documents {
+			answer.Evidence = append(answer.Evidence, api.Evidence{
+				FileId: openapi_types.UUID(doc.FileID.UUID[0:16]),
+				Page:   int32(doc.Page),
+				Text:   doc.Text,
+			})
+		}
+		apiResponse.Answers = append(apiResponse.Answers, answer)
 	}
 	return apiResponse
 }

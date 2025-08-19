@@ -7,6 +7,7 @@ echo '{
     Get {
       Document { 
         text
+        page
         file_id
       }
     }

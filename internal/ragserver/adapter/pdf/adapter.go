@@ -39,7 +39,7 @@ func New(training *sentences.Storage, options ...Option) *Adapter {
 }
 
 func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragserver.Document, error) {
-	text, numPages, err := a.extractor.extractText(tempFile)
+	pageBytes, numPages, err := a.extractor.extractText(tempFile)
 	if err != nil {
 		return nil, err
 	}
@@ -63,53 +63,67 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragser
 
 	// Create the default sentence tokenizer
 	tokenizer := sentences.NewSentenceTokenizer(a.training)
-	sentences := tokenizer.Tokenize(string(text))
-	documents := make([]ragserver.Document, 0, len(sentences))
-
-	log.Printf("tokenized sentences: %d", len(sentences))
+	documents := make([]ragserver.Document, 0, 100)
 
 	var (
 		numTables       int
 		scopeRelevant   int
 		netZeroRelevant int
 	)
-	for _, aSentence := range sentences {
-		var (
-			scopeRelated   = isScopeRelated(aSentence.Text)
-			netZeroRelated = isNetZeroRelated(aSentence.Text)
-		)
-		if !scopeRelated && !netZeroRelated {
-			continue
-		}
 
-		if netZeroRelated {
-			netZeroRelevant += 1
-			documents = append(documents, ragserver.Document{Text: aSentence.Text})
-			continue
-		}
-
-		scopeRelevant += 1
-
-		// In case of scope-related sentence, we want to first try to extract yearly scope tables,
-		// to get better context for the LLM. These are tables with years as columns and categories
-		// as rows, with numeric values for each year.
-		tables, err := NewTables(aSentence.Text)
-		if err != nil {
-			documents = append(documents, ragserver.Document{Text: aSentence.Text})
-			continue
-		}
-
-		if len(tables) > 0 {
-			numTables += len(tables)
-			for _, aTable := range tables {
-				tableContexts := aTable.ToContexts()
-				log.Printf("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
-				for _, aContext := range tableContexts {
-					documents = append(documents, ragserver.Document{Text: aContext})
-				}
+	for i, page := range pageBytes {
+		pageNum := i + 1
+		log.Printf("processing page %d/%d", pageNum, numPages)
+		for _, aSentence := range tokenizer.Tokenize(page.String()) {
+			var (
+				scopeRelated   = isScopeRelated(aSentence.Text)
+				netZeroRelated = isNetZeroRelated(aSentence.Text)
+			)
+			if !scopeRelated && !netZeroRelated {
+				continue
 			}
-		} else {
-			documents = append(documents, ragserver.Document{Text: aSentence.Text})
+
+			if netZeroRelated {
+				netZeroRelevant += 1
+				documents = append(documents, ragserver.Document{
+					Text: aSentence.Text,
+					Page: i + 1,
+				})
+				continue
+			}
+
+			scopeRelevant += 1
+
+			// In case of scope-related sentence, we want to first try to extract yearly scope tables,
+			// to get better context for the LLM. These are tables with years as columns and categories
+			// as rows, with numeric values for each year.
+			tables, err := NewTables(aSentence.Text)
+			if err != nil {
+				documents = append(documents, ragserver.Document{
+					Text: aSentence.Text,
+					Page: i + 1,
+				})
+				continue
+			}
+
+			if len(tables) > 0 {
+				numTables += len(tables)
+				for _, aTable := range tables {
+					tableContexts := aTable.ToContexts()
+					log.Printf("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
+					for _, aContext := range tableContexts {
+						documents = append(documents, ragserver.Document{
+							Text: aContext,
+							Page: i + 1,
+						})
+					}
+				}
+			} else {
+				documents = append(documents, ragserver.Document{
+					Text: aSentence.Text,
+					Page: i + 1,
+				})
+			}
 		}
 	}
 

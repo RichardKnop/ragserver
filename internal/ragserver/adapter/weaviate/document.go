@@ -23,6 +23,7 @@ func (a *Adapter) SaveEmbeddings(ctx context.Context, documents []ragserver.Docu
 		}
 		properties := map[string]any{
 			"text": doc.Text,
+			"page": doc.Page,
 		}
 		if !doc.FileID.IsNil() {
 			properties["file_id"] = doc.FileID.String()
@@ -51,7 +52,11 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 	builder := gql.Get().
 		WithNearVector(nearVector).
 		WithClassName("Document").
-		WithFields(graphql.Field{Name: "text"}, graphql.Field{Name: "file_id"}).
+		WithFields(
+			graphql.Field{Name: "text"},
+			graphql.Field{Name: "page"},
+			graphql.Field{Name: "file_id"},
+		).
 		WithLimit(10)
 
 	if len(fileIDs) > 0 {
@@ -104,18 +109,23 @@ func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]ragser
 		}
 		text, ok := smap["text"].(string)
 		if !ok {
-			return nil, fmt.Errorf("expected string in list of documents")
+			return nil, fmt.Errorf("expected text in document")
+		}
+		page, ok := smap["page"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("expected page in document")
 		}
 		id, ok := smap["file_id"].(string)
 		if !ok {
-			return nil, fmt.Errorf("expected file_id in list of documents")
+			return nil, fmt.Errorf("expected file_id in document")
 		}
 		fileID, err := uuid.FromString(id)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file_id in list of documents: %w", err)
+			return nil, fmt.Errorf("invalid file_id in document: %w", err)
 		}
 		out = append(out, ragserver.Document{
 			Text:   text,
+			Page:   int(page),
 			FileID: ragserver.FileID{UUID: fileID},
 		})
 	}

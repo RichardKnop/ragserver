@@ -98,7 +98,8 @@ A query request looks like this:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
     "file_ids": [
-        "0fc23ec0-0398-4be2-a266-8eb14a56323f"
+        "ddb80580-019a-4866-a968-c028216dde90",
+        "f58602b9-0d91-490d-b472-320565cef4df"
     ]
 }
 ```
@@ -124,7 +125,8 @@ For content, you could choose some of these example ESG related questions:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-        "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
+        "ddb80580-019a-4866-a968-c028216dde90",
+        "f58602b9-0d91-490d-b472-320565cef4df"
     ]
 }
 EOF
@@ -137,6 +139,18 @@ Example response:
 {
   "answers": [
     {
+      "evidence": [
+        {
+          "file_id": "f58602b9-0d91-490d-b472-320565cef4df",
+          "page": 3,
+          "text": "Scope 1 and Scope 2 (location & market based) Emissions (MTCO2e): Total Scope 1 for year 2022 is 77476"
+        },
+        {
+          "file_id": "ddb80580-019a-4866-a968-c028216dde90",
+          "page": 43,
+          "text": "Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2022 is 77476 MTCO2e"
+        }
+      ],
       "metric": {
         "unit": "tCO2e",
         "value": 77476
@@ -147,7 +161,8 @@ Example response:
   "question": {
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
     "file_ids": [
-      "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
+      "ddb80580-019a-4866-a968-c028216dde90",
+      "f58602b9-0d91-490d-b472-320565cef4df"
     ],
     "type": "metric"
   }
@@ -160,6 +175,7 @@ If you ask a question model cannot answer from the provided context, it will sim
 {
   "answers": [
     {
+      "evidence": [],
       "metric": {
         "unit": "",
         "value": 0

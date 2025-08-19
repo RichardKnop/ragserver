@@ -13,7 +13,6 @@ import (
 )
 
 type RagServer interface {
-	CreateDocuments(ctx context.Context, principal authz.Principal, documents []ragserver.Document) error
 	CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*ragserver.File, error)
 	ListFiles(ctx context.Context, principal authz.Principal) ([]*ragserver.File, error)
 	FindFile(ctx context.Context, principal authz.Principal, id ragserver.FileID) (*ragserver.File, error)
