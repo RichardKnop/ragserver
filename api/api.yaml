@@ -1,0 +1,178 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: RAG Server API
+paths:
+  /documents:
+    post:
+      summary: Add documents to the knowledge base
+      operationId: addDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Documents"
+      responses:
+        "201":
+          description: Created
+  /files:
+    post:
+      summary: Upload a file and add documents extracted from it to the knowledge base
+      operationId: uploadFile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: A single file object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+    get:
+      summary: List uploaded files
+      operationId: listFiles
+      responses:
+        "200":
+          description: Array of file objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Files"
+  /files/{id}:
+    get:
+      summary: Get a single file by ID
+      operationId: getFileById
+      parameters:
+        - name: id
+          in: path
+          description: File ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A single file object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/File"
+  /query:
+    post:
+      summary: Query the RAG server.
+      operationId: query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Query"
+      responses:
+        "200":
+          description: Responses to the query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Responses"
+
+components:
+  schemas:
+    Documents: 
+      type: object
+      required:
+        - documents
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+    Document:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+    Files: 
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/File"
+    File:
+      type: object
+      required:
+        - id
+        - file_name
+        - mime_type
+        - extension
+        - size
+        - created_at
+      properties:
+        id:
+          type: string
+          fomat: uuid
+        file_name:
+          type: string
+        mime_type:
+          type: string
+        extension:
+          type: string
+        size:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+    Query:
+      type: object
+      required:
+        - type
+        - content
+        - file_ids
+      properties:
+        type:
+          type: string
+          enum: [text, metric]
+        content:
+          type: string
+        file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    Responses:
+      type: object
+      required:
+        - responses
+      properties:
+        responses:
+          type: array
+          items:
+            type: object
+            $ref: "#/components/schemas/ResponseItem"
+    ResponseItem:
+      type: object
+      required:
+        - type
+        - text
+      properties:
+        type:
+          type: string
+          enum: [text, metric]
+        text:
+          type: string
+        metric:
+          type: number
+          format: double
