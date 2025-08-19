@@ -124,12 +124,18 @@ Example response:
 
 ```json
 {
-  "responses": [
+  "answers": [
     {
       "metric": 77476,
-      "text": "The company's Scope 1 emissions value in 2022 was 77,476 tCO2e.",
-      "type": "metric"
+      "text": "The company's Scope 1 emissions value in 2022 was 77476 tCO2e."
     }
-  ]
+  ],
+  "question": {
+    "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
+    "file_ids": [
+      "9b6c39ab-d471-4240-9185-99de92a99550"
+    ],
+    "type": "metric"
+  }
 }
 ```

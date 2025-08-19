@@ -19,7 +19,7 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		principal = a.principalFromRequest(r)
 	)
 
-	apiRequest := new(api.Query)
+	apiRequest := new(api.Question)
 	if err := readRequestJSON(r, apiRequest); err != nil {
 		renderJSONError(w, http.StatusBadRequest, err)
 		return
@@ -54,17 +54,18 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiResponse := api.Responses{
-		Responses: make([]api.ResponseItem, len(responses)),
+	apiResponse := api.Answer{
+		Question: *apiRequest,
+		Answers:  make([]api.AnswerItem, 0, len(responses)),
 	}
-	for i, response := range responses {
-		apiResponse.Responses[i] = api.ResponseItem{
-			Type: api.ResponseItemType(response.Type),
+	for _, response := range responses {
+		answerItem := api.AnswerItem{
 			Text: response.Text,
 		}
 		if response.Type == ragserver.QueryTypeMetric {
-			apiResponse.Responses[i].Metric = api.Float(response.Metric)
+			answerItem.Metric = api.Float(response.Metric)
 		}
+		apiResponse.Answers = append(apiResponse.Answers, answerItem)
 	}
 
 	renderJSON(w, apiResponse)

@@ -74,14 +74,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Query"
+              $ref: "#/components/schemas/Question"
       responses:
         "200":
           description: Responses to the query
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Responses"
+                $ref: "#/components/schemas/Answer"
 
 components:
   schemas:
@@ -135,7 +135,7 @@ components:
         created_at:
           type: string
           format: date-time
-    Query:
+    Question:
       type: object
       required:
         - type
@@ -152,25 +152,24 @@ components:
           items:
             type: string
             format: uuid
-    Responses:
+    Answer:
       type: object
       required:
-        - responses
+        - question
+        - answers
       properties:
-        responses:
+        question:
+          $ref: "#/components/schemas/Question"
+        answers:
           type: array
           items:
             type: object
-            $ref: "#/components/schemas/ResponseItem"
-    ResponseItem:
+            $ref: "#/components/schemas/AnswerItem"
+    AnswerItem:
       type: object
       required:
-        - type
         - text
       properties:
-        type:
-          type: string
-          enum: [text, metric]
         text:
           type: string
         metric:

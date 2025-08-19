@@ -14,17 +14,23 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// Defines values for QueryType.
+// Defines values for QuestionType.
 const (
-	QueryTypeMetric QueryType = "metric"
-	QueryTypeText   QueryType = "text"
+	Metric QuestionType = "metric"
+	Text   QuestionType = "text"
 )
 
-// Defines values for ResponseItemType.
-const (
-	ResponseItemTypeMetric ResponseItemType = "metric"
-	ResponseItemTypeText   ResponseItemType = "text"
-)
+// Answer defines model for Answer.
+type Answer struct {
+	Answers  []AnswerItem `json:"answers"`
+	Question Question     `json:"question"`
+}
+
+// AnswerItem defines model for AnswerItem.
+type AnswerItem struct {
+	Metric *float64 `json:"metric,omitempty"`
+	Text   string   `json:"text"`
+}
 
 // Document defines model for Document.
 type Document struct {
@@ -51,30 +57,15 @@ type Files struct {
 	Files []File `json:"files"`
 }
 
-// Query defines model for Query.
-type Query struct {
+// Question defines model for Question.
+type Question struct {
 	Content string               `json:"content"`
 	FileIds []openapi_types.UUID `json:"file_ids"`
-	Type    QueryType            `json:"type"`
+	Type    QuestionType         `json:"type"`
 }
 
-// QueryType defines model for Query.Type.
-type QueryType string
-
-// ResponseItem defines model for ResponseItem.
-type ResponseItem struct {
-	Metric *float64         `json:"metric,omitempty"`
-	Text   string           `json:"text"`
-	Type   ResponseItemType `json:"type"`
-}
-
-// ResponseItemType defines model for ResponseItem.Type.
-type ResponseItemType string
-
-// Responses defines model for Responses.
-type Responses struct {
-	Responses []ResponseItem `json:"responses"`
-}
+// QuestionType defines model for Question.Type.
+type QuestionType string
 
 // UploadFileMultipartBody defines parameters for UploadFile.
 type UploadFileMultipartBody struct {
@@ -88,7 +79,7 @@ type AddDocumentsJSONRequestBody = Documents
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
 // QueryJSONRequestBody defines body for Query for application/json ContentType.
-type QueryJSONRequestBody = Query
+type QueryJSONRequestBody = Question
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
