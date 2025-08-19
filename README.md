@@ -130,12 +130,38 @@ Example response:
 {
   "answers": [
     {
-      "metric": 77476,
+      "metric": {
+        "unit": "tCO2e",
+        "value": 77476
+      },
       "text": "The company's Scope 1 emissions value in 2022 was 77476 tCO2e."
     }
   ],
   "question": {
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
+    "file_ids": [
+      "9b6c39ab-d471-4240-9185-99de92a99550"
+    ],
+    "type": "metric"
+  }
+}
+```
+
+If you ask a question model cannot answer from the provided context, it will simply return empyty answer
+
+```json
+{
+  "answers": [
+    {
+      "metric": {
+        "unit": "",
+        "value": 0
+      },
+      "text": ""
+    }
+  ],
+  "question": {
+    "content": "What color is my hair?",
     "file_ids": [
       "9b6c39ab-d471-4240-9185-99de92a99550"
     ],

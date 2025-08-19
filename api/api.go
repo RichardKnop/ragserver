@@ -5,3 +5,7 @@ package api
 func Float(v float64) *float64 {
 	return &v
 }
+
+func String(v string) *string {
+	return &v
+}

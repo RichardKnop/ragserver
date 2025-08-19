@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 )
@@ -24,10 +22,14 @@ type Query struct {
 	Text string
 }
 
+type MetricValue struct {
+	Value float64 `json:"value"`
+	Unit  string  `json:"unit"`
+}
+
 type Response struct {
-	Type   QueryType
-	Text   string
-	Metric float64
+	Text   string      `json:"text"`
+	Metric MetricValue `json:"metric"`
 }
 
 func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query, fileIDs ...FileID) ([]Response, error) {
@@ -55,71 +57,16 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	// Search weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
-	contents, err := rs.weaviate.SearchDocuments(ctx, vector, fileIDs...)
+	documents, err := rs.weaviate.SearchDocuments(ctx, vector, fileIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("searching documents: %v", err)
 	}
 
-	if len(contents) == 0 {
+	if len(documents) == 0 {
 		return nil, fmt.Errorf("no documents found for query: %s", query)
 	}
 
-	respTexts, err := rs.generateResponses(ctx, query, contents)
-	if err != nil {
-		return nil, fmt.Errorf("error generating responses: %v", err)
-	}
-
-	log.Printf("gen AI response texts: %s", respTexts)
-
-	var queryResponses []Response
-
-	for _, text := range respTexts {
-		aResponse := Response{
-			Type: query.Type,
-		}
-
-		aText := strings.TrimRight(strings.TrimSpace(text), "\r\n")
-
-		switch query.Type {
-		case QueryTypeText:
-			aResponse.Text = aText
-		case QueryTypeMetric:
-			parts := strings.Split(aText, "\n")
-			if len(parts) < 2 {
-				return nil, fmt.Errorf("response not in a valid format for a metric query")
-			}
-
-			metricValue, err := strconv.ParseFloat(parts[len(parts)-1], 64)
-			if err != nil {
-				return nil, fmt.Errorf("could not parse metric value: %v", err)
-			}
-			aResponse.Metric = metricValue
-
-			aResponse.Text = strings.Join(parts[:len(parts)-1], "\n")
-		}
-
-		queryResponses = append(queryResponses, aResponse)
-	}
-
-	log.Printf("result: %+v", queryResponses)
-	return queryResponses, nil
-}
-
-func (rs *ragServer) generateResponses(ctx context.Context, query Query, contexts []string) ([]string, error) {
-	// Create a RAG query for the LLM with the most relevant documents as context.
-	var input string
-	switch query.Type {
-	case QueryTypeText:
-		input = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
-	case QueryTypeMetric:
-		input = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
-	default:
-		return nil, fmt.Errorf("invalid query type")
-	}
-
-	log.Printf("gen AI query input: %s", input)
-
-	responses, err := rs.genai.Generate(ctx, input)
+	responses, err := rs.genai.Generate(ctx, query, documents)
 	if err != nil {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}

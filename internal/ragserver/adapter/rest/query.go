@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gofrs/uuid/v5"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/RichardKnop/ragserver/api"
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
@@ -25,26 +26,20 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		query = ragserver.Query{
-			Type: ragserver.QueryType(apiRequest.Type),
-			Text: apiRequest.Content,
-		}
-		fileIDs []ragserver.FileID
-	)
-
-	for _, id := range apiRequest.FileIds {
-		fileID, err := uuid.FromString(id.String())
-		if err != nil {
-			renderJSONError(w, http.StatusInternalServerError, err)
-			return
-		}
-		fileIDs = append(fileIDs, ragserver.FileID{fileID})
+	fileIDs, err := mapOpenApiFileIDs(apiRequest.FileIds)
+	if err != nil {
+		renderJSONError(w, http.StatusInternalServerError, err)
+		return
 	}
 
 	if len(fileIDs) == 0 {
 		renderJSONError(w, http.StatusBadRequest, fmt.Errorf("missing file IDs"))
 		return
+	}
+
+	query := ragserver.Query{
+		Type: ragserver.QueryType(apiRequest.Type),
+		Text: apiRequest.Content,
 	}
 
 	responses, err := a.ragServer.Generate(ctx, principal, query, fileIDs...)
@@ -54,19 +49,37 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiResponse := api.Answer{
-		Question: *apiRequest,
-		Answers:  make([]api.AnswerItem, 0, len(responses)),
+	renderJSON(w, mapResponse(*apiRequest, responses))
+}
+
+func mapOpenApiFileIDs(ids []openapi_types.UUID) ([]ragserver.FileID, error) {
+	fileIDs := make([]ragserver.FileID, 0, len(ids))
+	for _, id := range ids {
+		fileID, err := uuid.FromString(id.String())
+		if err != nil {
+			return nil, err
+		}
+		fileIDs = append(fileIDs, ragserver.FileID{UUID: fileID})
+	}
+	return fileIDs, nil
+}
+
+func mapResponse(question api.Question, responses []ragserver.Response) api.Response {
+	apiResponse := api.Response{
+		Question: question,
+		Answers:  make([]api.Answer, 0, len(responses)),
 	}
 	for _, response := range responses {
-		answerItem := api.AnswerItem{
+		answerItem := api.Answer{
 			Text: response.Text,
 		}
-		if response.Type == ragserver.QueryTypeMetric {
-			answerItem.Metric = api.Float(response.Metric)
+		if question.Type == api.QuestionType(ragserver.QueryTypeMetric) {
+			answerItem.Metric = &api.MetricValue{
+				Value: response.Metric.Value,
+				Unit:  api.String(response.Metric.Unit),
+			}
 		}
 		apiResponse.Answers = append(apiResponse.Answers, answerItem)
 	}
-
-	renderJSON(w, apiResponse)
+	return apiResponse
 }

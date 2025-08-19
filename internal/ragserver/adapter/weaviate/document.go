@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/graphql"
 	"github.com/weaviate/weaviate/entities/models"
@@ -43,14 +44,14 @@ func (a *Adapter) SaveEmbeddings(ctx context.Context, documents []ragserver.Docu
 	return err
 }
 
-func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, fileIDs ...ragserver.FileID) ([]string, error) {
+func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, fileIDs ...ragserver.FileID) ([]ragserver.Document, error) {
 	gql := a.client.GraphQL()
 	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(vector))
 
 	builder := gql.Get().
 		WithNearVector(nearVector).
 		WithClassName("Document").
-		WithFields(graphql.Field{Name: "text"}).
+		WithFields(graphql.Field{Name: "text"}, graphql.Field{Name: "file_id"}).
 		WithLimit(10)
 
 	if len(fileIDs) > 0 {
@@ -81,7 +82,7 @@ func fileIDsToStrings(fileIDs []ragserver.FileID) []string {
 // query; these are returned as a nested map[string]any (just like JSON
 // unmarshaled into a map[string]any). We have to extract all document contents
 // as a list of strings.
-func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]string, error) {
+func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]ragserver.Document, error) {
 	data, ok := graphqlResponse.Data["Get"]
 	if !ok {
 		return nil, fmt.Errorf("get key not found in result")
@@ -95,17 +96,28 @@ func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]string
 		return nil, fmt.Errorf("document is not a list of results")
 	}
 
-	var out []string
+	var out []ragserver.Document
 	for _, s := range slc {
 		smap, ok := s.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("invalid element in list of documents")
 		}
-		s, ok := smap["text"].(string)
+		text, ok := smap["text"].(string)
 		if !ok {
 			return nil, fmt.Errorf("expected string in list of documents")
 		}
-		out = append(out, s)
+		id, ok := smap["file_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("expected file_id in list of documents")
+		}
+		fileID, err := uuid.FromString(id)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file_id in list of documents: %w", err)
+		}
+		out = append(out, ragserver.Document{
+			Text:   text,
+			FileID: ragserver.FileID{UUID: fileID},
+		})
 	}
 	return out, nil
 }

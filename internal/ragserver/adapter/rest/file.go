@@ -46,10 +46,8 @@ func (a *Adapter) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiResponse := mapFile(aFile)
-
 	w.WriteHeader(http.StatusCreated)
-	renderJSON(w, apiResponse)
+	renderJSON(w, mapFile(aFile))
 }
 
 func mapFile(file *ragserver.File) api.File {
@@ -78,14 +76,17 @@ func (a *Adapter) ListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	renderJSON(w, mapFiles(files))
+}
+
+func mapFiles(files []*ragserver.File) api.Files {
 	apiResponse := api.Files{
 		Files: make([]api.File, 0, len(files)),
 	}
 	for _, file := range files {
 		apiResponse.Files = append(apiResponse.Files, mapFile(file))
 	}
-
-	renderJSON(w, apiResponse)
+	return apiResponse
 }
 
 // Get a single file by ID
@@ -103,7 +104,7 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 		return
 	}
 
-	aFile, err := a.ragServer.FindFile(ctx, principal, ragserver.FileID{fileID})
+	aFile, err := a.ragServer.FindFile(ctx, principal, ragserver.FileID{UUID: fileID})
 	if err != nil {
 		if errors.Is(err, ragserver.ErrNotFound) {
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file not found"))
@@ -114,7 +115,5 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 		return
 	}
 
-	apiResponse := mapFile(aFile)
-
-	renderJSON(w, apiResponse)
+	renderJSON(w, mapFile(aFile))
 }

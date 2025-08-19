@@ -4,18 +4,26 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/weaviate/weaviate/entities/models"
+
+	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
 func TestDecodeGetDocumentResults(t *testing.T) {
 	t.Parallel()
 
+	var (
+		fileID1 = uuid.Must(uuid.FromString("9ea0b16a-7f4a-4a22-8ea1-ca2d932bafa8"))
+		fileID2 = uuid.Must(uuid.FromString("1ad113d9-38f9-42d1-b205-4383250a4dfd"))
+	)
+
 	tests := []struct {
 		title       string
 		given       *models.GraphQLResponse
-		expected    []string
+		expected    []ragserver.Document
 		expectedErr error
 	}{
 		{
@@ -32,13 +40,28 @@ func TestDecodeGetDocumentResults(t *testing.T) {
 				Data: map[string]models.JSONObject{
 					"Get": map[string]any{
 						"Document": []any{
-							map[string]any{"text": "foo"},
-							map[string]any{"text": "bar"},
+							map[string]any{
+								"text":    "foo",
+								"file_id": fileID1.String(),
+							},
+							map[string]any{
+								"text":    "bar",
+								"file_id": fileID2.String(),
+							},
 						},
 					},
 				},
 			},
-			[]string{"foo", "bar"},
+			[]ragserver.Document{
+				{
+					Text:   "foo",
+					FileID: ragserver.FileID{UUID: fileID1},
+				},
+				{
+					Text:   "bar",
+					FileID: ragserver.FileID{UUID: fileID2},
+				},
+			},
 			nil,
 		},
 	}

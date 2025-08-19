@@ -73,6 +73,9 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		CreatedAt: rs.now(),
 	}
 
+	// TODO - use document understandingvision to parse the PDF, not the hacky PDF adapter
+	// https://ai.google.dev/gemini-api/docs/document-processing
+
 	switch contentType {
 	case "application/pdf":
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")

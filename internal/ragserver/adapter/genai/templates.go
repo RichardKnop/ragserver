@@ -1,4 +1,4 @@
-package ragserver
+package genai
 
 const ragTemplateStr = `
 I will ask you a question and will provide some additional context information.
@@ -7,10 +7,14 @@ other information outside of the context. Assume the question relates to a
 specific company and the context is about that commpany.
 
 If the question relates to the context, answer it using the context.
-If the question does not relate to the context, simply return empty string as answer.
+If the question does not relate to the context, simply return empty response.
 
 For example, let's say the context has nothing in it about scope 1 emissions;
-then if I ask you about scope 1 emissions, just answer with empty string.
+then if I ask you about scope 1 emissions, just return empty answer.
+
+Answer the question according to provided schema. Schema defines a text.
+The text field is a string. Text field should contain full answer to the question.
+
 
 Question:
 %s
@@ -26,15 +30,16 @@ other information outside of the context. Assume the question relates to a
 specific company and the context is about that commpany.
 
 If the question relates to the context, answer it using the context.
-If the question does not relate to the context, simply return empty string as answer.
+If the question does not relate to the context, simply return empty response.
 
 For example, let's say the context has nothing in it about scope 1 emissions;
-then if I ask you about scope 1 emissions, just answer with empty string.
+then if I ask you about scope 1 emissions, just return empty answer.
 
-On the first line of your answer, include a sentence or a phrase that contains 
-the answer to the question. For example "Scope 1 is 77,476".
-On new line, return the answer as a valid JSON number. For example 42 or 3.14. 
-Do not wrap it in quotes, do not add any additional text. 
+Answer the question according to provided schema. Schema defines a text field
+and a metric field. The text field is a string. The metric field is an object 
+that has a value and a unit. The value is a number and the unit is a string.
+Text field should contain full answer to the question. Metric field should 
+contain structured answer with a numeric value and a unit of measurement.
 
 Question:
 %s

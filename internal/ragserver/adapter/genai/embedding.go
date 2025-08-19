@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	"google.golang.org/genai"
 
@@ -50,30 +49,4 @@ func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.V
 		return ragserver.Vector{}, err
 	}
 	return embedResponse.Embeddings[0].Values, nil
-}
-
-func (a *Adapter) Generate(ctx context.Context, input string) ([]string, error) {
-	resp, err := a.client.Models.GenerateContent(
-		ctx,
-		a.generativeModelName,
-		genai.Text(input),
-		&genai.GenerateContentConfig{
-			ThinkingConfig: &genai.ThinkingConfig{
-				ThinkingBudget: nil, // Disables thinking
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("calling generative model: %v", err)
-	}
-	if len(resp.Candidates) != 1 {
-		return nil, fmt.Errorf("got %v candidates, expected 1", len(resp.Candidates))
-	}
-
-	var respTexts []string
-	if aTest := resp.Text(); strings.TrimSpace(aTest) != "" {
-		respTexts = append(respTexts, resp.Text())
-	}
-
-	return respTexts, nil
 }

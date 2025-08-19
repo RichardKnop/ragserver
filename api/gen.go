@@ -22,14 +22,8 @@ const (
 
 // Answer defines model for Answer.
 type Answer struct {
-	Answers  []AnswerItem `json:"answers"`
-	Question Question     `json:"question"`
-}
-
-// AnswerItem defines model for AnswerItem.
-type AnswerItem struct {
-	Metric *float64 `json:"metric,omitempty"`
-	Text   string   `json:"text"`
+	Metric *MetricValue `json:"metric,omitempty"`
+	Text   string       `json:"text"`
 }
 
 // Document defines model for Document.
@@ -57,6 +51,12 @@ type Files struct {
 	Files []File `json:"files"`
 }
 
+// MetricValue defines model for MetricValue.
+type MetricValue struct {
+	Unit  *string `json:"unit,omitempty"`
+	Value float64 `json:"value"`
+}
+
 // Question defines model for Question.
 type Question struct {
 	Content string               `json:"content"`
@@ -66,6 +66,12 @@ type Question struct {
 
 // QuestionType defines model for Question.Type.
 type QuestionType string
+
+// Response defines model for Response.
+type Response struct {
+	Answers  []Answer `json:"answers"`
+	Question Question `json:"question"`
+}
 
 // UploadFileMultipartBody defines parameters for UploadFile.
 type UploadFileMultipartBody struct {
