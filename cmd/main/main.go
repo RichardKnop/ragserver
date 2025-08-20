@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,10 +20,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
+	"github.com/spf13/viper"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
 	"google.golang.org/genai"
 
 	"github.com/RichardKnop/ragserver/api"
+	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/document"
 	genaiAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/genai"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/pdf"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/rest"
@@ -34,16 +37,17 @@ import (
 //go:embed testdata/english.json
 var testEn string
 
-var (
-	dbPath         = cmp.Or(os.Getenv("DB_PATH"), "db.sqlite")
-	migrationsPath = cmp.Or(os.Getenv("DB_MIGRATIONS_PATH"), "internal/db/migrations")
-	port           = cmp.Or(os.Getenv("SERVERPORT"), "9020")
-	address        = "localhost:" + port
-)
-
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatal("fatal error config file: ", err)
+	}
 
 	wvClient, err := weaviate.NewClient(weaviate.Config{
 		Host:   "localhost:" + cmp.Or(os.Getenv("WVPORT"), "9035"),
@@ -71,7 +75,7 @@ func main() {
 	}
 
 	// Connect to the database
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", dbPath))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", viper.GetString("db.name")))
 	if err != nil {
 		log.Fatal("db open: ", err)
 	}
@@ -85,7 +89,7 @@ func main() {
 		log.Fatal("migration driver: ", err)
 	}
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
+		"file://"+viper.GetString("db.migrations.path"),
 		"sqlite3", driver)
 	if err != nil {
 		log.Fatal("migrations: ", err)
@@ -94,19 +98,29 @@ func main() {
 		log.Fatal("migrations up: ", err)
 	}
 
+	var extractAdapter ragserver.ExtractAdapter
+	switch viper.GetString("adapter.extract") {
+	case "pdf":
+		extractAdapter = pdf.New(training)
+	case "document":
+		extractAdapter = document.New(genaiClient, training)
+	default:
+		log.Fatalf("unknown extract adapter: %s", viper.GetString("extract.adapter"))
+	}
+
 	var (
-		pdfAdapter   = pdf.New(training)
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(gAdapter, wvAdapter, training, pdfAdapter, storeAdapter)
+		rs           = ragserver.New(gAdapter, wvAdapter, training, extractAdapter, storeAdapter)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
-		h = api.HandlerFromMux(restAdapter, mux)
+		h       = api.HandlerFromMux(restAdapter, mux)
+		address = viper.GetString("server.host") + ":" + viper.GetString("server.port")
 	)
 
 	httpServer := &http.Server{
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
 		Addr:              address,

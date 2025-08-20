@@ -17,7 +17,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 		contents = append(contents, genai.NewContentFromText(aDocument.Text, genai.RoleUser))
 	}
 	embedResponse, err := a.client.Models.EmbedContent(ctx,
-		embeddingModelName,
+		a.embeddingModelName,
 		contents,
 		nil,
 	)
@@ -41,7 +41,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 
 func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.Vector, error) {
 	embedResponse, err := a.client.Models.EmbedContent(ctx,
-		embeddingModelName,
+		a.embeddingModelName,
 		[]*genai.Content{genai.NewContentFromText(content, genai.RoleUser)},
 		nil,
 	)

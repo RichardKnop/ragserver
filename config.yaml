@@ -1,0 +1,19 @@
+server:
+  host: localhost
+  port: 9020
+
+db:
+  name: db.sqlite
+  migrations:
+    path: internal/db/migrations
+
+ai:
+  models:
+    embeddings: text-embedding-004
+    generative: gemini-2.5-flash
+
+adapter:
+  # supported adapters
+  # 1. pdf (extracts text from PDF locally using code)
+  # 2. document (uses Gemini document vision)
+  extract: pdf

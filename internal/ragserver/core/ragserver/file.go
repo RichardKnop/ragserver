@@ -1,7 +1,6 @@
 package ragserver
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -60,14 +59,14 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	// Reset the temp file offset to the beginning for further reading
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		return nil, fmt.Errorf("error seeking temp file to start: %w", err)
+		return nil, fmt.Errorf("error seeking file to start: %w", err)
 	}
 
 	log.Printf("uploading file: %s, size: %d, mime header: %v", header.Filename, header.Size, header.Header)
 
 	hashWriter := sha256.New()
 	newReader := io.TeeReader(file, hashWriter)
-	fileSize, err := io.Copy(bufio.NewWriter(tempFile), newReader)
+	fileSize, err := io.Copy(tempFile, newReader)
 	if err != nil {
 		return nil, fmt.Errorf("error copying to temp file: %w", err)
 	}
@@ -81,8 +80,10 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		CreatedAt: rs.now(),
 	}
 
-	// TODO - use document vision to parse the PDF, not the hacky PDF adapter
-	// https://ai.google.dev/gemini-api/docs/document-processing
+	_, err = tempFile.Seek(0, io.SeekStart) // Reset the temp file offset to the beginning for further reading
+	if err != nil {
+		return nil, fmt.Errorf("error seeking temp file to start: %w", err)
+	}
 
 	switch contentType {
 	case "application/pdf":
