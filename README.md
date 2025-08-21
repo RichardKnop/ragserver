@@ -1,6 +1,6 @@
 # RAG Server
 
-This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a konwledge base refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is build to be completely generic and flexible.
+This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a konwledge base refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is built to be completely generic and flexible.
 
 When querying the server, you can specify a query type and provide files that will be used to build the context. The server will answer with a structured response depending on a query type as well as list of evidences (files) and specific pages that contain relevant content that was used to generate the answer.
 
@@ -19,6 +19,9 @@ When querying the server, you can specify a query type and provide files that wi
     - [Query Types](#query-types)
     - [Query Request](#query-request)
     - [Metric Query Example](#metric-query-example)
+    - [Boolean Query Example](#boolean-query-example)
+    - [Text Query Example](#text-query-example)
+    - [No Answer Example](#no-answer-example)
 
 ## Setup
 
@@ -103,16 +106,17 @@ You can list all current files:
 
 ### Query Types
 
-| Type   | Meaning |
-| ------ | ------- |
-| text   | Answer will be simply be a text |
-| metric | Answer will be structured and provide a numeric value and a unit of measurement |
+| Type    | Meaning |
+| ------- | ------- |
+| metric  | Answer will be structured and provide a numeric value and a unit of measurement |
+| boolean | Answer will be a boolean value, either true (Yes) or false (No) | 
+| text    | Answer will be simply be a text |
 
-More types (such as Yes/No or enum) will be added later.
+More types will be added later.
 
 ### Query Request
 
-A query request looks like this:
+An example query request looks like this:
 
 ```json
 {
@@ -173,10 +177,10 @@ Example response:
         }
       ],
       "metric": {
-        "unit": "tCO2e",
+        "unit": "MTCO2e",
         "value": 77476
       },
-      "text": "The company's Scope 1 emissions in 2022 were 77476 tCO2e."
+      "text": "The company's Scope 1 emissions value in 2022 was 77476 MTCO2e."
     }
   ],
   "question": {
@@ -189,6 +193,115 @@ Example response:
   }
 }
 ```
+
+### Boolean Query Example
+
+```sh
+./scripts/query.sh "$(<< 'EOF'
+{
+    "type": "boolean", 
+    "content": "Does the company have a net zero target year?", 
+    "file_ids": [
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+    ]
+}
+EOF
+)"
+```
+
+Example response:
+
+```json
+{
+  "answers": [
+    {
+      "boolean": true,
+      "evidence": [
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 3,
+          "text": " By 2050, our goal is to achieve net-zero \ngreenhouse gas emissions, including our financed emissions."
+        },
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 20,
+          "text": " \n• \nAchieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions \nattributable to our financing (Scope 3, Category 15)."
+        },
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 58,
+          "text": " \nWe continue to work \ntoward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and \npurchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 \n(market-based) emissions."
+        }
+      ],
+      "text": "Yes, the company has a net-zero target year of 2050 for greenhouse gas emissions, including financed emissions and operational emissions (Scope 1 and 2)."
+    }
+  ],
+  "question": {
+    "content": "Does the company have a net zero target year?",
+    "file_ids": [
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+    ],
+    "type": "boolean"
+  }
+}
+```
+
+### Text Query Example
+
+```sh
+./scripts/query.sh "$(<< 'EOF'
+{
+    "type": "text", 
+    "content": "What is the company's specified net zero target year?", 
+    "file_ids": [
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+    ]
+}
+EOF
+)"
+```
+
+Example response:
+
+```json
+{
+  "answers": [
+    {
+      "evidence": [
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 3,
+          "text": " By 2050, our goal is to achieve net-zero \ngreenhouse gas emissions, including our financed emissions."
+        },
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 20,
+          "text": " \n• \nAchieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions \nattributable to our financing (Scope 3, Category 15)."
+        },
+        {
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "page": 58,
+          "text": " \nWe continue to work \ntoward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and \npurchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 \n(market-based) emissions."
+        }
+      ],
+      "text": "The company's specified net-zero target year is 2050, aiming to achieve net-zero greenhouse gas emissions, including operational emissions (Scope 1 and 2) and emissions attributable to financing (Scope 3, Category 15)."
+    }
+  ],
+  "question": {
+    "content": "What is the company's specified net zero target year?",
+    "file_ids": [
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+    ],
+    "type": "text"
+  }
+}
+```
+
+### No Answer Example 
 
 If you ask a question model cannot answer from the provided context, it will simply return an empty answer
 

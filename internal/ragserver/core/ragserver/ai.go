@@ -13,8 +13,9 @@ type Vector []float32
 type QueryType string
 
 const (
-	QueryTypeText   QueryType = "text"
-	QueryTypeMetric QueryType = "metric"
+	QueryTypeText    QueryType = "text"
+	QueryTypeMetric  QueryType = "metric"
+	QueryTypeBoolean QueryType = "boolean"
 )
 
 type Query struct {
@@ -23,19 +24,22 @@ type Query struct {
 }
 
 type MetricValue struct {
-	Value float64 `json:"value"`
-	Unit  string  `json:"unit"`
+	Value float64
+	Unit  string
 }
 
+type BooleanValue bool
+
 type Response struct {
-	Text      string      `json:"text"`
-	Metric    MetricValue `json:"metric"`
-	Documents []Document  `json:"-"`
+	Text      string
+	Metric    MetricValue
+	Boolean   BooleanValue
+	Documents []Document
 }
 
 func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query, fileIDs ...FileID) ([]Response, error) {
 	switch query.Type {
-	case QueryTypeText, QueryTypeMetric:
+	case QueryTypeText, QueryTypeMetric, QueryTypeBoolean:
 	default:
 		return nil, fmt.Errorf("invalid query type: %s", query.Type)
 	}

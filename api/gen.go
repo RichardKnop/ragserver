@@ -22,6 +22,7 @@ const (
 
 // Answer defines model for Answer.
 type Answer struct {
+	Boolean  *bool        `json:"boolean,omitempty"`
 	Evidence []Evidence   `json:"evidence"`
 	Metric   *MetricValue `json:"metric,omitempty"`
 	Text     string       `json:"text"`

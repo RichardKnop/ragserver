@@ -9,3 +9,7 @@ func Float(v float64) *float64 {
 func String(v string) *string {
 	return &v
 }
+
+func Boolean(v bool) *bool {
+	return &v
+}

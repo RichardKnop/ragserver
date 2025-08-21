@@ -79,6 +79,9 @@ func mapResponse(question api.Question, responses []ragserver.Response) api.Resp
 				Unit:  api.String(response.Metric.Unit),
 			}
 		}
+		if question.Type == api.QuestionType(ragserver.QueryTypeBoolean) {
+			answer.Boolean = api.Boolean(bool(response.Boolean))
+		}
 		answer.Evidence = make([]api.Evidence, 0, len(response.Documents))
 		for _, doc := range response.Documents {
 			answer.Evidence = append(answer.Evidence, api.Evidence{

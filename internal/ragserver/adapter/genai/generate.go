@@ -22,7 +22,7 @@ var (
 			"relevant_documents": {
 				Type: genai.TypeArray,
 				Items: &genai.Schema{
-					Type: genai.TypeInteger,
+					Type: genai.TypeString,
 				},
 			},
 		},
@@ -47,11 +47,32 @@ var (
 			},
 		},
 	}
+
+	booeleanSchema = &genai.Schema{
+		Type: genai.TypeObject,
+		Properties: map[string]*genai.Schema{
+			"text":    {Type: genai.TypeString},
+			"boolean": {Type: genai.TypeBoolean},
+			"relevant_documents": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+			},
+		},
+	}
 )
 
+type MetricValue struct {
+	Value float64 `json:"value"`
+	Unit  string  `json:"unit"`
+}
+
 type Response struct {
-	ragserver.Response
-	RelevantDocuments []string `json:"relevant_documents"`
+	Text              string      `json:"text"`
+	Metric            MetricValue `json:"metric"`
+	Boolean           bool        `json:"boolean"`
+	RelevantDocuments []string    `json:"relevant_documents"`
 }
 
 func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
@@ -72,6 +93,10 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		config.ResponseSchema = textSchema
 	case ragserver.QueryTypeMetric:
 		config.ResponseSchema = metricSchema
+	case ragserver.QueryTypeBoolean:
+		config.ResponseSchema = booeleanSchema
+	default:
+		return nil, fmt.Errorf("invalid query type")
 	}
 
 	// Create a RAG query for the LLM with the most relevant documents as context.
@@ -81,6 +106,8 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		prompt = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
 	case ragserver.QueryTypeMetric:
 		prompt = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
+	case ragserver.QueryTypeBoolean:
+		prompt = fmt.Sprintf(ragTemplateBooleanValue, query.Text, strings.Join(contexts, "\n"))
 	default:
 		return nil, fmt.Errorf("invalid query type")
 	}
@@ -102,9 +129,23 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	log.Println("genai response:", resp.Text())
 
-	response := Response{}
-	if err := json.Unmarshal([]byte(resp.Text()), &response); err != nil {
+	structuredResp := Response{}
+	if err := json.Unmarshal([]byte(resp.Text()), &structuredResp); err != nil {
 		return nil, fmt.Errorf("unmarshalling response: %v", err)
+	}
+
+	response := ragserver.Response{
+		Text: structuredResp.Text,
+	}
+
+	switch query.Type {
+	case ragserver.QueryTypeMetric:
+		response.Metric = ragserver.MetricValue{
+			Value: structuredResp.Metric.Value,
+			Unit:  structuredResp.Metric.Unit,
+		}
+	case ragserver.QueryTypeBoolean:
+		response.Boolean = ragserver.BooleanValue(structuredResp.Boolean)
 	}
 
 	documentMap := make(map[string]ragserver.Document)
@@ -113,7 +154,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		documentMap[string(hash[:])] = doc
 	}
 
-	for _, docTxt := range response.RelevantDocuments {
+	for _, docTxt := range structuredResp.RelevantDocuments {
 		hash := md5.Sum([]byte(docTxt))
 		doc, ok := documentMap[string(hash[:])]
 		if !ok {
@@ -123,5 +164,5 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		response.Documents = append(response.Documents, doc)
 	}
 
-	return []ragserver.Response{response.Response}, nil
+	return []ragserver.Response{response}, nil
 }

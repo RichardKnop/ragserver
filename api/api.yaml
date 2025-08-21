@@ -150,6 +150,8 @@ components:
         metric:
           type: object
           $ref: "#/components/schemas/MetricValue"
+        boolean: 
+          type: boolean
         evidence:
           type: array
           items:
