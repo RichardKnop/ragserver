@@ -1,8 +1,8 @@
 # RAG Server
 
-This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a konwledge base refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is built to be completely generic and flexible.
+This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a knowledge base (corpus) refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is built to be completely generic and flexible.
 
-When querying the server, you can specify a query type and provide files that will be used to build the context. The server will answer with a structured response depending on a query type as well as list of evidences (files) and specific pages that contain relevant content that was used to generate the answer.
+When querying the server, you can specify a query type and provide files that should contain the answer. The server uses embedding model to get a vector representation of the question and retrieve documents from the knowledge base that are most similar to the question. It will then generate a structured JSON answer depending on a query type as well as list of evidences (files) and specific pages in PDFs referencing where the answer was extracted from.
 
 ## Table of Contents
 
@@ -10,7 +10,7 @@ When querying the server, you can specify a query type and provide files that wi
   - [Table of Contents](#table-of-contents)
   - [Setup](#setup)
     - [Prerequisites](#prerequisites)
-    - [Weaviate](#weaviate)
+    - [Vector Database](#vector-database)
     - [Database](#database)
     - [Configuration](#configuration)
   - [API](#api)
@@ -33,18 +33,14 @@ Generate HTTP server from OpenAPI spec:
 go generate ./...
 ```
 
-### Weaviate
+### Vector Database
 
-To start the Weaviate server:
+Currently this project uses a [weaviate](https://github.com/weaviate/weaviate) vector database. I am planning to add adapters for other databases that support vector similarity search (such as Redis) in the future.
+
+Use docker compose to start a weaviate database:
 
 ```sh
 docker compose up -d
-```
-
-To stop the server:
-
-```sh
-docker compose down
 ```
 
 Delete all objects from the vector database:
@@ -61,9 +57,13 @@ Show all objects in the database:
 
 ### Database
 
-When you ran the application, it will create a new `db.sqlite` database. You can change the database location by setting `DB_PATH` environment variable.
+This project uses sqlite as simple embedded SQL database. It is used to store information about uploaded files including file size, hash, content type etc. UUIDs from the SQL database should be referenced in the weaviate database as a `file_id` property.
+
+When you ran the application, it will create a new `db.sqlite` database. You can change the database file by setting `DB_NAME` environment variable and migrations folder by setting `DB_MIGRATIONS_PATH` environment variable.
 
 ### Configuration
+
+This project requires a Gemini API key. Use `GEMINI_API_KEY` environment variable to set your API key.
 
 You can either modify the `config.yaml` file or use environment variables.
 
