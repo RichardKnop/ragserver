@@ -98,8 +98,8 @@ A query request looks like this:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
     "file_ids": [
-        "ddb80580-019a-4866-a968-c028216dde90",
-        "f58602b9-0d91-490d-b472-320565cef4df"
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
     ]
 }
 ```
@@ -125,8 +125,8 @@ For content, you could choose some of these example ESG related questions:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-        "ddb80580-019a-4866-a968-c028216dde90",
-        "f58602b9-0d91-490d-b472-320565cef4df"
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
     ]
 }
 EOF
@@ -161,8 +161,8 @@ Example response:
   "question": {
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
     "file_ids": [
-      "ddb80580-019a-4866-a968-c028216dde90",
-      "f58602b9-0d91-490d-b472-320565cef4df"
+      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
     ],
     "type": "metric"
   }

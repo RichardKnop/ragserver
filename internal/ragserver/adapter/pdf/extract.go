@@ -10,7 +10,7 @@ import (
 	"github.com/neurosnap/sentences"
 )
 
-func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragserver.Document, error) {
+func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
 	pageBytes, numPages, err := a.extractor.extractText(tempFile)
 	if err != nil {
 		return nil, err
@@ -33,38 +33,32 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragser
 	// 	return
 	// }
 
-	// Create the default sentence tokenizer
-	tokenizer := sentences.NewSentenceTokenizer(a.training)
-	documents := make([]ragserver.Document, 0, 100)
-
 	var (
-		numTables       int
-		scopeRelevant   int
-		netZeroRelevant int
+		// Create the default sentence tokenizer
+		tokenizer  = sentences.NewSentenceTokenizer(a.training)
+		documents  = make([]ragserver.Document, 0, 100)
+		numTables  int
+		topicCount = map[string]int{}
 	)
 
 	for i, page := range pageBytes {
 		pageNum := i + 1
 		log.Printf("processing page %d/%d", pageNum, numPages)
+
 		for _, aSentence := range tokenizer.Tokenize(page.String()) {
-			var (
-				scopeRelated   = isScopeRelated(aSentence.Text)
-				netZeroRelated = isNetZeroRelated(aSentence.Text)
-			)
-			if !scopeRelated && !netZeroRelated {
-				continue
+			if len(topics) > 0 {
+				aTopic, ok := topics.IsRelevant(aSentence.Text)
+				if !ok {
+					continue
+				}
+				if aTopic.Name != "" {
+					_, ok := topicCount[aTopic.Name]
+					if !ok {
+						topicCount[aTopic.Name] = 0
+					}
+					topicCount[aTopic.Name] += 1
+				}
 			}
-
-			if netZeroRelated {
-				netZeroRelevant += 1
-				documents = append(documents, ragserver.Document{
-					Text: aSentence.Text,
-					Page: i + 1,
-				})
-				continue
-			}
-
-			scopeRelevant += 1
 
 			// In case of scope-related sentence, we want to first try to extract yearly scope tables,
 			// to get better context for the LLM. These are tables with years as columns and categories
@@ -99,8 +93,10 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker) ([]ragser
 		}
 	}
 
-	log.Printf("scope relevant sentences: %d", scopeRelevant)
-	log.Printf("net zero relevant sentences: %d", netZeroRelevant)
+	for name, count := range topicCount {
+		log.Printf("%s relevant sentences: %d", name, count)
+	}
+
 	log.Printf("number of documents: %d", len(documents))
 
 	return documents, nil

@@ -90,7 +90,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")
 
 		var err error
-		documents, err := rs.extract.Extract(ctx, tempFile)
+		documents, err := rs.extract.Extract(ctx, tempFile, rs.relevantTopics)
 		if err != nil {
 			return nil, fmt.Errorf("error processing PDF file: %w", err)
 		}

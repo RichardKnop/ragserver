@@ -101,16 +101,27 @@ func main() {
 	var extractAdapter ragserver.ExtractAdapter
 	switch viper.GetString("adapter.extract") {
 	case "pdf":
+		log.Println("extract adapter: pdf")
 		extractAdapter = pdf.New(training)
 	case "document":
+		log.Println("extract adapter: document")
 		extractAdapter = document.New(genaiClient, training)
 	default:
 		log.Fatalf("unknown extract adapter: %s", viper.GetString("extract.adapter"))
 	}
 
+	relevantTopics, err := relevantTopicsFromConfig()
+	if err != nil {
+		log.Fatal("relevant topics: ", err)
+	}
+	log.Println("relevant topics configured", relevantTopics)
+	opts := []ragserver.Option{
+		ragserver.WithRelevantTopics(relevantTopics),
+	}
+
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(gAdapter, wvAdapter, training, extractAdapter, storeAdapter)
+		rs           = ragserver.New(gAdapter, wvAdapter, training, extractAdapter, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
@@ -147,4 +158,15 @@ func main() {
 		log.Fatalf("HTTP shutdown error: %v", err)
 	}
 	log.Println("Graceful shutdown complete.")
+}
+
+func relevantTopicsFromConfig() (ragserver.RelevantTopics, error) {
+	var relevantTopics []ragserver.Topic
+	for name, keywords := range viper.GetStringMapStringSlice("ai.relevant_topics") {
+		relevantTopics = append(relevantTopics, ragserver.Topic{
+			Name:     name,
+			Keywords: keywords,
+		})
+	}
+	return relevantTopics, nil
 }

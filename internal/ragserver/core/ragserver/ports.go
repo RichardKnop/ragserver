@@ -18,7 +18,7 @@ type WeaviateAdapter interface {
 }
 
 type ExtractAdapter interface {
-	Extract(ctx context.Context, contents io.ReadSeeker) ([]Document, error)
+	Extract(ctx context.Context, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
 }
 
 type Store interface {

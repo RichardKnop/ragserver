@@ -11,6 +11,16 @@ ai:
   models:
     embeddings: text-embedding-004
     generative: gemini-2.5-flash
+  relevant_topics:
+    scope:
+      - scope 1
+      - scope 2
+      - scope 3
+    net-zero: 
+      - net-zero
+      - net zero
+      - net-zero target
+      - net zero target
 
 adapter:
   # supported adapters
