@@ -1,12 +1,8 @@
 # RAG Server
 
-What is a RAG server?
+This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a konwledge base refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is build to be completely generic and flexible.
 
-> RAG (Retrieval-Augmented Generation) is an AI framework that combines the strengths of traditional information retrieval systems (such as search and databases) with the capabilities of generative large language models (LLMs).
-
-This project is a generic RAG server that can be used to answer questions about any document. However I am mainly using ESG documents to test which is why examples are about scope 1 and 2 emissions, net zero targets etc. 
-
-I have implemented a bit of ESG specific code in the PDF adapter to try to extract yearly tables from the documents (this type of tables often appears in ESG reports). I might eventually remove that part as I am planning to switch to Google's document vision for PDF extraction instead of doing it in code. Or  I might use something like a simple factory pattern to support multiple ways of extracting data from PDFs.
+When querying the server, you can specify a query type and provide files that will be used to build the context. The server will answer with a structured response depending on a query type as well as list of evidences (files) and specific pages that contain relevant content that was used to generate the answer.
 
 ## Table of Contents
 
@@ -19,8 +15,10 @@ I have implemented a bit of ESG specific code in the PDF adapter to try to extra
     - [Configuration](#configuration)
   - [API](#api)
   - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
-  - [Querying LLM For Answers](#querying-llm-for-answers)
-    - [Metric Query](#metric-query)
+  - [Querying the LLM](#querying-the-llm)
+    - [Query Types](#query-types)
+    - [Query Request](#query-request)
+    - [Metric Query Example](#metric-query-example)
 
 ## Setup
 
@@ -67,7 +65,7 @@ When you ran the application, it will create a new `db.sqlite` database. You can
 You can either modify the `config.yaml` file or use environment variables.
 
 | Config               | Meaning |
-| -------------------- | -------------------------------------------------------|
+| -------------------- | --------|
 | ai.models.embeddings | Model to use for text embeddings. |
 | ai.models.generative | LLM model to use for generating answers. |
 | ai.relevant_topics   | Limit scope only to relevant topics when extracting context from PDF files |
@@ -101,7 +99,18 @@ You can list all current files:
 ./scripts/list-files.sh
 ```
 
-## Querying LLM For Answers
+## Querying the LLM
+
+### Query Types
+
+| Type   | Meaning |
+| ------ | ------- |
+| text   | Answer will be simply be a text |
+| metric | Answer will be structured and provide a numeric value and a unit of measurement |
+
+More types (such as Yes/No or enum) will be added later.
+
+### Query Request
 
 A query request looks like this:
 
@@ -118,9 +127,9 @@ A query request looks like this:
 
 | Field    | Meaning |
 | -------- | ------- |
-| type     | Can be either `metric` or `text`. More types will be added later. |
+| type     | Query type. |
 | content  | The question you want to ask the LLM. |
-| file_ids | Array of file IDs that you want to use as additional context. |
+| file_ids | Array of file IDs that you want to use as RAG context. |
 
 For content, you could choose some of these example ESG related questions:
 
@@ -129,7 +138,7 @@ For content, you could choose some of these example ESG related questions:
 3. *What was the company's market-based Scope 2 emissions value (in tCO2e) in 2022?*
 4. *What is the company's specified net zero target year in 2022?*
 
-### Metric Query
+### Metric Query Example
 
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
@@ -153,12 +162,12 @@ Example response:
     {
       "evidence": [
         {
-          "file_id": "f58602b9-0d91-490d-b472-320565cef4df",
+          "file_id": "55b42c66-a33e-4811-881f-e35ce2bfd2ac",
           "page": 3,
           "text": "Scope 1 and Scope 2 (location & market based) Emissions (MTCO2e): Total Scope 1 for year 2022 is 77476"
         },
         {
-          "file_id": "ddb80580-019a-4866-a968-c028216dde90",
+          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
           "page": 43,
           "text": "Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2022 is 77476 MTCO2e"
         }
@@ -167,7 +176,7 @@ Example response:
         "unit": "tCO2e",
         "value": 77476
       },
-      "text": "The company's Scope 1 emissions value in 2022 was 77476 tCO2e."
+      "text": "The company's Scope 1 emissions in 2022 were 77476 tCO2e."
     }
   ],
   "question": {
