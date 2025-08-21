@@ -16,6 +16,7 @@ I have implemented a bit of ESG specific code in the PDF adapter to try to extra
     - [Prerequisites](#prerequisites)
     - [Weaviate](#weaviate)
     - [Database](#database)
+    - [Configuration](#configuration)
   - [API](#api)
   - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
   - [Querying LLM For Answers](#querying-llm-for-answers)
@@ -60,6 +61,17 @@ Show all objects in the database:
 ### Database
 
 When you ran the application, it will create a new `db.sqlite` database. You can change the database location by setting `DB_PATH` environment variable.
+
+### Configuration
+
+You can either modify the `config.yaml` file or use environment variables.
+
+| Config               | Meaning |
+| -------------------- | -------------------------------------------------------|
+| ai.models.embeddings | Model to use for text embeddings. |
+| ai.models.generative | LLM model to use for generating answers. |
+| ai.relevant_topics   | Limit scope only to relevant topics when extracting context from PDF files |
+| adapter.extract      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
 
 ## API
 
