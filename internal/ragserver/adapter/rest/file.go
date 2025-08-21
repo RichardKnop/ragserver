@@ -1,10 +1,12 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -13,13 +15,19 @@ import (
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
+// TODO - implement a file lifecycle so UploadFile can return relatively quickly
+// and the file is processed in the background. This will allow us to return a 202 Accepted
+// response with a Location header pointing to the file resource, which can be polled for status.
+const uploadTimeout = 300 * time.Second
+
 // Upload a file and add documents extracted from it to the knowledge base
 // (POST /files)
 func (a *Adapter) UploadFile(w http.ResponseWriter, r *http.Request) {
 	var (
-		ctx       = r.Context()
-		principal = a.principalFromRequest(r)
+		ctx, cancel = context.WithTimeout(r.Context(), uploadTimeout)
+		principal   = a.principalFromRequest(r)
 	)
+	defer cancel()
 
 	// Limit memory usage to 20MB, anythin over this limit will be stored in a temporary file.
 	r.ParseMultipartForm(ragserver.MaxFileSize)
@@ -61,9 +69,10 @@ func mapFile(file *ragserver.File) api.File {
 // (GET /files)
 func (a *Adapter) ListFiles(w http.ResponseWriter, r *http.Request) {
 	var (
-		ctx       = r.Context()
-		principal = a.principalFromRequest(r)
+		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
+		principal   = a.principalFromRequest(r)
 	)
+	defer cancel()
 
 	files, err := a.ragServer.ListFiles(ctx, principal)
 	if err != nil {
@@ -89,9 +98,10 @@ func mapFiles(files []*ragserver.File) api.Files {
 // (GET /files/{id})
 func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
 	var (
-		ctx       = r.Context()
-		principal = a.principalFromRequest(r)
+		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
+		principal   = a.principalFromRequest(r)
 	)
+	defer cancel()
 
 	fileID, err := uuid.FromString(id.String())
 	if err != nil {

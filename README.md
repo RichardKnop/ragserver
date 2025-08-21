@@ -123,8 +123,8 @@ An example query request looks like this:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ]
 }
 ```
@@ -150,8 +150,8 @@ For content, you could choose some of these example ESG related questions:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ]
 }
 EOF
@@ -166,28 +166,28 @@ Example response:
     {
       "evidence": [
         {
-          "file_id": "55b42c66-a33e-4811-881f-e35ce2bfd2ac",
-          "page": 3,
-          "text": "Scope 1 and Scope 2 (location & market based) Emissions (MTCO2e): Total Scope 1 for year 2022 is 77476"
+          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
+          "page": 43,
+          "text": "Total Scope 1 emissions: 86,602 (2019 baseline), 78,087 (2020), 73,319* (2021), 77,476* (2022)."
         },
         {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-          "page": 43,
-          "text": "Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2022 is 77476 MTCO2e"
+          "file_id": "67224b92-bb64-457d-8cfc-584539292c5c",
+          "page": 3,
+          "text": "For Scope 1 and Scope 2 (location & market based) Emissions in 2022: Total Scope 1 was 77,476; Total Scope 2 (location) was 593,495; Total Scope 2 (market) was 4,424; Total Scope 1 and 2 (location) was 670,972; Total Scope 1 and 2 (market) was 81,901."
         }
       ],
       "metric": {
-        "unit": "MTCO2e",
+        "unit": "tCO2e",
         "value": 77476
       },
-      "text": "The company's Scope 1 emissions value in 2022 was 77476 MTCO2e."
+      "text": "The company's Scope 1 emissions value in 2022 was 77,476 tCO2e."
     }
   ],
   "question": {
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
     "type": "metric"
   }
@@ -202,8 +202,8 @@ Example response:
     "type": "boolean", 
     "content": "Does the company have a net zero target year?", 
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ]
 }
 EOF
@@ -219,29 +219,34 @@ Example response:
       "boolean": true,
       "evidence": [
         {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-          "page": 3,
-          "text": " By 2050, our goal is to achieve net-zero \ngreenhouse gas emissions, including our financed emissions."
+          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
+          "page": 28,
+          "text": "Since announcing its net-zero GHG emissions goal by 2050 (including financed emissions) in March 2021, the bank disclosed first interim targets in May 2022 for Oil & Gas and Power sectors, based on a 2019 baseline."
         },
         {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
+          "page": 18,
+          "text": "These include: The Climate Steering Committee, chaired by the Chief Sustainability Officer, which provides strategic direction and monitors progress on climate-related goals (net-zero GHG emissions by 2050, $500 billion sustainable finance by 2030, Institute for Sustainable Finance establishment) and includes members from all principal lines of business and impacted functions."
+        },
+        {
+          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
           "page": 20,
-          "text": " \n• \nAchieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions \nattributable to our financing (Scope 3, Category 15)."
+          "text": "Core climate-related goals are: deploying $500 billion in sustainable finance by 2030 (environmental and social finance), and achieving net-zero GHG emissions by 2050 (including operational Scope 1 and 2, and financed Scope 3, Category 15 emissions)."
         },
         {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-          "page": 58,
-          "text": " \nWe continue to work \ntoward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and \npurchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 \n(market-based) emissions."
+          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
+          "page": 46,
+          "text": "In May 2022, CO2eMission methodology was published, aligning financial portfolios with net-zero pathways by 2050 and setting interim targets for Oil & Gas and Power sectors."
         }
       ],
-      "text": "Yes, the company has a net-zero target year of 2050 for greenhouse gas emissions, including financed emissions and operational emissions (Scope 1 and 2)."
+      "text": "Yes, the company has announced a net-zero GHG emissions goal by 2050."
     }
   ],
   "question": {
     "content": "Does the company have a net zero target year?",
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
     "type": "boolean"
   }
@@ -256,8 +261,8 @@ Example response:
     "type": "text", 
     "content": "What is the company's specified net zero target year?", 
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ]
 }
 EOF
@@ -272,29 +277,29 @@ Example response:
     {
       "evidence": [
         {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-          "page": 3,
-          "text": " By 2050, our goal is to achieve net-zero \ngreenhouse gas emissions, including our financed emissions."
-        },
-        {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-          "page": 20,
-          "text": " \n• \nAchieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions \nattributable to our financing (Scope 3, Category 15)."
-        },
-        {
-          "file_id": "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
+          "file_id": "dde50d1a-e474-43f3-843d-3f37dc81cc97",
           "page": 58,
-          "text": " \nWe continue to work \ntoward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and \npurchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 \n(market-based) emissions."
+          "text": "The company aims to continue working toward net-zero financed emissions by 2050, having already implemented carbon reduction strategies and offset its own Scope 1 and 2 (market-based) emissions."
+        },
+        {
+          "file_id": "dde50d1a-e474-43f3-843d-3f37dc81cc97",
+          "page": 31,
+          "text": "They joined the \"Net-Zero Banking Alliance (NZBA)\" in October 2021, an industry-led group aiming to align bank financing with net-zero GHG emissions by mid-century."
+        },
+        {
+          "file_id": "dde50d1a-e474-43f3-843d-3f37dc81cc97",
+          "page": 46,
+          "text": "In May 2022, they published CO2eMission, their methodology for aligning financial portfolios with net-zero pathways by 2050 and setting interim targets."
         }
       ],
-      "text": "The company's specified net-zero target year is 2050, aiming to achieve net-zero greenhouse gas emissions, including operational emissions (Scope 1 and 2) and emissions attributable to financing (Scope 3, Category 15)."
+      "text": "The company's specified net zero target year is 2050. This goal is for net-zero financed emissions and aligning financial portfolios with net-zero pathways, consistent with their membership in the Net-Zero Banking Alliance which aims for net-zero GHG emissions by mid-century."
     }
   ],
   "question": {
     "content": "What is the company's specified net zero target year?",
     "file_ids": [
-      "bd461cce-3c23-4f6a-acb9-e125ebd5ac61",
-      "55b42c66-a33e-4811-881f-e35ce2bfd2ac"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
     "type": "text"
   }

@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 
@@ -28,6 +29,8 @@ func New(ragServer RagServer) *Adapter {
 		ragServer: ragServer,
 	}
 }
+
+const defaultTimeout = 3 * time.Second
 
 var staticPrincipal = authz.New(authz.ID{
 	UUID: uuid.Must(uuid.FromString("b486ea88-95c4-4140-86c9-dd19f6fa879f")),

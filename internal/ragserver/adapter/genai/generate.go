@@ -85,7 +85,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
-		contexts = append(contexts, strconv.Quote(doc.Text))
+		contexts = append(contexts, strconv.Quote(strings.TrimSpace(doc.Text)))
 	}
 
 	switch query.Type {
@@ -150,12 +150,12 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	documentMap := make(map[string]ragserver.Document)
 	for _, doc := range documents {
-		hash := md5.Sum([]byte(doc.Text))
+		hash := md5.Sum([]byte(strings.TrimSpace(doc.Text)))
 		documentMap[string(hash[:])] = doc
 	}
 
 	for _, docTxt := range structuredResp.RelevantDocuments {
-		hash := md5.Sum([]byte(docTxt))
+		hash := md5.Sum([]byte(strings.TrimSpace(docTxt)))
 		doc, ok := documentMap[string(hash[:])]
 		if !ok {
 			log.Printf("could not find document for: %s", docTxt)

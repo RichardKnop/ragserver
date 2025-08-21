@@ -57,7 +57,7 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 			graphql.Field{Name: "page"},
 			graphql.Field{Name: "file_id"},
 		).
-		WithLimit(10)
+		WithLimit(25)
 
 	if len(fileIDs) > 0 {
 		filter := filters.Where()

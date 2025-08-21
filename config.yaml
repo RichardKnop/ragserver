@@ -26,4 +26,4 @@ adapter:
   # supported adapters
   # 1. pdf (extracts text from PDF locally using code)
   # 2. document (uses Gemini document vision)
-  extract: pdf
+  extract: document

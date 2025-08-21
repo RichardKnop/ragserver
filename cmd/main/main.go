@@ -130,10 +130,8 @@ func main() {
 	)
 
 	httpServer := &http.Server{
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 2 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       10 * time.Second,
 		Addr:              address,
 		Handler:           h,
 	}

@@ -1,9 +1,11 @@
 package rest
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -12,13 +14,16 @@ import (
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
+const queryTimeout = 30 * time.Second
+
 // Query the RAG server.
 // (POST /query)
 func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 	var (
-		ctx       = r.Context()
-		principal = a.principalFromRequest(r)
+		ctx, cancel = context.WithTimeout(r.Context(), queryTimeout)
+		principal   = a.principalFromRequest(r)
 	)
+	defer cancel()
 
 	apiRequest := api.Question{}
 	if err := readRequestJSON(r, &apiRequest); err != nil {

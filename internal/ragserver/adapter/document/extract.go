@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 	"github.com/neurosnap/sentences"
@@ -92,7 +93,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 			}
 
 			documents = append(documents, ragserver.Document{
-				Text: aSentence.Text,
+				Text: strings.TrimSpace(aSentence.Text),
 				Page: i + 1,
 			})
 		}

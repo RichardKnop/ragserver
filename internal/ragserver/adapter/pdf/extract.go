@@ -66,7 +66,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 			tables, err := NewTables(aSentence.Text)
 			if err != nil {
 				documents = append(documents, ragserver.Document{
-					Text: aSentence.Text,
+					Text: strings.TrimSpace(aSentence.Text),
 					Page: i + 1,
 				})
 				continue
@@ -86,7 +86,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 				}
 			} else {
 				documents = append(documents, ragserver.Document{
-					Text: aSentence.Text,
+					Text: strings.TrimSpace(aSentence.Text),
 					Page: i + 1,
 				})
 			}
@@ -100,33 +100,4 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 	log.Printf("number of documents: %d", len(documents))
 
 	return documents, nil
-}
-
-func isScopeRelated(s string) bool {
-	if strings.Contains(strings.ToLower(s), "scope 1") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(s), "scope 2") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(s), "scope 3") {
-		return true
-	}
-	return false
-}
-
-func isNetZeroRelated(s string) bool {
-	if strings.Contains(strings.ToLower(s), "net-zero") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(s), "net zero") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(s), "net-zero target") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(s), "net zero target") {
-		return true
-	}
-	return false
 }
