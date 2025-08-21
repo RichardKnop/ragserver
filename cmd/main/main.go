@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatal("weaviate client: ", err)
 	}
-	wvAdapter, err := weaviateAdapter.New(ctx, wvClient)
+	vwAdapter, err := weaviateAdapter.New(ctx, wvClient)
 	if err != nil {
 		log.Fatal("weaviate adapter: ", err)
 	}
@@ -98,14 +98,14 @@ func main() {
 		log.Fatal("migrations up: ", err)
 	}
 
-	var extractAdapter ragserver.ExtractAdapter
+	var extractor ragserver.Extractor
 	switch viper.GetString("adapter.extract") {
 	case "pdf":
 		log.Println("extract adapter: pdf")
-		extractAdapter = pdf.New(training)
+		extractor = pdf.New(training)
 	case "document":
 		log.Println("extract adapter: document")
-		extractAdapter = document.New(genaiClient, training)
+		extractor = document.New(genaiClient, training)
 	default:
 		log.Fatalf("unknown extract adapter: %s", viper.GetString("extract.adapter"))
 	}
@@ -121,7 +121,7 @@ func main() {
 
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(gAdapter, wvAdapter, training, extractAdapter, storeAdapter, opts...)
+		rs           = ragserver.New(gAdapter, gAdapter, vwAdapter, extractor, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use

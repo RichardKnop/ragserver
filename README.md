@@ -74,6 +74,8 @@ You can either modify the `config.yaml` file or use environment variables.
 | ai.relevant_topics   | Limit scope only to relevant topics when extracting context from PDF files |
 | adapter.extract      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
 
+For local testing, I suggest switching `adapter.extract` from `document` to `pdf`. Document processing by Gemini model is a bit expensive so if you are uploading lots of files during development, using the `pdf` adapter and only doing final end to end checks with `document` adapter will be more cost efficient.
+
 ## API
 
 See the [OpenAPI spec](/api/api.yaml) for API reference.

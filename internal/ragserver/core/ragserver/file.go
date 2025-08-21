@@ -90,7 +90,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")
 
 		var err error
-		documents, err := rs.extract.Extract(ctx, tempFile, rs.relevantTopics)
+		documents, err := rs.extractor.Extract(ctx, tempFile, rs.relevantTopics)
 		if err != nil {
 			return nil, fmt.Errorf("error processing PDF file: %w", err)
 		}
@@ -122,7 +122,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	}
 
 	// Use the batch embedding API to embed all documents at once.
-	vectors, err := rs.genai.EmbedDocuments(ctx, aFile.Documents)
+	vectors, err := rs.embedder.EmbedDocuments(ctx, aFile.Documents)
 	if err != nil {
 		return nil, fmt.Errorf("error generating vectors: %v", err)
 	}
@@ -130,7 +130,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	log.Printf("generated vectors: %d", len(vectors))
 
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		if err := rs.weaviate.SaveEmbeddings(ctx, aFile.Documents, vectors); err != nil {
+		if err := rs.retriever.SaveDocuments(ctx, aFile.Documents, vectors); err != nil {
 			return fmt.Errorf("error saving embeddings: %v", err)
 		}
 

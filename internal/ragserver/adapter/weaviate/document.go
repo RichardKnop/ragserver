@@ -13,7 +13,7 @@ import (
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
-func (a *Adapter) SaveEmbeddings(ctx context.Context, documents []ragserver.Document, vectors []ragserver.Vector) error {
+func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Document, vectors []ragserver.Vector) error {
 	// Convert our documents - along with their embedding vectors - into types
 	// used by the Weaviate client library.
 	objects := make([]*models.Object, len(documents))

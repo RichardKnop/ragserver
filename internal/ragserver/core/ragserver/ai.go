@@ -55,14 +55,14 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	}
 
 	// Embed the query contents.
-	vector, err := rs.genai.EmbedContent(ctx, query.Text)
+	vector, err := rs.embedder.EmbedContent(ctx, query.Text)
 	if err != nil {
 		return nil, fmt.Errorf("embedding query content: %v", err)
 	}
 
 	// Search weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
-	documents, err := rs.weaviate.SearchDocuments(ctx, vector, fileIDs...)
+	documents, err := rs.retriever.SearchDocuments(ctx, vector, fileIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("searching documents: %v", err)
 	}
@@ -71,7 +71,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 		return nil, fmt.Errorf("no documents found for query: %s", query)
 	}
 
-	responses, err := rs.genai.Generate(ctx, query, documents)
+	responses, err := rs.lm.Generate(ctx, query, documents)
 	if err != nil {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}
