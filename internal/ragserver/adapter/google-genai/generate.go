@@ -1,4 +1,4 @@
-package genai
+package googlegenai
 
 import (
 	"context"
@@ -85,7 +85,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
-		contexts = append(contexts, strconv.Quote(strings.TrimSpace(doc.Text)))
+		contexts = append(contexts, strconv.Quote(strings.TrimSpace(doc.Content)))
 	}
 
 	switch query.Type {
@@ -116,7 +116,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	resp, err := a.client.Models.GenerateContent(
 		ctx,
-		a.generativeModelName,
+		a.generativeModel,
 		genai.Text(prompt),
 		config,
 	)
@@ -150,7 +150,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	documentMap := make(map[string]ragserver.Document)
 	for _, doc := range documents {
-		hash := md5.Sum([]byte(strings.TrimSpace(doc.Text)))
+		hash := md5.Sum([]byte(strings.TrimSpace(doc.Content)))
 		documentMap[string(hash[:])] = doc
 	}
 

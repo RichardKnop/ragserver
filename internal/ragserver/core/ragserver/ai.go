@@ -62,7 +62,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	// Search weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
-	documents, err := rs.retriever.SearchDocuments(ctx, vector, fileIDs...)
+	documents, err := rs.retriever.SearchDocuments(ctx, vector, 25, fileIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("searching documents: %v", err)
 	}
@@ -70,6 +70,8 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	if len(documents) == 0 {
 		return nil, fmt.Errorf("no documents found for query: %s", query)
 	}
+
+	log.Println("found documents:", len(documents))
 
 	responses, err := rs.lm.Generate(ctx, query, documents)
 	if err != nil {

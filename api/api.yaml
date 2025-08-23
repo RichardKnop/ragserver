@@ -52,6 +52,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/File"
+  /files/{id}/documents:
+    get:
+      summary: List file documents
+      operationId: listFileDocuments
+      parameters:
+        - name: id
+          in: path
+          description: File ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of document extracted from a file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Documents"
   /query:
     post:
       summary: Query the RAG server.
@@ -109,6 +128,26 @@ components:
         created_at:
           type: string
           format: date-time
+    Documents: 
+      type: object
+      required:
+        - documents
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+    Document:
+      type: object
+      required:
+        - content
+        - page
+      properties:
+        content:
+          type: string
+        page:
+          type: integer
+          format: int32
     Question:
       type: object
       required:

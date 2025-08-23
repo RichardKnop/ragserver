@@ -5,5 +5,7 @@ CREATE TABLE "file" (
   "extension" TEXT NOT NULL,
   "file_size" INTEGER NOT NULL,
   "file_hash" TEXT NOT NULL,
+  "embedder" TEXT NOT NULL,
+  "retriever" TEXT NOT NULL,
   "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

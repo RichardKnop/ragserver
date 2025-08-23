@@ -17,6 +17,7 @@ type RagServer interface {
 	CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*ragserver.File, error)
 	ListFiles(ctx context.Context, principal authz.Principal) ([]*ragserver.File, error)
 	FindFile(ctx context.Context, principal authz.Principal, id ragserver.FileID) (*ragserver.File, error)
+	ListFileDocuments(ctx context.Context, principal authz.Principal, id ragserver.FileID) ([]ragserver.Document, error)
 	Generate(ctx context.Context, principal authz.Principal, query ragserver.Query, fileIDs ...ragserver.FileID) ([]ragserver.Response, error)
 }
 

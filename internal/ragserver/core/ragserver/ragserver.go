@@ -10,10 +10,10 @@ var ErrNotFound = errors.New("not found")
 type clock func() time.Time
 
 type ragServer struct {
-	lm             LanguageModel
-	retriever      Retriever
-	embedder       Embedder
 	extractor      Extractor
+	embedder       Embedder
+	retriever      Retriever
+	lm             LanguageModel
 	store          Store
 	now            clock
 	relevantTopics RelevantTopics
@@ -27,12 +27,12 @@ func WithRelevantTopics(topics RelevantTopics) Option {
 	}
 }
 
-func New(lm LanguageModel, embedder Embedder, retriever Retriever, extractor Extractor, storeAdapter Store, options ...Option) *ragServer {
+func New(extractor Extractor, embedder Embedder, retriever Retriever, lm LanguageModel, storeAdapter Store, options ...Option) *ragServer {
 	rs := &ragServer{
-		lm:        lm,
-		retriever: retriever,
-		embedder:  embedder,
 		extractor: extractor,
+		embedder:  embedder,
+		retriever: retriever,
+		lm:        lm,
 		store:     storeAdapter,
 		now:       time.Now,
 	}

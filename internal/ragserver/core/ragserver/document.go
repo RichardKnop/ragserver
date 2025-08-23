@@ -1,13 +1,21 @@
 package ragserver
 
 import (
+	"context"
+	"database/sql"
 	"strings"
+
+	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 )
 
 type Document struct {
-	FileID FileID
-	Text   string
-	Page   int
+	FileID  FileID
+	Content string
+	Page    int
+}
+
+type DocumentFilter struct {
+	FileIDs []FileID
 }
 
 type Topic struct {
@@ -31,4 +39,27 @@ func (rt RelevantTopics) IsRelevant(content string) (Topic, bool) {
 	}
 
 	return Topic{}, false
+}
+
+func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID) ([]Document, error) {
+	var documents []Document
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		_, err := rs.store.FindFile(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		documents, err = rs.retriever.ListDocuments(ctx, DocumentFilter{
+			FileIDs: []FileID{id},
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return documents, nil
 }

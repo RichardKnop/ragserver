@@ -4,6 +4,8 @@ This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-aug
 
 When querying the server, you can specify a query type and provide files that should contain the answer. The server uses embedding model to get a vector representation of the question and retrieve documents from the knowledge base that are most similar to the question. It will then generate a structured JSON answer depending on a query type as well as list of evidences (files) and specific pages in PDFs referencing where the answer was extracted from.
 
+NOTE: I am planning to refactor this project as library so it can be imported from external repositories. For now everything is in `internal` but once I feel it works well enough I will refactor this into a library.
+
 ## Table of Contents
 
 - [RAG Server](#rag-server)
@@ -35,9 +37,11 @@ go generate ./...
 
 ### Vector Database
 
-Currently this project uses a [weaviate](https://github.com/weaviate/weaviate) vector database. I am planning to add adapters for other databases that support vector similarity search (such as Redis) in the future.
+You can choose between [weaviate](https://github.com/weaviate/weaviate) and [redis](https://redis.io/) as a vector database.
 
-Use docker compose to start a weaviate database:
+Currently the only supported text embedding models (`text-embedding-004`) use 768 dimensional vector space, other number of dimensions will not work with redis adapter as its index is hardcoded to 768 dimensions. I am looking into making it more dynamic, perhaps creating different indexes based on embedding model.
+
+Use docker compose to start a weaviate or redis database:
 
 ```sh
 docker compose up -d
@@ -73,6 +77,10 @@ You can either modify the `config.yaml` file or use environment variables.
 | ai.models.generative | LLM model to use for generating answers. |
 | ai.relevant_topics   | Limit scope only to relevant topics when extracting context from PDF files |
 | adapter.extract      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
+| adapter.embed        | Currently only embedding adapter is `gemini` which will use `gemini.models.embeddings` model |
+| adapter.retrieve     | Supported adapters are `weaviate` and `redis` |
+
+There is more configuration that can be referenced via `config.yaml` file. You can set any configuration value by using `_` as env key replacer. For example, a `http.host` can be set as environment variable `HTTP_HOST` and so on.
 
 For local testing, I suggest switching `adapter.extract` from `document` to `pdf`. Document processing by Gemini model is a bit expensive so if you are uploading lots of files during development, using the `pdf` adapter and only doing final end to end checks with `document` adapter will be more cost efficient.
 
@@ -102,6 +110,12 @@ You can list all current files:
 
 ```sh
 ./scripts/list-files.sh
+```
+
+You can also list documents extracted from a specific file (currently limited to 100 documents, no pagination support):
+
+```sh
+./scripts/list-file-documents.sh bc4509b4-c156-4478-890d-8d98a44abf03
 ```
 
 ## Querying the LLM

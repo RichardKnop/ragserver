@@ -123,3 +123,50 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 
 	renderJSON(w, mapFile(aFile))
 }
+
+// List file documents
+// (GET /files/{id}/documents)
+func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var (
+		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
+		principal   = a.principalFromRequest(r)
+	)
+	defer cancel()
+
+	fileID, err := uuid.FromString(id.String())
+	if err != nil {
+		log.Printf("invalid file ID: %s", err)
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid file ID: %w", err))
+		return
+	}
+
+	documents, err := a.ragServer.ListFileDocuments(ctx, principal, ragserver.FileID{UUID: fileID})
+	if err != nil {
+		if errors.Is(err, ragserver.ErrNotFound) {
+			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file documents not found"))
+			return
+		}
+		log.Printf("error listing file documents: %v", err)
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error listing file documents: %w", err))
+		return
+	}
+
+	renderJSON(w, mapDocuments(documents))
+}
+
+func mapDocument(document ragserver.Document) api.Document {
+	return api.Document{
+		Content: document.Content,
+		Page:    int32(document.Page),
+	}
+}
+
+func mapDocuments(documents []ragserver.Document) api.Documents {
+	apiResponse := api.Documents{
+		Documents: make([]api.Document, 0, len(documents)),
+	}
+	for _, doc := range documents {
+		apiResponse.Documents = append(apiResponse.Documents, mapDocument(doc))
+	}
+	return apiResponse
+}

@@ -4,7 +4,7 @@ generate:
 
 .PHONY: run
 ## Runs the application on the local machine
-run: generate
+run:
 	@go run cmd/main/main.go
 
 .PHONY: format

@@ -1,4 +1,4 @@
-package genai
+package googlegenai
 
 import (
 	"context"
@@ -14,10 +14,10 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 	// Use the batch embedding API to embed all documents at once.
 	contents := make([]*genai.Content, 0, len(documents))
 	for _, aDocument := range documents {
-		contents = append(contents, genai.NewContentFromText(aDocument.Text, genai.RoleUser))
+		contents = append(contents, genai.NewContentFromText(aDocument.Content, genai.RoleUser))
 	}
 	embedResponse, err := a.client.Models.EmbedContent(ctx,
-		a.embeddingModelName,
+		a.embeddingModel,
 		contents,
 		nil,
 	)
@@ -41,7 +41,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 
 func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.Vector, error) {
 	embedResponse, err := a.client.Models.EmbedContent(ctx,
-		a.embeddingModelName,
+		a.embeddingModel,
 		[]*genai.Content{genai.NewContentFromText(content, genai.RoleUser)},
 		nil,
 	)

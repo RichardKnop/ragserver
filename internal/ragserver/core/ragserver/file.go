@@ -37,8 +37,15 @@ type File struct {
 	Extension string
 	Size      int64
 	Hash      string
+	Embedder  string // adapter used to generate embeddings for this file
+	Retriever string // adapter used to store/retrieve embeddings for this file
 	CreatedAt time.Time
 	Documents []Document
+}
+
+type FileFilter struct {
+	Embedder  string
+	Retriever string
 }
 
 func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
@@ -77,6 +84,8 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		MimeType:  contentType,
 		Size:      fileSize,
 		Hash:      hex.EncodeToString(hashWriter.Sum(nil)),
+		Embedder:  rs.embedder.Name(),
+		Retriever: rs.retriever.Name(),
 		CreatedAt: rs.now(),
 	}
 
@@ -134,7 +143,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 			return fmt.Errorf("error saving embeddings: %v", err)
 		}
 
-		if err := rs.store.SaveFile(ctx, aFile); err != nil {
+		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
 			return err
 		}
 
@@ -150,7 +159,10 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		files, err = rs.store.ListFiles(ctx)
+		files, err = rs.store.ListFiles(ctx, FileFilter{
+			Embedder:  rs.embedder.Name(),
+			Retriever: rs.retriever.Name(),
+		})
 		if err != nil {
 			return err
 		}

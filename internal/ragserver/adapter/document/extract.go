@@ -52,7 +52,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 
 	result, err := a.client.Models.GenerateContent(
 		ctx,
-		a.generativeModelName,
+		a.generativeModel,
 		contents,
 		config,
 	)
@@ -93,8 +93,8 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 			}
 
 			documents = append(documents, ragserver.Document{
-				Text: strings.TrimSpace(aSentence.Text),
-				Page: i + 1,
+				Content: strings.TrimSpace(aSentence.Text),
+				Page:    i + 1,
 			})
 		}
 	}

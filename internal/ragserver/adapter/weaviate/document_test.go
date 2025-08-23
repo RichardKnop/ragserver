@@ -41,12 +41,12 @@ func TestDecodeGetDocumentResults(t *testing.T) {
 					"Get": map[string]any{
 						"Document": []any{
 							map[string]any{
-								"text":    "foo",
+								"content": "foo",
 								"page":    float64(5),
 								"file_id": fileID1.String(),
 							},
 							map[string]any{
-								"text":    "bar",
+								"content": "bar",
 								"page":    float64(43),
 								"file_id": fileID2.String(),
 							},
@@ -56,14 +56,14 @@ func TestDecodeGetDocumentResults(t *testing.T) {
 			},
 			[]ragserver.Document{
 				{
-					Text:   "foo",
-					Page:   5,
-					FileID: ragserver.FileID{UUID: fileID1},
+					Content: "foo",
+					Page:    5,
+					FileID:  ragserver.FileID{UUID: fileID1},
 				},
 				{
-					Text:   "bar",
-					Page:   43,
-					FileID: ragserver.FileID{UUID: fileID2},
+					Content: "bar",
+					Page:    43,
+					FileID:  ragserver.FileID{UUID: fileID2},
 				},
 			},
 			nil,

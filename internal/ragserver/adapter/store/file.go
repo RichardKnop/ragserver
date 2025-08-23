@@ -5,16 +5,21 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
-type insertFileQuery struct {
-	*ragserver.File
+type insertFilesQuery struct {
+	files []*ragserver.File
 }
 
-func (q insertFileQuery) SQL() (string, []any) {
-	return `
+func (q insertFilesQuery) SQL() (string, []any) {
+	if len(q.files) == 0 {
+		return "", nil
+	}
+
+	sql := `
 		INSERT INTO "file" (
 			"id", 
 			"file_name", 
@@ -22,15 +27,47 @@ func (q insertFileQuery) SQL() (string, []any) {
 			"extension",
 			"file_size", 
 			"file_hash",
+			"embedder",
+			"retriever",
 			"created_at"
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, []any{q.ID, q.FileName, q.MimeType, q.Extension, q.Size, q.Hash, q.CreatedAt}
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	args := make([]any, 0, len(q.files)*8)
+	args = append(
+		args,
+		q.files[0].ID,
+		q.files[0].FileName,
+		q.files[0].MimeType,
+		q.files[0].Extension,
+		q.files[0].Size,
+		q.files[0].Hash,
+		q.files[0].Embedder,
+		q.files[0].Retriever,
+		q.files[0].CreatedAt,
+	)
+	for i := range q.files[1:] {
+		sql += ", (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		args = append(
+			args,
+			q.files[i+1].ID,
+			q.files[i+1].FileName,
+			q.files[i+1].MimeType,
+			q.files[i+1].Extension,
+			q.files[i+1].Size,
+			q.files[i+1].Hash,
+			q.files[i+1].Embedder,
+			q.files[i+1].Retriever,
+			q.files[i+1].CreatedAt,
+		)
+	}
+
+	return sql, args
 }
 
-func (a *Adapter) SaveFile(ctx context.Context, file *ragserver.File) error {
+func (a *Adapter) SaveFiles(ctx context.Context, files ...*ragserver.File) error {
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
-		query, args := insertFileQuery{file}.SQL()
+		query, args := insertFilesQuery{files: files}.SQL()
 
 		stmt, err := tx.Prepare(query)
 		if err != nil {
@@ -70,17 +107,27 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			"extension", 
 			"file_size", 
 			"file_hash",
+			"embedder",
+			"retriever",
 			"created_at"
 		FROM "file"
-		ORDER BY "created_at" DESC
 	`, nil
 }
 
-func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
+func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter) ([]*ragserver.File, error) {
 	var files []*ragserver.File
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := selectFilesQuery{}.SQL()
+
+		// Add where clauses from the filter if any
+		if where, whereArgs := fileFilterClauses(filter); where != "" {
+			query += " " + where
+			args = append(args, whereArgs...)
+		}
+
+		// Add order by clause
+		query += ` ORDER BY "created_at" DESC`
 
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
@@ -89,19 +136,12 @@ func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
 		defer rows.Close()
 
 		for rows.Next() {
-			var file ragserver.File
-			if err := rows.Scan(
-				&file.ID,
-				&file.FileName,
-				&file.MimeType,
-				&file.Extension,
-				&file.Size,
-				&file.Hash,
-				&file.CreatedAt,
-			); err != nil {
-				return fmt.Errorf("scan failed: %w", err)
+			var file *ragserver.File
+			file, err = scanFile(rows)
+			if err != nil {
+				return err
 			}
-			files = append(files, &file)
+			files = append(files, file)
 		}
 
 		return nil
@@ -110,6 +150,29 @@ func (a *Adapter) ListFiles(ctx context.Context) ([]*ragserver.File, error) {
 	}
 
 	return files, nil
+}
+
+func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
+	var (
+		clauses = []string{}
+		args    = []any{}
+	)
+
+	if filter.Embedder != "" {
+		clauses = append(clauses, "embedder = ?")
+		args = append(args, filter.Embedder)
+	}
+
+	if filter.Retriever != "" {
+		clauses = append(clauses, "retriever = ?")
+		args = append(args, filter.Retriever)
+	}
+
+	if len(clauses) == 0 {
+		return "", nil
+	}
+
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 type findFileQuery struct {
@@ -125,13 +188,15 @@ func (q findFileQuery) SQL() (string, []any) {
 			"extension", 
 			"file_size", 
 			"file_hash",
+			"embedder",
+			"retriever",
 			"created_at"
 		FROM "file" where "id" = ?
 	`, []any{q.id}
 }
 
 func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver.File, error) {
-	file := new(ragserver.File)
+	var file *ragserver.File
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := findFileQuery{id: id}.SQL()
 
@@ -142,18 +207,8 @@ func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver
 		defer stmt.Close()
 
 		row := stmt.QueryRowContext(ctx, args...)
-		if err := row.Scan(
-			&file.ID,
-			&file.FileName,
-			&file.MimeType,
-			&file.Extension,
-			&file.Size,
-			&file.Hash,
-			&file.CreatedAt,
-		); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ragserver.ErrNotFound
-			}
+		file, err = scanFile(row)
+		if err != nil {
 			return err
 		}
 
@@ -162,5 +217,30 @@ func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver
 		return nil, err
 	}
 
+	return file, nil
+}
+
+type scannable interface {
+	Scan(dest ...any) error
+}
+
+func scanFile(row scannable) (*ragserver.File, error) {
+	file := new(ragserver.File)
+	if err := row.Scan(
+		&file.ID,
+		&file.FileName,
+		&file.MimeType,
+		&file.Extension,
+		&file.Size,
+		&file.Hash,
+		&file.Embedder,
+		&file.Retriever,
+		&file.CreatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ragserver.ErrNotFound
+		}
+		return nil, fmt.Errorf("scan failed: %w", err)
+	}
 	return file, nil
 }

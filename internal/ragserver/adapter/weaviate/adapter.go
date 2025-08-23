@@ -26,6 +26,12 @@ func New(ctx context.Context, client *weaviate.Client, options ...Option) (*Adap
 	return a, a.init(ctx)
 }
 
+const adapterName = "weaviate"
+
+func (a *Adapter) Name() string {
+	return adapterName
+}
+
 const className = "Document"
 
 func (a *Adapter) init(ctx context.Context) error {

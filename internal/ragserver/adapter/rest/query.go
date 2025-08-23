@@ -92,7 +92,7 @@ func mapResponse(question api.Question, responses []ragserver.Response) api.Resp
 			answer.Evidence = append(answer.Evidence, api.Evidence{
 				FileId: openapi_types.UUID(doc.FileID.UUID[0:16]),
 				Page:   int32(doc.Page),
-				Text:   doc.Text,
+				Text:   doc.Content,
 			})
 		}
 		apiResponse.Answers = append(apiResponse.Answers, answer)

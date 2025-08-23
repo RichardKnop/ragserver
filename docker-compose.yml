@@ -3,7 +3,7 @@ version: '3.4'
 services:
   weaviate:
     volumes:
-      - ./data/weaviate:/var/lib/weaviate
+      - weaviate_data:/var/lib/weaviate
     command:
     - --host
     - 0.0.0.0
@@ -22,3 +22,14 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       CLUSTER_HOSTNAME: 'node1'
       DISABLE_TELEMETRY: true
+  redis:
+    image: redis/redis-stack-server:7.2.0-v18
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+    volumes:
+      - redis_data:/data
+volumes:
+  weaviate_data:
+  redis_data:

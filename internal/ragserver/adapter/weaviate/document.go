@@ -22,8 +22,8 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 			return fmt.Errorf("empty vector")
 		}
 		properties := map[string]any{
-			"text": doc.Text,
-			"page": doc.Page,
+			"content": doc.Content,
+			"page":    doc.Page,
 		}
 		if !doc.FileID.IsNil() {
 			properties["file_id"] = doc.FileID.String()
@@ -45,7 +45,11 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return err
 }
 
-func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, fileIDs ...ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) ListDocuments(ctx context.Context, filter ragserver.DocumentFilter) ([]ragserver.Document, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, limit int, fileIDs ...ragserver.FileID) ([]ragserver.Document, error) {
 	gql := a.client.GraphQL()
 	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(vector))
 
@@ -53,11 +57,11 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 		WithNearVector(nearVector).
 		WithClassName("Document").
 		WithFields(
-			graphql.Field{Name: "text"},
+			graphql.Field{Name: "content"},
 			graphql.Field{Name: "page"},
 			graphql.Field{Name: "file_id"},
 		).
-		WithLimit(25)
+		WithLimit(limit)
 
 	if len(fileIDs) > 0 {
 		filter := filters.Where()
@@ -107,9 +111,9 @@ func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]ragser
 		if !ok {
 			return nil, fmt.Errorf("invalid element in list of documents")
 		}
-		text, ok := smap["text"].(string)
+		content, ok := smap["content"].(string)
 		if !ok {
-			return nil, fmt.Errorf("expected text in document")
+			return nil, fmt.Errorf("expected content in document")
 		}
 		page, ok := smap["page"].(float64)
 		if !ok {
@@ -124,9 +128,9 @@ func decodeGetDocumentResults(graphqlResponse *models.GraphQLResponse) ([]ragser
 			return nil, fmt.Errorf("invalid file_id in document: %w", err)
 		}
 		out = append(out, ragserver.Document{
-			Text:   text,
-			Page:   int(page),
-			FileID: ragserver.FileID{UUID: fileID},
+			Content: content,
+			Page:    int(page),
+			FileID:  ragserver.FileID{UUID: fileID},
 		})
 	}
 	return out, nil

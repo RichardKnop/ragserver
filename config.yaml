@@ -1,4 +1,4 @@
-server:
+http:
   host: localhost
   port: 9020
 
@@ -7,23 +7,44 @@ db:
   migrations:
     path: internal/db/migrations
 
-ai:
+weaviate:
+  addr: localhost:9035
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0 # use default DB
+  protocol: 2
+  index: ragserver-idx
+  index_prefix: "doc:"
+  vector_dim: 768
+  vector_distance_metric: COSINE
+
+gemini:
   models:
     embeddings: text-embedding-004
     generative: gemini-2.5-flash
-  relevant_topics:
-    scope:
-      - scope 1
-      - scope 2
-      - scope 3
-    net-zero: 
-      - net-zero
-      - net zero
-      - net-zero target
-      - net zero target
+
+relevant_topics:
+  scope:
+    - scope 1
+    - scope 2
+    - scope 3
+  net-zero: 
+    - net-zero
+    - net zero
+    - net-zero target
+    - net zero target
 
 adapter:
-  # supported adapters
+  # Supported adapters for extracting text from PDFs:
   # 1. pdf (extracts text from PDF locally using code)
   # 2. document (uses Gemini document vision)
-  extract: document
+  extract: pdf
+  # Supported models for generating embeddings:
+  # 1. google-genai
+  embed: google-genai
+  # Supported models for storing and retrieving embeddings:
+  # 1. weaviate
+  # 2. redis
+  retrieve: redis

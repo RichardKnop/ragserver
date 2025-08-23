@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	_ "embed"
@@ -20,14 +19,16 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
 	"google.golang.org/genai"
 
 	"github.com/RichardKnop/ragserver/api"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/document"
-	genaiAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/genai"
+	googlegenai "github.com/RichardKnop/ragserver/internal/ragserver/adapter/google-genai"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/pdf"
+	redisAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/redis"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/rest"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/store"
 	weaviateAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/weaviate"
@@ -49,24 +50,16 @@ func main() {
 		log.Fatal("fatal error config file: ", err)
 	}
 
-	wvClient, err := weaviate.NewClient(weaviate.Config{
-		Host:   "localhost:" + cmp.Or(os.Getenv("WVPORT"), "9035"),
-		Scheme: "http",
-	})
-	if err != nil {
-		log.Fatal("weaviate client: ", err)
-	}
-	vwAdapter, err := weaviateAdapter.New(ctx, wvClient)
-	if err != nil {
-		log.Fatal("weaviate adapter: ", err)
-	}
-
 	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
 	genaiClient, err := genai.NewClient(ctx, nil)
 	if err != nil {
 		log.Fatal("genai client: ", err)
 	}
-	gAdapter := genaiAdapter.New(genaiClient)
+	genaiAdapter := googlegenai.New(
+		genaiClient,
+		googlegenai.WithEmbeddingModel(viper.GetString("gemini.models.embeddings")),
+		googlegenai.WithGenerativeModel(viper.GetString("gemini.models.generative")),
+	)
 
 	// Load the training data
 	training, err := sentences.LoadTraining([]byte(testEn))
@@ -75,6 +68,7 @@ func main() {
 	}
 
 	// Connect to the database
+	log.Println("connecting to db:", viper.GetString("db.name"))
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", viper.GetString("db.name")))
 	if err != nil {
 		log.Fatal("db open: ", err)
@@ -98,6 +92,55 @@ func main() {
 		log.Fatal("migrations up: ", err)
 	}
 
+	var embebber ragserver.Embedder
+	switch viper.GetString("adapter.embed") {
+	case "google-genai":
+		log.Println("embed adapter: google-genai")
+		embebber = genaiAdapter
+	default:
+		log.Fatalf("unknown embed adapter: %s", viper.GetString("adapter.embed"))
+	}
+
+	var retriever ragserver.Retriever
+	switch viper.GetString("adapter.retrieve") {
+	case "weaviate":
+		log.Println("retrieve adapter: weaviate")
+		wvClient, err := weaviate.NewClient(weaviate.Config{
+			Host:   viper.GetString("weaviate.addr"),
+			Scheme: "http",
+		})
+		if err != nil {
+			log.Fatal("weaviate client: ", err)
+		}
+		retriever, err = weaviateAdapter.New(ctx, wvClient)
+		if err != nil {
+			log.Fatal("weaviate adapter: ", err)
+		}
+	case "redis":
+		log.Println("retrieve adapter: redis")
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     viper.GetString("redis.addr"),
+			Password: viper.GetString("redis.password"),
+			DB:       viper.GetInt("redis.db"),
+			Protocol: viper.GetInt("redis.protocol"),
+		})
+		var err error
+		retriever, err = redisAdapter.New(
+			ctx,
+			rdb,
+			redisAdapter.WithIndexName(viper.GetString("redis.index")),
+			redisAdapter.WithIndexPrefix(viper.GetString("redis.index_prefix")),
+			redisAdapter.WithDialectVersion(viper.GetInt("redis.protocol")),
+			redisAdapter.WithVectorDim(viper.GetInt("redis.vector_dim")),
+			redisAdapter.WithVectorDistanceMetric(viper.GetString("redis.vector_distance_metric")),
+		)
+		if err != nil {
+			log.Fatal("redis adapter: ", err)
+		}
+	default:
+		log.Fatalf("unknown retrieve adapter: %s", viper.GetString("adapter.retrieve"))
+	}
+
 	var extractor ragserver.Extractor
 	switch viper.GetString("adapter.extract") {
 	case "pdf":
@@ -105,9 +148,13 @@ func main() {
 		extractor = pdf.New(training)
 	case "document":
 		log.Println("extract adapter: document")
-		extractor = document.New(genaiClient, training)
+		extractor = document.New(
+			genaiClient,
+			training,
+			document.WithGenerativeModel(viper.GetString("gemini.models.generative")),
+		)
 	default:
-		log.Fatalf("unknown extract adapter: %s", viper.GetString("extract.adapter"))
+		log.Fatalf("unknown extract adapter: %s", viper.GetString("adapter.extract"))
 	}
 
 	relevantTopics, err := relevantTopicsFromConfig()
@@ -121,12 +168,12 @@ func main() {
 
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(gAdapter, gAdapter, vwAdapter, extractor, storeAdapter, opts...)
+		rs           = ragserver.New(extractor, embebber, retriever, genaiAdapter, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
 		h       = api.HandlerFromMux(restAdapter, mux)
-		address = viper.GetString("server.host") + ":" + viper.GetString("server.port")
+		address = viper.GetString("http.host") + ":" + viper.GetString("http.port")
 	)
 
 	httpServer := &http.Server{
@@ -160,7 +207,7 @@ func main() {
 
 func relevantTopicsFromConfig() (ragserver.RelevantTopics, error) {
 	var relevantTopics []ragserver.Topic
-	for name, keywords := range viper.GetStringMapStringSlice("ai.relevant_topics") {
+	for name, keywords := range viper.GetStringMapStringSlice("relevant_topics") {
 		relevantTopics = append(relevantTopics, ragserver.Topic{
 			Name:     name,
 			Keywords: keywords,

@@ -1,4 +1,4 @@
-package genai
+package googlegenai
 
 const ragTemplateStr = `
 I will ask you a question and will provide some additional context information.

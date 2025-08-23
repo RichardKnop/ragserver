@@ -66,8 +66,8 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 			tables, err := NewTables(aSentence.Text)
 			if err != nil {
 				documents = append(documents, ragserver.Document{
-					Text: strings.TrimSpace(aSentence.Text),
-					Page: i + 1,
+					Content: strings.TrimSpace(aSentence.Text),
+					Page:    i + 1,
 				})
 				continue
 			}
@@ -79,15 +79,15 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 					log.Printf("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
 					for _, aContext := range tableContexts {
 						documents = append(documents, ragserver.Document{
-							Text: aContext,
-							Page: i + 1,
+							Content: aContext,
+							Page:    i + 1,
 						})
 					}
 				}
 			} else {
 				documents = append(documents, ragserver.Document{
-					Text: strings.TrimSpace(aSentence.Text),
-					Page: i + 1,
+					Content: strings.TrimSpace(aSentence.Text),
+					Page:    i + 1,
 				})
 			}
 		}
