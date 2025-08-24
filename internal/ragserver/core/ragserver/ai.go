@@ -62,7 +62,10 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	// Search weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
-	documents, err := rs.retriever.SearchDocuments(ctx, vector, 25, fileIDs...)
+	documents, err := rs.retriever.SearchDocuments(ctx, DocumentFilter{
+		Vector:  vector,
+		FileIDs: fileIDs,
+	}, 25)
 	if err != nil {
 		return nil, fmt.Errorf("searching documents: %v", err)
 	}

@@ -33,6 +33,7 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 		if fields == 0 {
 			return fmt.Errorf("no fields were added to redis")
 		}
+		fmt.Println("fields added to redis:", fields, key, documents[i].FileID.String())
 
 		if err != nil {
 			return err
@@ -42,17 +43,8 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return nil
 }
 
-func (a *Adapter) ListDocuments(ctx context.Context, filter ragserver.DocumentFilter) ([]ragserver.Document, error) {
-	ids := make([]string, 0, len(filter.FileIDs))
-	for _, fileID := range filter.FileIDs {
-		ids = append(ids, escapeUUID(fileID.UUID))
-	}
-	fileIDFilter := strings.Join(ids, "|")
-
-	var query string
-	if fileIDFilter != "" {
-		query += fmt.Sprintf("@file_id:{%s}", fileIDFilter)
-	}
+func (a *Adapter) ListDocumentsByFileID(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
+	query := fmt.Sprintf("@file_id:{%s}", escapeUUID(id.UUID))
 
 	results, err := a.client.FTSearchWithArgs(ctx,
 		a.indexName,
@@ -78,20 +70,24 @@ func escapeUUID(u uuid.UUID) string {
 	return strings.ReplaceAll(u.String(), "-", "\\-")
 }
 
-func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, limit int, fileIDs ...ragserver.FileID) ([]ragserver.Document, error) {
-	ids := make([]string, 0, len(fileIDs))
-	for _, fileID := range fileIDs {
+func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.DocumentFilter, limit int) ([]ragserver.Document, error) {
+	if filter.Vector == nil {
+		return nil, fmt.Errorf("vector is required for searching documents")
+	}
+
+	ids := make([]string, 0, len(filter.FileIDs))
+	for _, fileID := range filter.FileIDs {
 		ids = append(ids, escapeUUID(fileID.UUID))
 	}
 	fileIDFilter := strings.Join(ids, "|")
 
 	var query string
 	if fileIDFilter != "" {
-		query += fmt.Sprintf("(@file_id:{%s})=>", fileIDFilter)
+		query += fmt.Sprintf("(@file_id:{%s})", fileIDFilter)
 	} else {
-		query += "*=>"
+		query += "*"
 	}
-	query += ">[KNN 3 @embedding $vec AS vector_distance]"
+	query += "=>[KNN 3 @embedding $vec AS vector_distance]"
 
 	// The results are ordered according to the value of the vector_distance field,
 	// with the lowest distance indicating the greatest similarity to the query.
@@ -107,7 +103,7 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 			},
 			DialectVersion: a.dialectVersion,
 			Params: map[string]any{
-				"vec": floatsToBytes(vector),
+				"vec": floatsToBytes(filter.Vector),
 			},
 			SortBy: []redis.FTSearchSortBy{{FieldName: "vector_distance", Asc: true}},
 			Limit:  limit,
@@ -117,12 +113,12 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 		return nil, err
 	}
 
-	for _, doc := range results.Docs {
-		fmt.Printf(
-			"ID: %v, Distance:%v, Content:'%v'\n",
-			doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
-		)
-	}
+	// for _, doc := range results.Docs {
+	// 	fmt.Printf(
+	// 		"ID: %v, Distance:%v, Content:'%v'\n",
+	// 		doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
+	// 	)
+	// }
 
 	return mapRedisDocuments(results.Docs)
 }
@@ -131,7 +127,6 @@ func mapRedisDocuments(rds []redis.Document) ([]ragserver.Document, error) {
 	documents := make([]ragserver.Document, 0, len(rds))
 
 	for _, rd := range rds {
-
 		aDocument, err := mapRedisDocument(rd)
 		if err != nil {
 			return nil, err

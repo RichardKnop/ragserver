@@ -24,8 +24,8 @@ type Embedder interface {
 type Retriever interface {
 	Name() string
 	SaveDocuments(ctx context.Context, documents []Document, vectors []Vector) error
-	ListDocuments(ctx context.Context, filter DocumentFilter) ([]Document, error)
-	SearchDocuments(ctx context.Context, vector Vector, limit int, fileIDs ...FileID) ([]Document, error)
+	ListDocumentsByFileID(ctx context.Context, id FileID) ([]Document, error)
+	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
 }
 
 // LanguageModel uses generative AI to generate responses based on a query and relevant documents.

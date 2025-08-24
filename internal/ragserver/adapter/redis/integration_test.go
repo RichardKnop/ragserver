@@ -21,6 +21,7 @@ func TestRedisTestSuite(t *testing.T) {
 type RedisTestSuite struct {
 	suite.Suite
 	container *dockertest.Resource
+	client    *redis.Client
 	adapter   *Adapter
 }
 
@@ -34,14 +35,28 @@ func (s *RedisTestSuite) SetupSuite() {
 	}
 	s.container = r
 
-	client := redis.NewClient(&redis.Options{
+	s.client = redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDR"),
 		DB:       0,
 		Protocol: 2,
 	})
-	adapter, err := New(
+}
+
+func (s *RedisTestSuite) TearDownSuite() {
+	err := s.container.Close()
+	s.Require().NoError(err)
+}
+
+func (s *RedisTestSuite) SetupTest() {
+	ctx, cancel := testContext()
+	defer cancel()
+
+	err := s.client.FlushDB(ctx).Err()
+	s.Require().NoError(err)
+
+	s.adapter, err = New(
 		ctx,
-		client,
+		s.client,
 		WithIndexName("text-idx"),
 		WithIndexPrefix("doc:"),
 		WithDialectVersion(2),
@@ -49,14 +64,6 @@ func (s *RedisTestSuite) SetupSuite() {
 		WithVectorDistanceMetric("L2"),
 	)
 	s.Require().NoError(err)
-	s.adapter = adapter
-}
-
-func (s *RedisTestSuite) TearDownSuite() {
-	s.container.Close()
-}
-
-func (s *RedisTestSuite) SetupTest() {
 }
 
 func (s *RedisTestSuite) TearDownTest() {

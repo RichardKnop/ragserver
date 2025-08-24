@@ -20,10 +20,9 @@ redis:
   vector_dim: 768
   vector_distance_metric: COSINE
 
-gemini:
-  models:
-    embeddings: text-embedding-004
-    generative: gemini-2.5-flash
+models:
+  embeddings: text-embedding-004
+  generative: gemini-2.5-flash
 
 relevant_topics:
   scope:

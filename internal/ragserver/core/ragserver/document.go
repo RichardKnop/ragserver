@@ -15,6 +15,7 @@ type Document struct {
 }
 
 type DocumentFilter struct {
+	Vector  Vector
 	FileIDs []FileID
 }
 
@@ -49,9 +50,7 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 			return err
 		}
 
-		documents, err = rs.retriever.ListDocuments(ctx, DocumentFilter{
-			FileIDs: []FileID{id},
-		})
+		documents, err = rs.retriever.ListDocumentsByFileID(ctx, id)
 		if err != nil {
 			return err
 		}

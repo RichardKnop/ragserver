@@ -24,6 +24,7 @@ NOTE: I am planning to refactor this project as library so it can be imported fr
     - [Boolean Query Example](#boolean-query-example)
     - [Text Query Example](#text-query-example)
     - [No Answer Example](#no-answer-example)
+  - [Testing](#testing)
 
 ## Setup
 
@@ -73,9 +74,9 @@ You can either modify the `config.yaml` file or use environment variables.
 
 | Config               | Meaning |
 | -------------------- | --------|
-| ai.models.embeddings | Model to use for text embeddings. |
-| ai.models.generative | LLM model to use for generating answers. |
-| ai.relevant_topics   | Limit scope only to relevant topics when extracting context from PDF files |
+| models.embeddings    | Model to use for text embeddings. Currently only Gemini's `text-embedding-004` supported. |
+| models.generative    | LLM model to use for generating answers. Currently only Gemini models supported such as `gemini-2.5-flash`. |
+| relevant_topics      | Limit scope only to relevant topics when extracting context from PDF files |
 | adapter.extract      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
 | adapter.embed        | Currently only embedding adapter is `gemini` which will use `gemini.models.embeddings` model |
 | adapter.retrieve     | Supported adapters are `weaviate` and `redis` |
@@ -347,3 +348,13 @@ If you ask a question model cannot answer from the provided context, it will sim
   }
 }
 ```
+
+## Testing
+
+In order to run unit and integration tests, just do:
+
+```sh
+go test ./... -count=1
+```
+
+You need to have docker running as some integration tests use [dockertest](https://github.com/ory/dockertest) to start containers (such as Redis).

@@ -89,18 +89,39 @@ func (a *Adapter) Name() string {
 	return adapterName
 }
 
+func (a *Adapter) dropIndex(ctx context.Context) error {
+	_, err := a.client.FTDropIndexWithArgs(ctx,
+		a.indexName,
+		&redis.FTDropIndexOptions{
+			DeleteDocs: true,
+		},
+	).Result()
+	if err != nil {
+		return err
+	}
+	log.Println("dropped redis index:", a.indexName)
+	return nil
+}
+
 func (a *Adapter) init(ctx context.Context) error {
-	// _, derr := a.client.FTDropIndexWithArgs(ctx,
-	// 	a.indexName,
-	// 	&redis.FTDropIndexOptions{
-	// 		DeleteDocs: true,
-	// 	},
-	// ).Result()
-	// if derr != nil {
-	// 	return derr
+	// if err := a.dropIndex(ctx); err != nil {
+	// 	return err
 	// }
-	// log.Println("dropped redis index:", a.indexName)
 	// return nil
+	indexes, err := a.client.FT_List(ctx).Result()
+	if err != nil {
+		return err
+	}
+	for _, existingIndex := range indexes {
+		if existingIndex == a.indexName {
+			log.Println("redis index already exists:", a.indexName)
+			return nil
+		}
+	}
+	return a.createIndex(ctx)
+}
+
+func (a *Adapter) createIndex(ctx context.Context) error {
 	_, err := a.client.FTCreate(ctx,
 		a.indexName,
 		&redis.FTCreateOptions{
@@ -136,10 +157,6 @@ func (a *Adapter) init(ctx context.Context) error {
 		},
 	).Result()
 	if err != nil {
-		if err.Error() == "Index already exists" {
-			log.Println("redis index already exists:", a.indexName)
-			return nil
-		}
 		return fmt.Errorf("error creating redis index: %v", err)
 	}
 	log.Println("created redis index:", a.indexName)

@@ -45,13 +45,17 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return err
 }
 
-func (a *Adapter) ListDocuments(ctx context.Context, filter ragserver.DocumentFilter) ([]ragserver.Document, error) {
+func (a *Adapter) ListDocumentsByFileID(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, limit int, fileIDs ...ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.DocumentFilter, limit int) ([]ragserver.Document, error) {
+	if filter.Vector == nil {
+		return nil, fmt.Errorf("vector is required for searching documents")
+	}
+
 	gql := a.client.GraphQL()
-	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(vector))
+	nearVector := gql.NearVectorArgBuilder().WithVector([]float32(filter.Vector))
 
 	builder := gql.Get().
 		WithNearVector(nearVector).
@@ -63,12 +67,12 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 		).
 		WithLimit(limit)
 
-	if len(fileIDs) > 0 {
-		filter := filters.Where()
-		filter.WithOperator(filters.ContainsAny)
-		filter.WithPath([]string{"file_id"})
-		filter.WithValueString(fileIDsToStrings(fileIDs)...)
-		builder = builder.WithWhere(filter)
+	if len(filter.FileIDs) > 0 {
+		where := filters.Where()
+		where.WithOperator(filters.ContainsAny)
+		where.WithPath([]string{"file_id"})
+		where.WithValueString(fileIDsToStrings(filter.FileIDs)...)
+		builder = builder.WithWhere(where)
 	}
 
 	graphqlResponse, err := builder.Do(ctx)

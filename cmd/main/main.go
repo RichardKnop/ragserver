@@ -57,8 +57,8 @@ func main() {
 	}
 	genaiAdapter := googlegenai.New(
 		genaiClient,
-		googlegenai.WithEmbeddingModel(viper.GetString("gemini.models.embeddings")),
-		googlegenai.WithGenerativeModel(viper.GetString("gemini.models.generative")),
+		googlegenai.WithEmbeddingModel(viper.GetString("models.embeddings")),
+		googlegenai.WithGenerativeModel(viper.GetString("models.generative")),
 	)
 
 	// Load the training data
@@ -151,7 +151,7 @@ func main() {
 		extractor = document.New(
 			genaiClient,
 			training,
-			document.WithGenerativeModel(viper.GetString("gemini.models.generative")),
+			document.WithGenerativeModel(viper.GetString("models.generative")),
 		)
 	default:
 		log.Fatalf("unknown extract adapter: %s", viper.GetString("adapter.extract"))
