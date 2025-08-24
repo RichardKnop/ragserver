@@ -15,6 +15,10 @@ import (
 )
 
 func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Document, vectors []ragserver.Vector) error {
+	if len(documents) != len(vectors) {
+		return fmt.Errorf("documents and vectors must have the same length")
+	}
+
 	for i, vector := range vectors {
 		key := fmt.Sprintf("doc:%v", uuid.Must(uuid.NewV4()))
 		fields, err := a.client.HSet(ctx,
@@ -105,11 +109,19 @@ func (a *Adapter) SearchDocuments(ctx context.Context, vector ragserver.Vector, 
 			Params: map[string]any{
 				"vec": floatsToBytes(vector),
 			},
-			Limit: limit,
+			SortBy: []redis.FTSearchSortBy{{FieldName: "vector_distance", Asc: true}},
+			Limit:  limit,
 		},
 	).Result()
 	if err != nil {
 		return nil, err
+	}
+
+	for _, doc := range results.Docs {
+		fmt.Printf(
+			"ID: %v, Distance:%v, Content:'%v'\n",
+			doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
+		)
 	}
 
 	return mapRedisDocuments(results.Docs)
