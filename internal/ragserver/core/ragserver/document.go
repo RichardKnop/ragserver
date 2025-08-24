@@ -44,7 +44,7 @@ func (rt RelevantTopics) IsRelevant(content string) (Topic, bool) {
 func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID) ([]Document, error) {
 	var documents []Document
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		_, err := rs.store.FindFile(ctx, id)
+		_, err := rs.store.FindFile(ctx, id, rs.partial())
 		if err != nil {
 			return err
 		}

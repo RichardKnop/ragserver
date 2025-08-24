@@ -48,7 +48,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	// Check all file IDs exist in the database
 	for _, fileID := range fileIDs {
-		_, err := rs.store.FindFile(ctx, fileID)
+		_, err := rs.store.FindFile(ctx, fileID, rs.partial())
 		if err != nil {
 			return nil, fmt.Errorf("error finding file: %v", err)
 		}

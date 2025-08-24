@@ -3,6 +3,8 @@ package ragserver
 import (
 	"errors"
 	"time"
+
+	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -42,4 +44,8 @@ func New(extractor Extractor, embedder Embedder, retriever Retriever, lm Languag
 	}
 
 	return rs
+}
+
+func (rs *ragServer) partial() authz.Partial {
+	return authz.FilterBy("embedder", rs.embedder.Name()).And("retriever", rs.retriever.Name())
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
@@ -114,15 +115,28 @@ func (q selectFilesQuery) SQL() (string, []any) {
 	`, nil
 }
 
-func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter) ([]*ragserver.File, error) {
+func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, partial authz.Partial) ([]*ragserver.File, error) {
 	var files []*ragserver.File
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := selectFilesQuery{}.SQL()
 
-		// Add where clauses from the filter if any
-		if where, whereArgs := fileFilterClauses(filter); where != "" {
-			query += " " + where
+		fmt.Println("filter", filter, "partial", partial)
+
+		// Add where clauses from the filter and/or partial if any
+		where, whereArgs := fileFilterClauses(filter)
+		partialClauses, partialArgs := partial.SQL()
+		if partialClauses != "" {
+			if where == "" {
+				where += partialClauses
+			} else {
+				where += " AND " + partialClauses
+			}
+
+			whereArgs = append(whereArgs, partialArgs...)
+		}
+		if where != "" {
+			query += " WHERE " + where
 			args = append(args, whereArgs...)
 		}
 
@@ -172,7 +186,7 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 		return "", nil
 	}
 
-	return "WHERE " + strings.Join(clauses, " AND "), args
+	return strings.Join(clauses, " AND "), args
 }
 
 type findFileQuery struct {
@@ -195,10 +209,18 @@ func (q findFileQuery) SQL() (string, []any) {
 	`, []any{q.id}
 }
 
-func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID) (*ragserver.File, error) {
+func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID, partial authz.Partial) (*ragserver.File, error) {
 	var file *ragserver.File
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := findFileQuery{id: id}.SQL()
+
+		// Add where clauses from the partial if any
+		partialClauses, partialArgs := partial.SQL()
+		if partialClauses != "" {
+			query += " AND " + partialClauses
+
+			args = append(args, partialArgs...)
+		}
 
 		stmt, err := tx.Prepare(query)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 	"github.com/RichardKnop/ragserver/internal/ragserver/core/ragserver"
 )
 
@@ -25,22 +26,27 @@ func (s *StoreTestSuite) TestFindFile() {
 		CreatedAt: time.Now().UTC(),
 	}
 
-	_, err := s.adapter.FindFile(ctx, aFile.ID)
+	_, err := s.adapter.FindFile(ctx, aFile.ID, authz.NilPartial)
 	s.Require().ErrorIs(err, ragserver.ErrNotFound)
 
 	err = s.adapter.SaveFiles(ctx, aFile)
 	s.Require().NoError(err)
 
-	savedFile, err := s.adapter.FindFile(ctx, aFile.ID)
+	savedFile, err := s.adapter.FindFile(ctx, aFile.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(aFile, savedFile)
+
+	// Try applying a partial
+	partial := authz.FilterBy("embedder", "google-genai").And("retriever", "weaviate")
+	_, err = s.adapter.FindFile(ctx, aFile.ID, partial)
+	s.Require().ErrorIs(err, ragserver.ErrNotFound)
 }
 
 func (s *StoreTestSuite) TestListFiles() {
 	ctx, cancel := testContext()
 	defer cancel()
 
-	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{})
+	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Empty(files)
 
@@ -72,7 +78,7 @@ func (s *StoreTestSuite) TestListFiles() {
 	err = s.adapter.SaveFiles(ctx, file1, file2)
 	s.Require().NoError(err)
 
-	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{})
+	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Len(files, 2)
 	s.Contains(files, file1)
@@ -82,7 +88,14 @@ func (s *StoreTestSuite) TestListFiles() {
 	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{
 		Embedder:  "google-genai",
 		Retriever: "weaviate",
-	})
+	}, authz.NilPartial)
+	s.Require().NoError(err)
+	s.Len(files, 1)
+	s.Equal(file1, files[0])
+
+	// Try applying a partial
+	partial := authz.FilterBy("embedder", "google-genai").And("retriever", "weaviate")
+	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, partial)
 	s.Require().NoError(err)
 	s.Len(files, 1)
 	s.Equal(file1, files[0])

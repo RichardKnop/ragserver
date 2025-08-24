@@ -159,10 +159,7 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		files, err = rs.store.ListFiles(ctx, FileFilter{
-			Embedder:  rs.embedder.Name(),
-			Retriever: rs.retriever.Name(),
-		})
+		files, err = rs.store.ListFiles(ctx, FileFilter{}, rs.partial())
 		if err != nil {
 			return err
 		}
@@ -177,7 +174,7 @@ func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id
 	var file *File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		file, err = rs.store.FindFile(ctx, id)
+		file, err = rs.store.FindFile(ctx, id, rs.partial())
 		if err != nil {
 			return err
 		}

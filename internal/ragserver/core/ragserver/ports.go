@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"io"
+
+	"github.com/RichardKnop/ragserver/internal/pkg/authz"
 )
 
 // Extractor extracts documents from various contents, optionally limited by relevant topics.
@@ -42,6 +44,6 @@ type Transactional interface {
 
 type FileStore interface {
 	SaveFiles(ctx context.Context, file ...*File) error
-	ListFiles(ctx context.Context, filter FileFilter) ([]*File, error)
-	FindFile(ctx context.Context, id FileID) (*File, error)
+	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial) ([]*File, error)
+	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)
 }
