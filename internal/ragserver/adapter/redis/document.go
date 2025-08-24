@@ -33,7 +33,6 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 		if fields == 0 {
 			return fmt.Errorf("no fields were added to redis")
 		}
-		fmt.Println("fields added to redis:", fields, key, documents[i].FileID.String())
 
 		if err != nil {
 			return err

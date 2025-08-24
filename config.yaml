@@ -17,12 +17,8 @@ redis:
   protocol: 2
   index: ragserver-idx
   index_prefix: "doc:"
-  vector_dim: 768
+  vector_dim: 768 # 768 for text-embedding-004, 384 for all-MiniLM-L6-v2
   vector_distance_metric: COSINE
-
-models:
-  embeddings: text-embedding-004
-  generative: gemini-2.5-flash
 
 relevant_topics:
   scope:
@@ -39,11 +35,19 @@ adapter:
   # Supported adapters for extracting text from PDFs:
   # 1. pdf (extracts text from PDF locally using code)
   # 2. document (uses Gemini document vision)
-  extract: pdf
+  extract: 
+    name: pdf
+    model: gemini-2.5-flash # only used if name is document
   # Supported models for generating embeddings:
   # 1. google-genai
-  embed: google-genai
+  # 2. hugot
+  embed: 
+    name: google-genai # google-genai or hugot
+    model: text-embedding-004 # text-embedding-004 or all-MiniLM-L6-v2
   # Supported models for storing and retrieving embeddings:
   # 1. weaviate
   # 2. redis
-  retrieve: redis
+  retrieve: 
+    name: redis
+  generative: 
+    model: gemini-2.5-flash

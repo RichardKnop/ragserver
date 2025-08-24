@@ -72,14 +72,17 @@ This project requires a Gemini API key. Use `GEMINI_API_KEY` environment variabl
 
 You can either modify the `config.yaml` file or use environment variables.
 
-| Config               | Meaning |
-| -------------------- | --------|
-| models.embeddings    | Model to use for text embeddings. Currently only Gemini's `text-embedding-004` supported. |
-| models.generative    | LLM model to use for generating answers. Currently only Gemini models supported such as `gemini-2.5-flash`. |
-| relevant_topics      | Limit scope only to relevant topics when extracting context from PDF files |
-| adapter.extract      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
-| adapter.embed        | Currently only embedding adapter is `gemini` which will use `gemini.models.embeddings` model |
-| adapter.retrieve     | Supported adapters are `weaviate` and `redis` |
+| Config                  | Meaning |
+| ----------------------- | --------|
+| adapter.extract.name    | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
+| adapter.extract.model   | Only used if `adapter.extract.name` is set to `document`. Currently only supported model is `gemini-2.5-flash` |
+| adapter.embed.name      | Currently supported are `google-genai` and `hugot` . Set `models.embeddings` to `text-embedding-004` for `google-genai` and `all-MiniLM-L6-v2` for `hugot` |
+| adapter.embed.model     | Model to use for text embeddings. Currently supported are Gemini's `text-embedding-004` and OONX `all-MiniLM-L6-v2`. |
+| adapter.retrieve.name   | Supported adapters are `weaviate` and `redis` |
+| adapter.generative.name | Currently only supported generative model is `gemini-2.5-flash` |
+| redis.vector_dim        | If you are using Redis, set to 768 for `text-embedding-004` or 384 for `all-MiniLM-L6-v2` |
+| models.generative.name  | LLM model to use for generating answers. Currently only Gemini models supported such as `gemini-2.5-flash`. |
+| relevant_topics         | Limit scope only to relevant topics when extracting context from PDF files |
 
 There is more configuration that can be referenced via `config.yaml` file. You can set any configuration value by using `_` as env key replacer. For example, a `http.host` can be set as environment variable `HTTP_HOST` and so on.
 
@@ -167,8 +170,8 @@ For content, you could choose some of these example ESG related questions:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
+      "9b124afe-8dd8-46a5-820b-d172e4fd90e6",
+      "043244c1-af65-4bad-8d90-969b0d8698d2"
     ]
 }
 EOF

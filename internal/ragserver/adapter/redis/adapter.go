@@ -41,6 +41,13 @@ func New(ctx context.Context, client *redis.Client, options ...Option) (*Adapter
 		o(a)
 	}
 
+	// Append vector dim to index name to allow multiple indexes with different dimensions
+	// e.g. text-embedding-004 produces 768-dimensional vectors by default
+	// but allows a developer to choose any number of dimensions between 1 and 768
+	// However, all-MiniLM-L6-v2 maps sentences & paragraphs to a 384 dimensional dense vector space
+	// so we might want to create a separate index for that
+	a.indexName = fmt.Sprintf("%s_dim%d", a.indexName, a.vectorDim)
+
 	log.Println(
 		"init redis adapter,",
 		"index name:", a.indexName,
@@ -89,20 +96,6 @@ func (a *Adapter) Name() string {
 	return adapterName
 }
 
-func (a *Adapter) dropIndex(ctx context.Context) error {
-	_, err := a.client.FTDropIndexWithArgs(ctx,
-		a.indexName,
-		&redis.FTDropIndexOptions{
-			DeleteDocs: true,
-		},
-	).Result()
-	if err != nil {
-		return err
-	}
-	log.Println("dropped redis index:", a.indexName)
-	return nil
-}
-
 func (a *Adapter) init(ctx context.Context) error {
 	// if err := a.dropIndex(ctx); err != nil {
 	// 	return err
@@ -119,6 +112,20 @@ func (a *Adapter) init(ctx context.Context) error {
 		}
 	}
 	return a.createIndex(ctx)
+}
+
+func (a *Adapter) dropIndex(ctx context.Context) error {
+	_, err := a.client.FTDropIndexWithArgs(ctx,
+		a.indexName,
+		&redis.FTDropIndexOptions{
+			DeleteDocs: true,
+		},
+	).Result()
+	if err != nil {
+		return err
+	}
+	log.Println("dropped redis index:", a.indexName)
+	return nil
 }
 
 func (a *Adapter) createIndex(ctx context.Context) error {
@@ -145,10 +152,6 @@ func (a *Adapter) createIndex(ctx context.Context) error {
 			FieldType: redis.SearchFieldTypeVector,
 			VectorArgs: &redis.FTVectorArgs{
 				HNSWOptions: &redis.FTHNSWOptions{
-					// Google text-embedding-004 produces vectors with 768 dimensions by default,
-					// but allows a developer to choose any number of dimensions between 1 and 768
-					// However, all-MiniLM-L6-v2 maps sentences & paragraphs to a 384 dimensional
-					// dense vector space
 					Dim:            a.vectorDim,
 					DistanceMetric: a.vectorDistanceMetric, // "COSINE", "IP", "L2"
 					Type:           "FLOAT32",

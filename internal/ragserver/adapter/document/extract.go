@@ -52,7 +52,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 
 	result, err := a.client.Models.GenerateContent(
 		ctx,
-		a.generativeModel,
+		a.model,
 		contents,
 		config,
 	)

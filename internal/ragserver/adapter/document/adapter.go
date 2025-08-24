@@ -8,23 +8,26 @@ import (
 )
 
 type Adapter struct {
-	client          *genai.Client
-	training        *sentences.Storage
-	generativeModel string
+	client   *genai.Client
+	training *sentences.Storage
+	model    string
 }
 
 type Option func(*Adapter)
 
-func WithGenerativeModel(model string) Option {
+func WithModel(model string) Option {
 	return func(a *Adapter) {
-		a.generativeModel = model
+		a.model = model
 	}
 }
+
+const defaultModel = "gemini-2.5-flash"
 
 func New(client *genai.Client, training *sentences.Storage, options ...Option) *Adapter {
 	a := &Adapter{
 		client:   client,
 		training: training,
+		model:    defaultModel,
 	}
 
 	for _, o := range options {
@@ -33,7 +36,7 @@ func New(client *genai.Client, training *sentences.Storage, options ...Option) *
 
 	log.Println(
 		"init google document adapter,",
-		"generative model:", a.generativeModel,
+		"model:", a.model,
 	)
 
 	return a

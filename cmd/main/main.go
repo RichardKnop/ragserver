@@ -17,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/knights-analytics/hugot"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
@@ -27,6 +28,7 @@ import (
 	"github.com/RichardKnop/ragserver/api"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/document"
 	googlegenai "github.com/RichardKnop/ragserver/internal/ragserver/adapter/google-genai"
+	hugotAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/hugot"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/pdf"
 	redisAdapter "github.com/RichardKnop/ragserver/internal/ragserver/adapter/redis"
 	"github.com/RichardKnop/ragserver/internal/ragserver/adapter/rest"
@@ -55,11 +57,6 @@ func main() {
 	if err != nil {
 		log.Fatal("genai client: ", err)
 	}
-	genaiAdapter := googlegenai.New(
-		genaiClient,
-		googlegenai.WithEmbeddingModel(viper.GetString("models.embeddings")),
-		googlegenai.WithGenerativeModel(viper.GetString("models.generative")),
-	)
 
 	// Load the training data
 	training, err := sentences.LoadTraining([]byte(testEn))
@@ -93,16 +90,38 @@ func main() {
 	}
 
 	var embebber ragserver.Embedder
-	switch viper.GetString("adapter.embed") {
+	switch viper.GetString("adapter.embed.name") {
 	case "google-genai":
 		log.Println("embed adapter: google-genai")
-		embebber = genaiAdapter
+		embebber = googlegenai.New(
+			genaiClient,
+			googlegenai.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
+		)
+	case "hugot":
+		log.Println("embed adapter: hugot")
+		session, err := hugot.NewGoSession()
+		if err != nil {
+			log.Fatal("hugot session: ", err)
+		}
+		defer func() {
+			err := session.Destroy()
+			if err != nil {
+				log.Fatal("hugot session destroy: ", err)
+			}
+		}()
+		embebber, err = hugotAdapter.New(
+			session,
+			hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
+		)
+		if err != nil {
+			log.Fatal("hugot adapter: ", err)
+		}
 	default:
 		log.Fatalf("unknown embed adapter: %s", viper.GetString("adapter.embed"))
 	}
 
 	var retriever ragserver.Retriever
-	switch viper.GetString("adapter.retrieve") {
+	switch viper.GetString("adapter.retrieve.name") {
 	case "weaviate":
 		log.Println("retrieve adapter: weaviate")
 		wvClient, err := weaviate.NewClient(weaviate.Config{
@@ -142,7 +161,7 @@ func main() {
 	}
 
 	var extractor ragserver.Extractor
-	switch viper.GetString("adapter.extract") {
+	switch viper.GetString("adapter.extract.name") {
 	case "pdf":
 		log.Println("extract adapter: pdf")
 		extractor = pdf.New(training)
@@ -151,7 +170,7 @@ func main() {
 		extractor = document.New(
 			genaiClient,
 			training,
-			document.WithGenerativeModel(viper.GetString("models.generative")),
+			document.WithModel(viper.GetString("adapter.extract.model")),
 		)
 	default:
 		log.Fatalf("unknown extract adapter: %s", viper.GetString("adapter.extract"))
@@ -166,9 +185,14 @@ func main() {
 		ragserver.WithRelevantTopics(relevantTopics),
 	}
 
+	lm := googlegenai.New(
+		genaiClient,
+		googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
+	)
+
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(extractor, embebber, retriever, genaiAdapter, storeAdapter, opts...)
+		rs           = ragserver.New(extractor, embebber, retriever, lm, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use

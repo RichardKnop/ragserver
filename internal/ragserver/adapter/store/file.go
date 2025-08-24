@@ -121,8 +121,6 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := selectFilesQuery{}.SQL()
 
-		fmt.Println("filter", filter, "partial", partial)
-
 		// Add where clauses from the filter and/or partial if any
 		where, whereArgs := fileFilterClauses(filter)
 		partialClauses, partialArgs := partial.SQL()
