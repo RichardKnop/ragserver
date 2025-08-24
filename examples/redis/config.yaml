@@ -1,0 +1,42 @@
+http:
+  host: localhost
+  port: 9020
+
+db:
+  name: db.sqlite
+
+weaviate:
+  addr: localhost:9035
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+  protocol: 2
+  index: ragserver-idx
+  index_prefix: "doc:"
+  vector_dim: 768
+  vector_distance_metric: L2
+
+relevant_topics:
+  scope:
+    - scope 1
+    - scope 2
+    - scope 3
+  net-zero: 
+    - net-zero
+    - net zero
+    - net-zero target
+    - net zero target
+
+adapter:
+  extract: 
+    name: pdf
+    model: gemini-2.5-flash
+  embed: 
+    name: google-genai
+    model: text-embedding-004
+  retrieve: 
+    name: redis
+  generative: 
+    model: gemini-2.5-flash

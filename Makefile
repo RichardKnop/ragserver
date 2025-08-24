@@ -2,11 +2,6 @@
 generate:
 	@go generate ./...
 
-.PHONY: run
-## Runs the application on the local machine
-run:
-	@go run cmd/main/main.go
-
 .PHONY: format
 ## Run go fmt against the codebase
 format:

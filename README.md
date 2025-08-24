@@ -1,76 +1,135 @@
 # RAG Server
 
+- [RAG Server](#rag-server)
+  - [Components](#components)
+    - [Extractor](#extractor)
+    - [Embedder](#embedder)
+    - [Retriever](#retriever)
+    - [LanguageModel](#languagemodel)
+- [Examples](#examples)
+- [SQLite Database](#sqlite-database)
+- [Configuration](#configuration)
+- [API](#api)
+- [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
+- [Querying the LLM](#querying-the-llm)
+  - [Query Types](#query-types)
+  - [Query Request](#query-request)
+  - [Metric Query Example](#metric-query-example)
+  - [Boolean Query Example](#boolean-query-example)
+  - [Text Query Example](#text-query-example)
+  - [No Answer Example](#no-answer-example)
+- [Testing](#testing)
+
 This project is a generic [RAG](https://cloud.google.com/use-cases/retrieval-augmented-generation?hl=en) server that can be used to answer questions using a knowledge base (corpus) refined from uploaded PDF documents. In the examples, I use ESG data about scope 1 and scope 2 emissions because that is what I have been testing the server with but it is built to be completely generic and flexible.
 
 When querying the server, you can specify a query type and provide files that should contain the answer. The server uses embedding model to get a vector representation of the question and retrieve documents from the knowledge base that are most similar to the question. It will then generate a structured JSON answer depending on a query type as well as list of evidences (files) and specific pages in PDFs referencing where the answer was extracted from.
 
-NOTE: I am planning to refactor this project as library so it can be imported from external repositories. For now everything is in `internal` but once I feel it works well enough I will refactor this into a library.
+Main components of the RAG server are:
 
-## Table of Contents
+-  **Extractor**
+-  **Embedder**
+-  **Retriever**
+-  **LanguageModel**
 
-- [RAG Server](#rag-server)
-  - [Table of Contents](#table-of-contents)
-  - [Setup](#setup)
-    - [Prerequisites](#prerequisites)
-    - [Vector Database](#vector-database)
-    - [Database](#database)
-    - [Configuration](#configuration)
-  - [API](#api)
-  - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
-  - [Querying the LLM](#querying-the-llm)
-    - [Query Types](#query-types)
-    - [Query Request](#query-request)
-    - [Metric Query Example](#metric-query-example)
-    - [Boolean Query Example](#boolean-query-example)
-    - [Text Query Example](#text-query-example)
-    - [No Answer Example](#no-answer-example)
-  - [Testing](#testing)
+These are defined as interfaces. You can implement your own components that implement these interface or use one of the provided implementations from `adapter/` folder.
 
-## Setup
+```go
+// Embedder encodes document passages as vectors
+type Embedder interface {
+	Name() string
+	EmbedDocuments(ctx context.Context, documents []Document) ([]Vector, error)
+	EmbedContent(ctx context.Context, content string) (Vector, error)
+}
 
-### Prerequisites 
+// Retriever that runs a question through the embeddings model and returns any encoded documents near the embedded question.
+type Retriever interface {
+	Name() string
+	SaveDocuments(ctx context.Context, documents []Document, vectors []Vector) error
+	ListDocumentsByFileID(ctx context.Context, id FileID) ([]Document, error)
+	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
+}
 
-Generate HTTP server from OpenAPI spec:
-
-```sh
-go generate ./...
+// LanguageModel uses generative AI to generate responses based on a query and relevant documents.
+type LanguageModel interface {
+	Generate(ctx context.Context, query Query, documents []Document) ([]Response, error)
+}
 ```
 
-### Vector Database
+Then just simply create a new instance of RAG server and pass in adapters as inputs. You can hook up the REST adapter to any HTTP server, I just is the one from standard library:
+
+```go
+rs := ragserver.New(
+  extractor, 
+  embebber, 
+  retriever, 
+  languageModel, 
+  storeAdapter
+)
+restAdapter := rest.New(rs)
+mux := http.NewServeMux()
+h := api.HandlerFromMux(restAdapter, mux)
+httpServer := &http.Server{
+	ReadHeaderTimeout: 10 * time.Second,
+	IdleTimeout:       10 * time.Second,
+	Addr:              "localhost:9020",
+	Handler:           h,
+}
+httpServer.ListenAndServe()
+```
+
+## Components
+
+### Extractor
+
+You can either use `adapter/pdf` (which does not depend on any API, it will just try to extract sentences from PDFs locally in code) or `adapter/document` which uses Gemini document vision to extract sentences from PDFs
+
+### Embedder
+
+You can use either the `adapter/google-genai` or `adapter/hugot` or implement your own.
+
+### Retriever
+
+You can use either the `adapter/redis` or `adapter/weaviate` or implement your own.
+
+### LanguageModel
+
+You can use either the `adapter/google-genai` or implement your own.
+
+# Examples
+
+You can look at `examples/` folder to see different types of adapters in use. I suggest you create your own command line entrypoint though as the `github.com/RichardKnop/ragserver/server` package used by the examples imports all of the adapters and you can slim down on dependencies by only using specific adapters you want.
 
 You can choose between [weaviate](https://github.com/weaviate/weaviate) and [redis](https://redis.io/) as a vector database.
 
-Currently the only supported text embedding models (`text-embedding-004`) use 768 dimensional vector space, other number of dimensions will not work with redis adapter as its index is hardcoded to 768 dimensions. I am looking into making it more dynamic, perhaps creating different indexes based on embedding model.
-
-Use docker compose to start a weaviate or redis database:
+For a quick test drive, you can run one of the examples, with `redis`:
 
 ```sh
-docker compose up -d
+docker compose -f examples/redis/docker-compose.yml up -d
+go run examples/redis/main.go
 ```
 
-Delete all objects from the vector database:
+Or `weaviate`:
 
 ```sh
-./scripts/weaviate-delete-objects.sh
+docker compose -f examples/weaviate/docker-compose.yml up -d
+go run examples/weaviate/main.go
 ```
 
-Show all objects in the database:
+You need to have `GEMINI_API_KEY` environment variable set for the examples to work.
 
-```sh
-./scripts/weaviate-show-all.sh
-```
-
-### Database
+# SQLite Database
 
 This project uses sqlite as simple embedded SQL database. It is used to store information about uploaded files including file size, hash, content type etc. UUIDs from the SQL database should be referenced in the weaviate database as a `file_id` property.
 
-When you ran the application, it will create a new `db.sqlite` database. You can change the database file by setting `DB_NAME` environment variable and migrations folder by setting `DB_MIGRATIONS_PATH` environment variable.
+When you ran the application, it will create a new `db.sqlite` database. You can change the database file by setting `DB_NAME` environment variable.
 
-### Configuration
+# Configuration
 
 This project requires a Gemini API key. Use `GEMINI_API_KEY` environment variable to set your API key.
 
-You can either modify the `config.yaml` file or use environment variables.
+For everything else, you can use whatever configuration method you prefer. If you use one of the examples, they rely on [viper](https://github.com/spf13/viper) to read configuration from a YAML config file.
+
+The example `config.example.yaml` defines many different options:
 
 | Config                  | Meaning |
 | ----------------------- | --------|
@@ -84,22 +143,15 @@ You can either modify the `config.yaml` file or use environment variables.
 | models.generative.name  | LLM model to use for generating answers. Currently only Gemini models supported such as `gemini-2.5-flash`. |
 | relevant_topics         | Limit scope only to relevant topics when extracting context from PDF files |
 
-There is more configuration that can be referenced via `config.yaml` file. You can set any configuration value by using `_` as env key replacer. For example, a `http.host` can be set as environment variable `HTTP_HOST` and so on.
+You can set any configuration value by using `_` as env key replacer. For example, a `http.host` can be set as environment variable `HTTP_HOST` and so on.
 
 For local testing, I suggest switching `adapter.extract` from `document` to `pdf`. Document processing by Gemini model is a bit expensive so if you are uploading lots of files during development, using the `pdf` adapter and only doing final end to end checks with `document` adapter will be more cost efficient.
 
-## API
+# API
 
 See the [OpenAPI spec](/api/api.yaml) for API reference.
 
-Start the server (specify your `GEMINI_API_KEY` env var in .env file):
-
-```sh
-source .env
-make run
-```
-
-## Adding Documents To Knowledge Base
+# Adding Documents To Knowledge Base
 
 Upload PDF files which will be used to extract documents:
 
@@ -122,9 +174,9 @@ You can also list documents extracted from a specific file (currently limited to
 ./scripts/list-file-documents.sh bc4509b4-c156-4478-890d-8d98a44abf03
 ```
 
-## Querying the LLM
+# Querying the LLM
 
-### Query Types
+## Query Types
 
 | Type    | Meaning |
 | ------- | ------- |
@@ -134,7 +186,7 @@ You can also list documents extracted from a specific file (currently limited to
 
 More types will be added later.
 
-### Query Request
+## Query Request
 
 An example query request looks like this:
 
@@ -162,7 +214,7 @@ For content, you could choose some of these example ESG related questions:
 3. *What was the company's market-based Scope 2 emissions value (in tCO2e) in 2022?*
 4. *What is the company's specified net zero target year in 2022?*
 
-### Metric Query Example
+## Metric Query Example
 
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
@@ -170,8 +222,8 @@ For content, you could choose some of these example ESG related questions:
     "type": "metric", 
     "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
     "file_ids": [
-      "9b124afe-8dd8-46a5-820b-d172e4fd90e6",
-      "043244c1-af65-4bad-8d90-969b0d8698d2"
+      "67224b92-bb64-457d-8cfc-584539292c5c",
+      "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ]
 }
 EOF
@@ -214,7 +266,7 @@ Example response:
 }
 ```
 
-### Boolean Query Example
+## Boolean Query Example
 
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
@@ -273,7 +325,7 @@ Example response:
 }
 ```
 
-### Text Query Example
+## Text Query Example
 
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
@@ -326,7 +378,7 @@ Example response:
 }
 ```
 
-### No Answer Example 
+## No Answer Example 
 
 If you ask a question model cannot answer from the provided context, it will simply return an empty answer
 
@@ -352,7 +404,7 @@ If you ask a question model cannot answer from the provided context, it will sim
 }
 ```
 
-## Testing
+# Testing
 
 In order to run unit and integration tests, just do:
 
