@@ -18,4 +18,4 @@ curl \
     -X POST \
     -H 'Content-Type: multipart/form-data' \
     -F file=@"$FILE" \
-    http://localhost:9020/files | jq .
+    http://localhost:8080/files | jq .

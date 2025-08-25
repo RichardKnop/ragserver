@@ -71,7 +71,7 @@ h := api.HandlerFromMux(restAdapter, mux)
 httpServer := &http.Server{
 	ReadHeaderTimeout: 10 * time.Second,
 	IdleTimeout:       10 * time.Second,
-	Addr:              "localhost:9020",
+	Addr:              "localhost:8080",
 	Handler:           h,
 }
 httpServer.ListenAndServe()
@@ -105,14 +105,12 @@ For a quick test drive, you can run one of the examples, with `redis`:
 
 ```sh
 docker compose -f examples/redis/docker-compose.yml up -d
-go run examples/redis/main.go
 ```
 
 Or `weaviate`:
 
 ```sh
 docker compose -f examples/weaviate/docker-compose.yml up -d
-go run examples/weaviate/main.go
 ```
 
 You need to have `GEMINI_API_KEY` environment variable set for the examples to work.

@@ -41,7 +41,9 @@ func main() {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("examples/redis-hugot")
+	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal("fatal error config file: ", err)
 	}
@@ -166,7 +168,7 @@ func main() {
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
 		h       = api.HandlerFromMux(restAdapter, mux)
-		address = viper.GetString("http.host") + ":" + viper.GetString("http.port")
+		address = ":" + viper.GetString("http.port")
 	)
 
 	httpServer := &http.Server{

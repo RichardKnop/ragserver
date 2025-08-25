@@ -1,6 +1,5 @@
 http:
-  host: localhost
-  port: 9020
+  port: 8080
 
 db:
   name: db.sqlite

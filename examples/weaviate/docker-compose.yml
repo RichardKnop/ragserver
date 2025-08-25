@@ -1,6 +1,26 @@
 ---
 version: '3.4'
 services:
+  ragserver:
+    container_name: ragserver-redis
+    image: ragserver-redis:latest
+    depends_on:
+      - weaviate
+    links:
+      - weaviate
+    build:
+      context: ./../../
+      dockerfile: Dockerfile
+      args:
+        CMD_PKG: examples/weaviate
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      DB_NAME: /data/db.sqlite
+      WEAVIATE_ADDR: weaviate:9035
+    volumes:
+      - ragserver_data:/data
+    ports:
+      - 8080:8080
   weaviate:
     volumes:
       - weaviate_data:/var/lib/weaviate
@@ -23,4 +43,5 @@ services:
       CLUSTER_HOSTNAME: 'node1'
       DISABLE_TELEMETRY: true
 volumes:
+  ragserver_data:
   weaviate_data:

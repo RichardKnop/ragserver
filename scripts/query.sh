@@ -18,4 +18,4 @@ echo "$PAYLOAD" | curl \
     -X POST \
     -H 'Content-Type: application/json' \
     -d @- \
-    http://localhost:9020/query | jq .
+    http://localhost:8080/query | jq .
