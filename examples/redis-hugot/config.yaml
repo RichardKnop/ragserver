@@ -5,8 +5,15 @@ http:
 db:
   name: db.sqlite
 
-weaviate:
-  addr: localhost:9035
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+  protocol: 2
+  index: ragserver-idx
+  index_prefix: "doc:"
+  vector_dim: 384
+  vector_distance_metric: L2
 
 relevant_topics:
   scope:
@@ -24,9 +31,9 @@ adapter:
     name: pdf
     model: gemini-2.5-flash
   embed: 
-    name: google-genai
-    model: text-embedding-004
+    name: hugot
+    model: all-MiniLM-L6-v2
   retrieve: 
-    name: weaviate
+    name: redis
   generative: 
     model: gemini-2.5-flash

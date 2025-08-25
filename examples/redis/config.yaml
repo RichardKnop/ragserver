@@ -5,9 +5,6 @@ http:
 db:
   name: db.sqlite
 
-weaviate:
-  addr: localhost:9035
-
 redis:
   addr: localhost:6379
   password: ""

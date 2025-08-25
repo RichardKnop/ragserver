@@ -15,6 +15,7 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/knights-analytics/hugot"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
@@ -24,6 +25,7 @@ import (
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/adapter/document"
 	googlegenai "github.com/RichardKnop/ragserver/adapter/google-genai"
+	hugotAdapter "github.com/RichardKnop/ragserver/adapter/hugot"
 	"github.com/RichardKnop/ragserver/adapter/pdf"
 	redisAdapter "github.com/RichardKnop/ragserver/adapter/redis"
 	"github.com/RichardKnop/ragserver/adapter/rest"
@@ -38,7 +40,7 @@ func main() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
-	viper.AddConfigPath("examples/redis")
+	viper.AddConfigPath("examples/redis-hugot")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal("fatal error config file: ", err)
@@ -91,12 +93,25 @@ func main() {
 	// Embedder
 	var embebber ragserver.Embedder
 	switch name := viper.GetString("adapter.embed.name"); name {
-	case "google-genai":
-		log.Println("embed adapter: google-genai")
-		embebber = googlegenai.New(
-			genaiClient,
-			googlegenai.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
+	case "hugot":
+		log.Println("embed adapter: hugot")
+		session, err := hugot.NewGoSession()
+		if err != nil {
+			log.Fatal("hugot session: ", err)
+		}
+		defer func() {
+			err := session.Destroy()
+			if err != nil {
+				log.Fatal("hugot session destroy: ", err)
+			}
+		}()
+		embebber, err = hugotAdapter.New(
+			session,
+			hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
 		)
+		if err != nil {
+			log.Fatal("hugot adapter: ", err)
+		}
 	default:
 		log.Fatalf("unknown embed adapter: %s", name)
 	}
