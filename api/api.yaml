@@ -105,18 +105,21 @@ components:
       required:
         - id
         - file_name
-        - mime_type
+        - content_type
         - extension
         - size
         - hash
+        - status
+        - status_message
         - created_at
+        - updated_at
       properties:
         id:
           type: string
           format: uuid
         file_name:
           type: string
-        mime_type:
+        content_type:
           type: string
         extension:
           type: string
@@ -125,7 +128,15 @@ components:
           format: int64
         hash:
           type: string
+        status:
+          type: string
+          enum: [UPLOADED, PROCESSING, PROCESSED_SUCCESSFULLY, PROCESSING_FAILED]
+        status_message:
+          type: string
         created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
     Documents: 

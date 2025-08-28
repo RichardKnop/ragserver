@@ -101,16 +101,24 @@ You can look at `examples/` folder to see different types of adapters in use. I 
 
 You can choose between [weaviate](https://github.com/weaviate/weaviate) and [redis](https://redis.io/) as a vector database.
 
-For a quick test drive, you can run one of the examples, with `redis`:
+For a quick test drive, you can run one of the examples:
+
+Redis retriever backend, local PDF extractor, Gemini text embedding and generative model:
 
 ```sh
 docker compose -f examples/redis/docker-compose.yml up -d
 ```
 
-Or `weaviate`:
+Weaviate retriever backend, local PDF extractor, Gemini text embedding and generative model:
 
 ```sh
 docker compose -f examples/weaviate/docker-compose.yml up -d
+```
+
+Redis retriever backend, local PDF extractor, hugot open source text embedding and Gemini generative model:
+
+```sh
+docker compose -f examples/redis-hugot/docker-compose.yml up -d
 ```
 
 You need to have `GEMINI_API_KEY` environment variable set for the examples to work.

@@ -14,6 +14,14 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for FileStatus.
+const (
+	PROCESSEDSUCCESSFULLY FileStatus = "PROCESSED_SUCCESSFULLY"
+	PROCESSING            FileStatus = "PROCESSING"
+	PROCESSINGFAILED      FileStatus = "PROCESSING_FAILED"
+	UPLOADED              FileStatus = "UPLOADED"
+)
+
 // Defines values for QuestionType.
 const (
 	Metric QuestionType = "metric"
@@ -48,14 +56,20 @@ type Evidence struct {
 
 // File defines model for File.
 type File struct {
-	CreatedAt time.Time          `json:"created_at"`
-	Extension string             `json:"extension"`
-	FileName  string             `json:"file_name"`
-	Hash      string             `json:"hash"`
-	Id        openapi_types.UUID `json:"id"`
-	MimeType  string             `json:"mime_type"`
-	Size      int64              `json:"size"`
+	ContentType   string             `json:"content_type"`
+	CreatedAt     time.Time          `json:"created_at"`
+	Extension     string             `json:"extension"`
+	FileName      string             `json:"file_name"`
+	Hash          string             `json:"hash"`
+	Id            openapi_types.UUID `json:"id"`
+	Size          int64              `json:"size"`
+	Status        FileStatus         `json:"status"`
+	StatusMessage string             `json:"status_message"`
+	UpdatedAt     time.Time          `json:"updated_at"`
 }
+
+// FileStatus defines model for File.Status.
+type FileStatus string
 
 // Files defines model for Files.
 type Files struct {

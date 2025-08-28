@@ -21,52 +21,87 @@ func (q insertFilesQuery) SQL() (string, []any) {
 	}
 
 	sql := `
-		INSERT INTO "file" (
-			"id", 
-			"file_name", 
-			"mime_type", 
-			"extension",
-			"file_size", 
-			"file_hash",
-			"embedder",
-			"retriever",
-			"created_at"
-		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		with cte as (
+			values (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?, ?)
 	`
-	args := make([]any, 0, len(q.files)*8)
+	args := make([]any, 0, len(q.files)*13)
 	args = append(
 		args,
 		q.files[0].ID,
 		q.files[0].FileName,
-		q.files[0].MimeType,
+		q.files[0].ContentType,
 		q.files[0].Extension,
 		q.files[0].Size,
 		q.files[0].Hash,
 		q.files[0].Embedder,
 		q.files[0].Retriever,
+		q.files[0].Location,
+		q.files[0].Status,
+		q.files[0].StatusMessage,
 		q.files[0].CreatedAt,
+		q.files[0].UpdatedAt,
 	)
 	for i := range q.files[1:] {
-		sql += ", (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		sql += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?, ?)`
 		args = append(
 			args,
 			q.files[i+1].ID,
 			q.files[i+1].FileName,
-			q.files[i+1].MimeType,
+			q.files[i+1].ContentType,
 			q.files[i+1].Extension,
 			q.files[i+1].Size,
 			q.files[i+1].Hash,
 			q.files[i+1].Embedder,
 			q.files[i+1].Retriever,
+			q.files[i+1].Location,
+			q.files[i+1].Status,
+			q.files[i+1].StatusMessage,
 			q.files[i+1].CreatedAt,
+			q.files[i+1].UpdatedAt,
 		)
 	}
+	sql += `
+		)
+		insert into "file" (
+			"id", 
+			"file_name", 
+			"content_type", 
+			"extension",
+			"file_size", 
+			"file_hash",
+			"embedder",
+			"retriever",
+			"location",
+			"status",
+			"status_message",
+			"created_at",
+			"updated_at"
+		)
+		select * 
+		from cte
+		where 1
+		on conflict("id") do update set
+			"file_name"=excluded."file_name",
+			"content_type"=excluded."content_type",
+			"extension"=excluded."extension",
+			"file_size"=excluded."file_size",
+			"file_hash"=excluded."file_hash",
+			"embedder"=excluded."embedder",
+			"retriever"=excluded."retriever",
+			"location"=excluded."location",
+			"status"=excluded."status",
+			"status_message"=excluded."status_message",
+			"updated_at"=excluded."updated_at"	
+	`
 
 	return sql, args
 }
 
 func (a *Adapter) SaveFiles(ctx context.Context, files ...*ragserver.File) error {
+	if len(files) < 1 {
+		return nil
+	}
+
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		query, args := insertFilesQuery{files: files}.SQL()
 
@@ -78,7 +113,7 @@ func (a *Adapter) SaveFiles(ctx context.Context, files ...*ragserver.File) error
 
 		result, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			return err
+			return fmt.Errorf("exec context failed: %w", err)
 		}
 
 		rowsAffected, err := result.RowsAffected()
@@ -101,17 +136,22 @@ type selectFilesQuery struct{}
 
 func (q selectFilesQuery) SQL() (string, []any) {
 	return `
-		SELECT 
-			"id", 
-			"file_name", 
-			"mime_type", 
-			"extension", 
-			"file_size", 
-			"file_hash",
-			"embedder",
-			"retriever",
-			"created_at"
-		FROM "file"
+		select 
+			f."id",
+			f."file_name", 
+			f."content_type", 
+			f."extension", 
+			f."file_size", 
+			f."file_hash",
+			f."embedder",
+			f."retriever",
+			f."location",
+			fs."name" AS "status",
+			f."status_message",
+			f."created_at",
+			f."updated_at"
+		from "file" f
+		inner join "file_status" fs on f."status" = fs."id"
 	`, nil
 }
 
@@ -148,12 +188,12 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 		defer rows.Close()
 
 		for rows.Next() {
-			var file *ragserver.File
-			file, err = scanFile(rows)
+			var aFile = new(ragserver.File)
+			aFile, err = scanFile(rows)
 			if err != nil {
-				return err
+				return fmt.Errorf("scan failed: %w", err)
 			}
-			files = append(files, file)
+			files = append(files, aFile)
 		}
 
 		return nil
@@ -171,13 +211,23 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 	)
 
 	if filter.Embedder != "" {
-		clauses = append(clauses, "embedder = ?")
+		clauses = append(clauses, `f."embedder" = ?`)
 		args = append(args, filter.Embedder)
 	}
 
 	if filter.Retriever != "" {
-		clauses = append(clauses, "retriever = ?")
+		clauses = append(clauses, `f."retriever" = ?`)
 		args = append(args, filter.Retriever)
+	}
+
+	if filter.Status != "" {
+		clauses = append(clauses, `fs."name" = ?`)
+		args = append(args, filter.Status)
+	}
+
+	if !filter.LastUpdatedBefore.T.IsZero() {
+		clauses = append(clauses, `f."updated_at" < ?`)
+		args = append(args, filter.LastUpdatedBefore)
 	}
 
 	if len(clauses) == 0 {
@@ -194,16 +244,22 @@ type findFileQuery struct {
 func (q findFileQuery) SQL() (string, []any) {
 	return `
 		SELECT 
-			"id", 
-			"file_name", 
-			"mime_type", 
-			"extension", 
-			"file_size", 
-			"file_hash",
-			"embedder",
-			"retriever",
-			"created_at"
-		FROM "file" where "id" = ?
+			f."id",
+			f."file_name", 
+			f."content_type", 
+			f."extension", 
+			f."file_size", 
+			f."file_hash",
+			f."embedder",
+			f."retriever",
+			f."location",
+			fs."name" AS "status",
+			f."status_message",
+			f."created_at",
+			f."updated_at"
+		FROM "file" f
+		INNER JOIN "file_status" fs ON f."status" = fs."id"		
+		WHERE f."id" = ?
 	`, []any{q.id}
 }
 
@@ -229,7 +285,7 @@ func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID, partial aut
 		row := stmt.QueryRowContext(ctx, args...)
 		file, err = scanFile(row)
 		if err != nil {
-			return err
+			return fmt.Errorf("scan failed: %w", err)
 		}
 
 		return nil
@@ -245,22 +301,28 @@ type scannable interface {
 }
 
 func scanFile(row scannable) (*ragserver.File, error) {
-	file := new(ragserver.File)
+	var aFile = new(ragserver.File)
+
 	if err := row.Scan(
-		&file.ID,
-		&file.FileName,
-		&file.MimeType,
-		&file.Extension,
-		&file.Size,
-		&file.Hash,
-		&file.Embedder,
-		&file.Retriever,
-		&file.CreatedAt,
+		&aFile.ID,
+		&aFile.FileName,
+		&aFile.ContentType,
+		&aFile.Extension,
+		&aFile.Size,
+		&aFile.Hash,
+		&aFile.Embedder,
+		&aFile.Retriever,
+		&aFile.Location,
+		&aFile.Status,
+		&aFile.StatusMessage,
+		&aFile.CreatedAt,
+		&aFile.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
-	return file, nil
+
+	return aFile, nil
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -59,13 +60,19 @@ func main() {
 	}
 
 	// Connect to the database
-	log.Println("connecting to db:", viper.GetString("db.name"))
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", viper.GetString("db.name")))
+	dbConnOpts := url.Values{}
+	dbConnOpts.Set("_fk", "true")
+	dbConnOpts.Set("_journal", "WAL")
+	dbConnOpts.Set("_timeout", "5000")
+
+	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", dbConnOpts.Encode())
+
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), dbConnOpts.Encode()))
 	if err != nil {
-		log.Fatal("db open: ", err)
+		log.Fatal("db open:", err)
 	}
 	if err := db.Ping(); err != nil {
-		log.Fatal("db ping: ", err)
+		log.Fatal("db ping:", err)
 	}
 
 	// Run db migrations
@@ -156,6 +163,8 @@ func main() {
 	}
 
 	log.Println("listening on", address)
+
+	go rs.ProcessFiles(ctx)
 
 	go func() {
 		if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {

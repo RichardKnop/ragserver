@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,6 @@ func TestStoreTestSuite(t *testing.T) {
 type StoreTestSuite struct {
 	suite.Suite
 	tempFolder string
-	dbFile     string
 	db         *sql.DB
 	adapter    *Adapter
 }
@@ -34,18 +34,21 @@ func (s *StoreTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 	s.tempFolder = d
 
-	f, err := os.CreateTemp(d, "db.sqlite3")
+	f, err := os.CreateTemp(d, "db.sqlite")
 	s.Require().NoError(err)
 	f.Close()
-	s.dbFile = f.Name()
 
-	s.db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?mode=rwc&cache=shared", f.Name()))
+	dbConnOpts := url.Values{}
+	dbConnOpts.Set("_fk", "true")
+	dbConnOpts.Set("_journal", "WAL")
+	dbConnOpts.Set("_timeout", "5000")
+
+	s.db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", f.Name(), dbConnOpts.Encode()))
 	s.Require().NoError(err)
 }
 
 func (s *StoreTestSuite) TearDownSuite() {
 	s.Require().NoError(s.db.Close())
-	s.Require().NoError(os.Remove(s.dbFile))
 	s.Require().NoError(os.RemoveAll(s.tempFolder))
 }
 

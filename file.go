@@ -30,22 +30,68 @@ func NewFileID() FileID {
 	return FileID{uuid.Must(uuid.NewV4())}
 }
 
+type FileStatus string
+
+const (
+	FileStatusUploaded              FileStatus = "UPLOADED"
+	FileStatusProcessing            FileStatus = "PROCESSING"
+	FileStatusProcessedSuccessfully FileStatus = "PROCESSED_SUCCESSFULLY"
+	FileStatusProcessingFailed      FileStatus = "PROCESSING_FAILED"
+)
+
 type File struct {
-	ID        FileID
-	FileName  string
-	MimeType  string
-	Extension string
-	Size      int64
-	Hash      string
-	Embedder  string // adapter used to generate embeddings for this file
-	Retriever string // adapter used to store/retrieve embeddings for this file
-	CreatedAt time.Time
-	Documents []Document
+	ID            FileID
+	FileName      string
+	ContentType   string
+	Extension     string
+	Size          int64
+	Hash          string
+	Embedder      string // adapter used to generate embeddings for this file
+	Retriever     string // adapter used to store/retrieve embeddings for this file
+	Location      string
+	Status        FileStatus
+	StatusMessage string
+	CreatedAt     Time
+	UpdatedAt     Time
+	Documents     []Document
+}
+
+// ChangeStatus attempts to change the status of the file to newStatus.
+func (f *File) ChangeStatus(newStatus FileStatus, message string, updatedAt time.Time) error {
+	switch newStatus {
+	case FileStatusUploaded:
+		if f.Status != "" {
+			return fmt.Errorf("cannot change status to %s", newStatus)
+		}
+	case FileStatusProcessing:
+		if f.Status != FileStatusUploaded {
+			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
+		}
+	case FileStatusProcessedSuccessfully:
+		if f.Status != FileStatusProcessing {
+			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
+		}
+	case FileStatusProcessingFailed:
+		if f.Status != FileStatusProcessing {
+			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
+		}
+	default:
+	}
+
+	f.Status = newStatus
+	f.StatusMessage = message
+	f.UpdatedAt = Time{T: updatedAt}
+
+	log.Printf("state change for file: %s status: %s", f.ID, f.Status)
+
+	return nil
 }
 
 type FileFilter struct {
-	Embedder  string
-	Retriever string
+	Embedder          string
+	Retriever         string
+	Status            FileStatus
+	LastUpdatedBefore Time
 }
 
 func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
@@ -79,70 +125,27 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	}
 
 	aFile := &File{
-		ID:        NewFileID(),
-		FileName:  header.Filename,
-		MimeType:  contentType,
-		Size:      fileSize,
-		Hash:      hex.EncodeToString(hashWriter.Sum(nil)),
-		Embedder:  rs.embedder.Name(),
-		Retriever: rs.retriever.Name(),
-		CreatedAt: rs.now(),
-	}
-
-	_, err = tempFile.Seek(0, io.SeekStart) // Reset the temp file offset to the beginning for further reading
-	if err != nil {
-		return nil, fmt.Errorf("error seeking temp file to start: %w", err)
+		ID:          NewFileID(),
+		FileName:    header.Filename,
+		ContentType: contentType,
+		Size:        fileSize,
+		Hash:        hex.EncodeToString(hashWriter.Sum(nil)),
+		Embedder:    rs.embedder.Name(),
+		Retriever:   rs.retriever.Name(),
+		Location:    tempFile.Name(),
+		Status:      FileStatusUploaded,
+		CreatedAt:   Time{rs.now()},
+		UpdatedAt:   Time{rs.now()},
 	}
 
 	switch contentType {
 	case "application/pdf":
 		aFile.Extension = strings.TrimPrefix(contentType, "application/")
-
-		var err error
-		documents, err := rs.extractor.Extract(ctx, tempFile, rs.relevantTopics)
-		if err != nil {
-			return nil, fmt.Errorf("error processing PDF file: %w", err)
-		}
-		for i := 0; i < len(documents); i++ {
-			documents[i].FileID = aFile.ID
-		}
-		aFile.Documents = documents
 	case "image/jpeg", "image/png":
-		aFile.Extension = strings.TrimPrefix(contentType, "image/")
-
-		// client := gosseract.NewClient()
-		// defer client.Close()
-
-		// if err := client.SetImageFromBytes(fileBytes); err != nil {
-		// 	log.Printf("client.SetImageFromBytes error: %v", err.Error())
-		// 	http.Error(w, "file processing error", http.StatusInternalServerError)
-		// }
-
-		// text, err := client.Text()
-		// if err != nil {
-		// 	log.Printf("client.Text error: %v", err.Error())
-		// 	http.Error(w, "file processing error", http.StatusInternalServerError)
-		// 	return
-		// }
-
-		// log.Printf("file processed, text: %v", text)
-
 		return nil, fmt.Errorf("image file processing not implemented yet")
 	}
 
-	// Use the batch embedding API to embed all documents at once.
-	vectors, err := rs.embedder.EmbedDocuments(ctx, aFile.Documents)
-	if err != nil {
-		return nil, fmt.Errorf("error generating vectors: %v", err)
-	}
-
-	log.Printf("generated vectors: %d", len(vectors))
-
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		if err := rs.retriever.SaveDocuments(ctx, aFile.Documents, vectors); err != nil {
-			return fmt.Errorf("error saving embeddings: %v", err)
-		}
-
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
 			return err
 		}

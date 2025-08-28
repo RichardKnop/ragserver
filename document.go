@@ -3,6 +3,7 @@ package ragserver
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/RichardKnop/ragserver/pkg/authz"
@@ -52,7 +53,7 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 
 		documents, err = rs.retriever.ListDocumentsByFileID(ctx, id)
 		if err != nil {
-			return err
+			return fmt.Errorf("list documents by file ID: %w", err)
 		}
 
 		return nil

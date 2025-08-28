@@ -55,11 +55,14 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	log.Printf("received query: %s, file IDs: %v", query, fileIDs)
 
-	// Check all file IDs exist in the database
+	// Check all file IDs exist in the database and that they have been processed.
 	for _, fileID := range fileIDs {
-		_, err := rs.store.FindFile(ctx, fileID, rs.partial())
+		aFile, err := rs.store.FindFile(ctx, fileID, rs.partial())
 		if err != nil {
 			return nil, fmt.Errorf("error finding file: %v", err)
+		}
+		if aFile.Status != FileStatusProcessedSuccessfully {
+			return nil, fmt.Errorf("file not processed: %s", fileID)
 		}
 	}
 
