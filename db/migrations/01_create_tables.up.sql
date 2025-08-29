@@ -18,7 +18,16 @@ create table "file" (
   "retriever" text not null,
   "location" text not null,
   "status" integer not null references "file_status"("id"),
-  "status_message" text,
   "created_at" text not null default (strftime('%y-%m-%dt%h:%m:%fz')),
   "updated_at" text not null default (strftime('%y-%m-%dt%h:%m:%fz'))
+) strict;
+
+create index "file_idx" on "file"("created_at");
+
+create table "file_status_evt" (
+  "file" text not null references "file"("id"),
+  "status" integer not null references "file_status"("id"),
+  "message" text,
+  "created_at" text not null default (strftime('%y-%m-%dt%h:%m:%fz')),
+  PRIMARY KEY ("file", "status")
 ) strict;

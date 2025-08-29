@@ -225,12 +225,12 @@ For content, you could choose some of these example ESG related questions:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-    "type": "metric", 
-    "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
-    "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
-    ]
+  "type": "metric", 
+  "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
+  "file_ids": [
+    "c0d830e7-ef05-4d36-aad7-a158f8fd7683",
+    "ff23583d-64c2-4bf7-9327-a8de680c975d"
+  ]
 }
 EOF
 )"
@@ -277,12 +277,12 @@ Example response:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-    "type": "boolean", 
-    "content": "Does the company have a net zero target year?", 
-    "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
-    ]
+  "type": "boolean", 
+  "content": "Does the company have a net zero target year?", 
+  "file_ids": [
+    "67224b92-bb64-457d-8cfc-584539292c5c",
+    "73ad3166-1627-4b7e-82a3-31427ad5444e"
+  ]
 }
 EOF
 )"
@@ -336,12 +336,12 @@ Example response:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-    "type": "text", 
-    "content": "What is the company's specified net zero target year?", 
-    "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
-    ]
+  "type": "text", 
+  "content": "What is the company's specified net zero target year?", 
+  "file_ids": [
+    "67224b92-bb64-457d-8cfc-584539292c5c",
+    "73ad3166-1627-4b7e-82a3-31427ad5444e"
+  ]
 }
 EOF
 )"

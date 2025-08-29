@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFile_ChangeStatus(t *testing.T) {
+func TestFile_CompleteWithStatus(t *testing.T) {
 	t.Parallel()
 
 	updatedAt := time.Now().UTC()
@@ -20,20 +20,6 @@ func TestFile_ChangeStatus(t *testing.T) {
 		message string
 		wantErr bool
 	}{
-		{
-			name:    "empty status to uploaded",
-			from:    "",
-			to:      FileStatusUploaded,
-			message: "",
-			wantErr: false,
-		},
-		{
-			name:    "uploaded to processing",
-			from:    FileStatusUploaded,
-			to:      FileStatusProcessing,
-			message: "",
-			wantErr: false,
-		},
 		{
 			name:    "processing to processed successfully",
 			from:    FileStatusProcessing,
@@ -47,13 +33,6 @@ func TestFile_ChangeStatus(t *testing.T) {
 			to:      FileStatusProcessingFailed,
 			message: "some error message",
 			wantErr: false,
-		},
-		{
-			name:    "cannot change to processing from non-uploaded status",
-			from:    FileStatusProcessingFailed,
-			to:      FileStatusProcessing,
-			message: "",
-			wantErr: true,
 		},
 		{
 			name:    "cannot change to processed successfully from non-processing status",
@@ -79,7 +58,7 @@ func TestFile_ChangeStatus(t *testing.T) {
 			f := &File{
 				Status: tt.from,
 			}
-			err := f.ChangeStatus(tt.to, tt.message, updatedAt)
+			err := f.CompleteWithStatus(tt.to, tt.message, updatedAt)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

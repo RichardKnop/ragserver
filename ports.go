@@ -46,4 +46,5 @@ type FileStore interface {
 	SaveFiles(ctx context.Context, file ...*File) error
 	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial) ([]*File, error)
 	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)
+	ListFilesForProcessing(ctx context.Context, now Time, partial authz.Partial) ([]FileID, error)
 }

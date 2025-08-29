@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	processInterval = 1 * time.Second
-	maxJitter       = 100 * time.Millisecond
+	processInterval    = 1 * time.Second
+	maxJitter          = 100 * time.Millisecond
+	processFileTimeout = 15 * time.Minute
 )
 
 func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
@@ -65,23 +66,58 @@ func jitter(ctx context.Context, jitterDuration time.Duration) error {
 func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		now := rs.now()
+
 		var err error
 		// TODO: add limit to only process N files at a time
-		files, err = rs.store.ListFiles(ctx, FileFilter{
-			Status: FileStatusUploaded,
+		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.partial())
+		if err != nil {
+			return fmt.Errorf("list files: %w", err)
+		}
+
+		if len(ids) == 0 {
+			return nil
+		}
+
+		for _, id := range ids {
+			aFile, err := rs.store.FindFile(ctx, id, rs.partial())
+			if err != nil {
+				return fmt.Errorf("find file: %w", err)
+			}
+			files = append(files, aFile)
+			log.Printf("state change for file: %s status: %s", aFile.ID, aFile.Status)
+		}
+
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+
+	// TODO: process files in parallel?
+	for _, aFile := range files {
+		processCtx, cancel := context.WithTimeout(ctx, processFileTimeout)
+		defer cancel()
+		if err := rs.processFile(processCtx, aFile); err != nil {
+			if err := rs.processingFileFailed(ctx, aFile, err); err != nil {
+				log.Printf("error setting status to failed for file: %s error %v", aFile.ID, err)
+			}
+		}
+	}
+
+	// Now let's find files that have been processing for too long and mark them as failed
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		now := rs.now()
+
+		files, err := rs.store.ListFiles(ctx, FileFilter{
+			Status:            FileStatusProcessing,
+			LastUpdatedBefore: Time{T: now.Add(-processFileTimeout)},
 		}, rs.partial())
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}
 
-		if len(files) == 0 {
-			return nil
-		}
-
-		now := rs.now()
-
 		for _, aFile := range files {
-			if err := aFile.ChangeStatus(FileStatusProcessing, "", now); err != nil {
+			if err := aFile.CompleteWithStatus(FileStatusProcessingFailed, "timed out", now); err != nil {
 				return fmt.Errorf("change status: %w", err)
 			}
 		}
@@ -95,18 +131,6 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	// TODO: process files in parallel?
-	for _, aFile := range files {
-		if err := rs.processFile(ctx, aFile); err != nil {
-			if err := rs.processingFileFailed(ctx, aFile, err); err != nil {
-				log.Printf("error setting status to failed for file: %s error %v", aFile.ID, err)
-			}
-		}
-	}
-
-	// TODO: clean up old files from disk?
-	// TODO: fail files that have been processing for too long?
-
 	return len(files), nil
 }
 
@@ -115,7 +139,14 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
-	defer content.Close()
+	defer func() {
+		if err := os.Remove(aFile.Location); err != nil {
+			log.Printf("error removing file: %s", aFile.Location)
+		}
+		if err := content.Close(); err != nil {
+			log.Printf("error closing content: %s", aFile.Location)
+		}
+	}()
 
 	log.Printf("processing file: %s location: %s", aFile.ID, aFile.Location)
 
@@ -168,7 +199,7 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 
 func (rs *ragServer) processingSucceeded(ctx context.Context, aFile *File) error {
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		if err := aFile.ChangeStatus(FileStatusProcessedSuccessfully, "", rs.now()); err != nil {
+		if err := aFile.CompleteWithStatus(FileStatusProcessedSuccessfully, "", rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
@@ -183,7 +214,7 @@ func (rs *ragServer) processingSucceeded(ctx context.Context, aFile *File) error
 
 func (rs *ragServer) processingFileFailed(ctx context.Context, aFile *File, perr error) error {
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		if err := aFile.ChangeStatus(FileStatusProcessingFailed, perr.Error(), rs.now()); err != nil {
+		if err := aFile.CompleteWithStatus(FileStatusProcessingFailed, perr.Error(), rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {

@@ -56,26 +56,11 @@ type File struct {
 	Documents     []Document
 }
 
-// ChangeStatus attempts to change the status of the file to newStatus.
-func (f *File) ChangeStatus(newStatus FileStatus, message string, updatedAt time.Time) error {
-	switch newStatus {
-	case FileStatusUploaded:
-		if f.Status != "" {
-			return fmt.Errorf("cannot change status to %s", newStatus)
-		}
-	case FileStatusProcessing:
-		if f.Status != FileStatusUploaded {
-			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
-		}
-	case FileStatusProcessedSuccessfully:
-		if f.Status != FileStatusProcessing {
-			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
-		}
-	case FileStatusProcessingFailed:
-		if f.Status != FileStatusProcessing {
-			return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
-		}
-	default:
+// CompleteWithStatus changes the status of a file to a completion status,
+// either FileStatusProcessedSuccessfully or FileStatusProcessingFailed.
+func (f *File) CompleteWithStatus(newStatus FileStatus, message string, updatedAt time.Time) error {
+	if f.Status != FileStatusProcessing {
+		return fmt.Errorf("cannot change status from %s to %s", f.Status, newStatus)
 	}
 
 	f.Status = newStatus

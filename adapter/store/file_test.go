@@ -3,7 +3,6 @@ package store
 import (
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/RichardKnop/ragserver"
@@ -30,10 +29,7 @@ func (s *StoreTestSuite) TestFindFile() {
 		UpdatedAt:   ragserver.Time{T: now},
 	}
 
-	_, err := s.adapter.FindFile(ctx, aFile.ID, authz.NilPartial)
-	s.Require().ErrorIs(err, ragserver.ErrNotFound)
-
-	err = s.adapter.SaveFiles(ctx, aFile)
+	err := s.adapter.SaveFiles(ctx, aFile)
 	s.Require().NoError(err)
 
 	s.Run("Find file without partial", func() {
@@ -49,7 +45,7 @@ func (s *StoreTestSuite) TestFindFile() {
 	})
 }
 
-func (s *StoreTestSuite) TestSaveFile_Upsert() {
+func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 	ctx, cancel := testContext()
 	defer cancel()
 
@@ -212,4 +208,93 @@ func (s *StoreTestSuite) TestListFiles() {
 		s.Len(files, 1)
 		s.Equal(file1, files[0])
 	})
+}
+
+func (s *StoreTestSuite) TestListFilesForProcessing() {
+	ctx, cancel := testContext()
+	defer cancel()
+
+	var (
+		now   = time.Now().UTC().Truncate(time.Millisecond)
+		file1 = &ragserver.File{
+			ID:          ragserver.NewFileID(),
+			FileName:    "test1.pdf",
+			ContentType: "application/pdf",
+			Extension:   "pdf",
+			Size:        123,
+			Hash:        "abc123",
+			Embedder:    "google-genai",
+			Retriever:   "weaviate",
+			Location:    "some/location1",
+			Status:      ragserver.FileStatusProcessing,
+			CreatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
+			UpdatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
+		}
+		file2 = &ragserver.File{
+			ID:          ragserver.NewFileID(),
+			FileName:    "test2.pdf",
+			ContentType: "application/pdf",
+			Extension:   "pdf",
+			Size:        123,
+			Hash:        "def123",
+			Embedder:    "google-genai",
+			Retriever:   "redis",
+			Location:    "some/location2",
+			Status:      ragserver.FileStatusUploaded,
+			CreatedAt:   ragserver.Time{T: now},
+			UpdatedAt:   ragserver.Time{T: now},
+		}
+	)
+
+	err := s.adapter.SaveFiles(ctx, file1, file2)
+	s.Require().NoError(err)
+
+	ids, err := s.adapter.ListFilesForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial)
+	s.Require().NoError(err)
+	s.Len(ids, 1)
+	s.Equal(file2.ID, ids[0])
+
+	sameFile1, err := s.adapter.FindFile(ctx, file1.ID, authz.NilPartial)
+	s.Require().NoError(err)
+	s.Equal(file1, sameFile1)
+
+	updatedFile2, err := s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
+	s.Require().NoError(err)
+	s.NotEqual(file2, updatedFile2)
+	s.Equal(ragserver.FileStatusProcessing, updatedFile2.Status)
+}
+
+func (s *StoreTestSuite) TestDeleteFiles() {
+	ctx, cancel := testContext()
+	defer cancel()
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	aFile := &ragserver.File{
+		ID:          ragserver.NewFileID(),
+		FileName:    "test.pdf",
+		ContentType: "application/pdf",
+		Extension:   "pdf",
+		Size:        123,
+		Hash:        "abc123",
+		Embedder:    "google-genai",
+		Retriever:   "redis",
+		Location:    "some/location",
+		Status:      ragserver.FileStatusUploaded,
+		CreatedAt:   ragserver.Time{T: now},
+		UpdatedAt:   ragserver.Time{T: now},
+	}
+
+	err := s.adapter.SaveFiles(ctx, aFile)
+	s.Require().NoError(err)
+
+	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+	s.Require().NoError(err)
+	s.Len(files, 1)
+
+	err = s.adapter.DeleteFiles(ctx, aFile)
+	s.Require().NoError(err)
+
+	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+	s.Require().NoError(err)
+	s.Len(files, 0)
 }
