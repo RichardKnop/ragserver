@@ -15,9 +15,9 @@ services:
         CMD_PKG: examples/redis-hugot
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      DB_NAME: /data/db.sqlite
-      REDIS_ADDR: redis:6379
+      DB_NAME: /data/ragserver-redis-hugot.sqlite
       DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
+      REDIS_ADDR: redis:6379
       HUGOT_BACKEND: ort
     volumes:
       - ragserver_data:/data

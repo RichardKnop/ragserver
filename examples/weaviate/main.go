@@ -122,6 +122,20 @@ func main() {
 		log.Fatalf("unknown retrieve adapter: %s", name)
 	}
 
+	// Generative model
+	var gm ragserver.GenerativeModel
+	switch name := viper.GetString("adapter.generative.name"); name {
+	case "google-genai":
+		log.Println("generative adapter: google-genai")
+		gm = googlegenai.New(
+			genaiClient,
+			googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
+		)
+	default:
+		log.Fatalf("unknown generative adapter: %s", name)
+	}
+
+	// Relevant topics to limit context
 	relevantTopics, err := relevantTopicsFromConfig()
 	if err != nil {
 		log.Fatal("relevant topics: ", err)
@@ -131,15 +145,9 @@ func main() {
 		ragserver.WithRelevantTopics(relevantTopics),
 	}
 
-	// Language model
-	lm := googlegenai.New(
-		genaiClient,
-		googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
-	)
-
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(extractor, embebber, retriever, lm, storeAdapter, opts...)
+		rs           = ragserver.New(extractor, embebber, retriever, gm, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use

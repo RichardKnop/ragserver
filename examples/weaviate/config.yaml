@@ -27,4 +27,5 @@ adapter:
     name: google-genai
     model: text-embedding-004
   generative: 
+    name: google-genai
     model: gemini-2.5-flash

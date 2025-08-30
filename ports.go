@@ -28,8 +28,8 @@ type Retriever interface {
 	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
 }
 
-// LanguageModel uses generative AI to generate responses based on a query and relevant documents.
-type LanguageModel interface {
+// GenerativeModel uses generative AI to generate responses based on a query and relevant documents.
+type GenerativeModel interface {
 	Generate(ctx context.Context, query Query, documents []Document) ([]Response, error)
 }
 

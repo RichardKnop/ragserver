@@ -88,7 +88,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 
 	log.Println("found documents:", len(documents))
 
-	responses, err := rs.lm.Generate(ctx, query, documents)
+	responses, err := rs.generative.Generate(ctx, query, documents)
 	if err != nil {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}

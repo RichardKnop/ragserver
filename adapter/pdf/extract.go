@@ -19,21 +19,6 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 
 	log.Printf("extracted text from PDF file, pages: %d", numPages)
 
-	// Just saving the text to a file for now
-	// f, err := os.Create("extracted_text.txt")
-	// if err != nil {
-	// 	log.Printf("error extracting text: %v", err)
-	// 	http.Error(w, "error extracting text", http.StatusInternalServerError)
-	// 	return
-	// }
-	// defer f.Close()
-	// _, err = f.Write(text)
-	// if err != nil {
-	// 	log.Printf("error extracting text: %v", err)
-	// 	http.Error(w, "error extracting text", http.StatusInternalServerError)
-	// 	return
-	// }
-
 	var (
 		// Create the default sentence tokenizer
 		tokenizer  = sentences.NewSentenceTokenizer(a.training)
@@ -45,6 +30,17 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 	for i, page := range pageBytes {
 		pageNum := i + 1
 		log.Printf("processing page %d/%d", pageNum, numPages)
+
+		// // Just saving the text to a file for debugging purposes
+		// f, err := os.Create(fmt.Sprintf("extracted_text_page_%d.txt", pageNum))
+		// if err != nil {
+		// 	return nil, fmt.Errorf("error extracting text: %w", err)
+		// }
+		// defer f.Close()
+		// _, err = f.Write(page.Bytes())
+		// if err != nil {
+		// 	return nil, fmt.Errorf("error extracting text: %w", err)
+		// }
 
 		for _, aSentence := range tokenizer.Tokenize(page.String()) {
 			if len(topics) > 0 {

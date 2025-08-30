@@ -36,4 +36,5 @@ adapter:
   retrieve: 
     name: redis
   generative: 
+    name: google-genai
     model: gemini-2.5-flash

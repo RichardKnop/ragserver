@@ -15,9 +15,9 @@ services:
         CMD_PKG: examples/weaviate
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      DB_NAME: /data/db.sqlite
-      WEAVIATE_ADDR: weaviate:9035
+      DB_NAME: /data/ragserver-weaviate.sqlite
       DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
+      WEAVIATE_ADDR: weaviate:9035
     volumes:
       - ragserver_data:/data
       - type: bind

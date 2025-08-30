@@ -39,8 +39,9 @@ adapter:
     model: gemini-2.5-flash
   embed: 
     name: hugot
-    model: all-MiniLM-L6-v2
+    model: sentence-transformers/all-MiniLM-L6-v2
   retrieve: 
     name: redis
   generative: 
-    model: gemini-2.5-flash
+    name: hugot
+    model: onnx-community/gemma-3-270m-it-ONNX

@@ -25,7 +25,6 @@ import (
 
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/adapter/document"
-	googlegenai "github.com/RichardKnop/ragserver/adapter/google-genai"
 	hugotAdapter "github.com/RichardKnop/ragserver/adapter/hugot"
 	"github.com/RichardKnop/ragserver/adapter/pdf"
 	redisAdapter "github.com/RichardKnop/ragserver/adapter/redis"
@@ -76,6 +75,48 @@ func main() {
 		log.Fatal("db migrate: ", err)
 	}
 
+	// Hugot session
+	var session *hugot.Session
+	switch backend := viper.GetString("hugot.backend"); backend {
+	case "go":
+		log.Println("hugot backend: go")
+		session, err = hugot.NewGoSession()
+		if err != nil {
+			log.Fatal("hugot session: ", err)
+		}
+	case "ort":
+		log.Println("hugot backend: ort")
+
+		// Check if onnxruntime was installed
+		onnxPath := viper.GetString("hugot.onnxruntime_path")
+		if _, err := os.Stat(onnxPath); errors.Is(err, os.ErrNotExist) {
+			log.Fatalf("onnxruntime backend selected but %s does not exist", onnxPath)
+		}
+		session, err = hugot.NewORTSession(
+			hugotOptions.WithOnnxLibraryPath(onnxPath),
+		)
+		if err != nil {
+			log.Fatal("hugot session: ", err)
+		}
+	default:
+		log.Fatalf("unknown hugot backend: %s", backend)
+	}
+	defer func() {
+		err := session.Destroy()
+		if err != nil {
+			log.Fatal("hugot session destroy: ", err)
+		}
+	}()
+	hugotAdapter, err := hugotAdapter.New(
+		ctx,
+		session,
+		hugotAdapter.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
+		hugotAdapter.WithGenerativeModel(viper.GetString("adapter.generative.model")),
+	)
+	if err != nil {
+		log.Fatal("hugot adapter: ", err)
+	}
+
 	// Extractor
 	var extractor ragserver.Extractor
 	switch name := viper.GetString("adapter.extract.name"); name {
@@ -98,47 +139,7 @@ func main() {
 	switch name := viper.GetString("adapter.embed.name"); name {
 	case "hugot":
 		log.Println("embed adapter: hugot")
-		var (
-			session *hugot.Session
-			err     error
-		)
-		switch backend := viper.GetString("hugot.backend"); backend {
-		case "go":
-			log.Println("hugot backend: go")
-			session, err = hugot.NewGoSession()
-			if err != nil {
-				log.Fatal("hugot session: ", err)
-			}
-		case "ort":
-			log.Println("hugot backend: ort")
-
-			// Check if onnxruntime was installed
-			onnxPath := viper.GetString("hugot.onnxruntime_path")
-			if _, err := os.Stat(onnxPath); errors.Is(err, os.ErrNotExist) {
-				log.Fatalf("onnxruntime backend selected but %s does not exist", onnxPath)
-			}
-			session, err = hugot.NewORTSession(
-				hugotOptions.WithOnnxLibraryPath(onnxPath),
-			)
-			if err != nil {
-				log.Fatal("hugot session: ", err)
-			}
-		default:
-			log.Fatalf("unknown hugot backend: %s", backend)
-		}
-		defer func() {
-			err := session.Destroy()
-			if err != nil {
-				log.Fatal("hugot session destroy: ", err)
-			}
-		}()
-		embebber, err = hugotAdapter.New(
-			session,
-			hugotAdapter.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
-		)
-		if err != nil {
-			log.Fatal("hugot adapter: ", err)
-		}
+		embebber = hugotAdapter
 	default:
 		log.Fatalf("unknown embed adapter: %s", name)
 	}
@@ -171,6 +172,17 @@ func main() {
 		log.Fatalf("unknown retrieve adapter: %s", name)
 	}
 
+	// Language model
+	var gm ragserver.GenerativeModel
+	switch name := viper.GetString("adapter.generative.name"); name {
+	case "hugot":
+		log.Println("generative adapter: hugot")
+		gm = hugotAdapter
+	default:
+		log.Fatalf("unknown generative adapter: %s", name)
+	}
+
+	// Relevant topics to limit context
 	relevantTopics, err := relevantTopicsFromConfig()
 	if err != nil {
 		log.Fatal("relevant topics: ", err)
@@ -180,15 +192,9 @@ func main() {
 		ragserver.WithRelevantTopics(relevantTopics),
 	}
 
-	// Language model
-	lm := googlegenai.New(
-		genaiClient,
-		googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
-	)
-
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(extractor, embebber, retriever, lm, storeAdapter, opts...)
+		rs           = ragserver.New(extractor, embebber, retriever, gm, storeAdapter, opts...)
 		restAdapter  = rest.New(rs)
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use

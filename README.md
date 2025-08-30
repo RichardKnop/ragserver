@@ -137,17 +137,17 @@ For everything else, you can use whatever configuration method you prefer. If yo
 
 The example `config.example.yaml` defines many different options:
 
-| Config                  | Meaning |
-| ----------------------- | --------|
-| adapter.extract.name    | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
-| adapter.extract.model   | Only used if `adapter.extract.name` is set to `document`. Currently only supported model is `gemini-2.5-flash` |
-| adapter.embed.name      | Currently supported are `google-genai` and `hugot` . Set `models.embeddings` to `text-embedding-004` for `google-genai` and `all-MiniLM-L6-v2` for `hugot` |
-| adapter.embed.model     | Model to use for text embeddings. Currently supported are Gemini's `text-embedding-004` and OONX `all-MiniLM-L6-v2`. |
-| adapter.retrieve.name   | Supported adapters are `weaviate` and `redis` |
-| adapter.generative.name | Currently only supported generative model is `gemini-2.5-flash` |
-| redis.vector_dim        | If you are using Redis, set to 768 for `text-embedding-004` or 384 for `all-MiniLM-L6-v2` |
-| models.generative.name  | LLM model to use for generating answers. Currently only Gemini models supported such as `gemini-2.5-flash`. |
-| relevant_topics         | Limit scope only to relevant topics when extracting context from PDF files |
+| Config                    | Meaning |
+| ------------------------- | --------|
+| adapter.extract.name      | Either try to extract context from PDF files locally in the code by using the `pdf` adapter or use Gemini's document vision capability by using the `document` adapter |
+| adapter.extract.model     | Only used if `adapter.extract.name` is set to `document`. Currently only supported model is `gemini-2.5-flash` |
+| adapter.embed.name        | Currently supported are `google-genai` and `hugot` |
+| adapter.embed.model       | Set to `text-embedding-004` for `google-genai` adapter and `sentence-transformers/all-MiniLM-L6-v2` for `hugot` adapter |
+| adapter.retrieve.name     | Supported adapters are `weaviate` and `redis` |
+| redis.vector_dim          | If you are using Redis, set to 768 for `text-embedding-004` or 384 for `sentence-transformers/all-MiniLM-L6-v2` |
+| adapter.generative.name   | Currently supported are `google-genai` and `hugot` |
+| adapters.generative.model | Set to `gemini-2.5-flash` for `google-genai` adapter and `onnx-community/gemma-3-270m-it-ONNX` for `hugot` adapter |
+| relevant_topics           | Limit scope only to relevant topics when extracting context from PDF files |
 
 You can set any configuration value by using `_` as env key replacer. For example, a `http.host` can be set as environment variable `HTTP_HOST` and so on.
 

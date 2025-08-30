@@ -4,3 +4,4 @@
 *.sqlite-*
 data/
 models/
+debug/

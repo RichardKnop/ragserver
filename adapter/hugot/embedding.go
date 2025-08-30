@@ -10,6 +10,10 @@ import (
 )
 
 func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Document) ([]ragserver.Vector, error) {
+	if a.embedding == nil {
+		return nil, fmt.Errorf("embedding pipeline not initialized")
+	}
+
 	sentences := make([]string, 0, len(documents))
 	for _, aDocument := range documents {
 		sentences = append(sentences, aDocument.Content)
@@ -36,6 +40,10 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 }
 
 func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.Vector, error) {
+	if a.embedding == nil {
+		return nil, fmt.Errorf("embedding pipeline not initialized")
+	}
+
 	embeddingResult, err := a.embedding.RunPipeline([]string{content})
 	if err != nil {
 		return ragserver.Vector{}, err
