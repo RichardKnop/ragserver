@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,6 +16,7 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/knights-analytics/hugot"
+	hugotOptions "github.com/knights-analytics/hugot/options"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
@@ -62,14 +62,8 @@ func main() {
 	}
 
 	// Connect to the database
-	dbConnOpts := url.Values{}
-	dbConnOpts.Set("_fk", "true")
-	dbConnOpts.Set("_journal", "WAL")
-	dbConnOpts.Set("_timeout", "5000")
-
-	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", dbConnOpts.Encode())
-
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), dbConnOpts.Encode()))
+	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", viper.GetString("db.opts"))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), viper.GetString("db.opts")))
 	if err != nil {
 		log.Fatal("db open:", err)
 	}
@@ -104,22 +98,56 @@ func main() {
 	switch name := viper.GetString("adapter.embed.name"); name {
 	case "hugot":
 		log.Println("embed adapter: hugot")
-		session, err := hugot.NewGoSession()
-		if err != nil {
-			log.Fatal("hugot session: ", err)
-		}
-		defer func() {
-			err := session.Destroy()
+		switch backend := viper.GetString("hugot.backend"); backend {
+		case "go":
+			log.Println("hugot backend: go")
+
+			session, err := hugot.NewGoSession()
 			if err != nil {
-				log.Fatal("hugot session destroy: ", err)
+				log.Fatal("hugot session: ", err)
 			}
-		}()
-		embebber, err = hugotAdapter.New(
-			session,
-			hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
-		)
-		if err != nil {
-			log.Fatal("hugot adapter: ", err)
+			defer func() {
+				err := session.Destroy()
+				if err != nil {
+					log.Fatal("hugot session destroy: ", err)
+				}
+			}()
+			embebber, err = hugotAdapter.New(
+				session,
+				hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
+			)
+			if err != nil {
+				log.Fatal("hugot adapter: ", err)
+			}
+		case "ort":
+			log.Println("hugot backend: ort")
+
+			// Check if onnxruntime was installed
+			if _, err := os.Stat("/usr/lib64/onnxruntime.so"); errors.Is(err, os.ErrNotExist) {
+				log.Fatal("onnxruntime backend selected but /usr/lib64/libonnxruntime.so does not exist")
+			}
+
+			session, err := hugot.NewORTSession(
+				hugotOptions.WithOnnxLibraryPath("/path/to/onnxruntime.so"),
+			)
+			if err != nil {
+				log.Fatal("hugot session: ", err)
+			}
+			defer func() {
+				err := session.Destroy()
+				if err != nil {
+					log.Fatal("hugot session destroy: ", err)
+				}
+			}()
+			embebber, err = hugotAdapter.New(
+				session,
+				hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
+			)
+			if err != nil {
+				log.Fatal("hugot adapter: ", err)
+			}
+		default:
+			log.Fatalf("unknown hugot backend: %s", backend)
 		}
 	default:
 		log.Fatalf("unknown embed adapter: %s", name)

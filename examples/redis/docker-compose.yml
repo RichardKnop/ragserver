@@ -17,6 +17,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       DB_NAME: /data/db.sqlite
       REDIS_ADDR: redis:6379
+      DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
     volumes:
       - ragserver_data:/data
     ports:

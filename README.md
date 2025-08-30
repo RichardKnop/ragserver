@@ -198,12 +198,12 @@ An example query request looks like this:
 
 ```json
 {
-    "type": "metric", 
-    "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
-    "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
-    ]
+  "type": "metric", 
+  "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
+  "file_ids": [
+    "0eec273f-1a88-4f6b-8096-f4053b09ca9c",
+    "a8e67cc1-418f-423a-9598-84f99c56ad0e"
+  ]
 }
 ```
 
@@ -228,8 +228,8 @@ For content, you could choose some of these example ESG related questions:
   "type": "metric", 
   "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
   "file_ids": [
-    "343111e0-e942-44ab-9fbf-f008c1b01770",
-    "35d7d479-a46b-47db-990c-747467b56924"
+    "0eec273f-1a88-4f6b-8096-f4053b09ca9c",
+    "a8e67cc1-418f-423a-9598-84f99c56ad0e"
   ]
 }
 EOF

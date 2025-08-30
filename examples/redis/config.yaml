@@ -3,6 +3,7 @@ http:
 
 db:
   name: db.sqlite
+  opts: _fk=true&_journal=WAL&_timeout=5000
 
 redis:
   addr: localhost:6379

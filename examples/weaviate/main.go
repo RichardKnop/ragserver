@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -60,21 +59,14 @@ func main() {
 	}
 
 	// Connect to the database
-	dbConnOpts := url.Values{}
-	dbConnOpts.Set("_fk", "true")
-	dbConnOpts.Set("_journal", "WAL")
-	dbConnOpts.Set("_timeout", "5000")
-
-	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", dbConnOpts.Encode())
-
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), dbConnOpts.Encode()))
+	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", viper.GetString("db.opts"))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), viper.GetString("db.opts")))
 	if err != nil {
 		log.Fatal("db open:", err)
 	}
 	if err := db.Ping(); err != nil {
 		log.Fatal("db ping:", err)
 	}
-
 	// Run db migrations
 	if err := ragserver.Migrate(db); err != nil {
 		log.Fatal("db migrate: ", err)

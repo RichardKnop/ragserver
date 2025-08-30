@@ -6,14 +6,14 @@ require (
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
-	github.com/knights-analytics/hugot v0.4.3
+	github.com/knights-analytics/hugot v0.5.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/neurosnap/sentences v1.1.2
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/weaviate/weaviate v1.32.3
 	github.com/weaviate/weaviate-go-client/v5 v5.4.1
 	google.golang.org/genai v1.20.0
@@ -36,7 +36,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
-	github.com/daulet/tokenizers v1.22.1 // indirect
+	github.com/daulet/tokenizers v1.22.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/cli v27.4.1+incompatible // indirect
@@ -65,9 +65,9 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gomlx/exceptions v0.0.3 // indirect
 	github.com/gomlx/go-huggingface v0.2.2 // indirect
-	github.com/gomlx/gomlx v0.21.0 // indirect
-	github.com/gomlx/gopjrt v0.7.3 // indirect
-	github.com/gomlx/onnx-gomlx v0.2.4 // indirect
+	github.com/gomlx/gomlx v0.22.1 // indirect
+	github.com/gomlx/gopjrt v0.8.0 // indirect
+	github.com/gomlx/onnx-gomlx v0.2.5 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -105,7 +105,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/sugarme/regexpset v0.0.0-20200920021344-4d4ec8eaf93c // indirect
-	github.com/sugarme/tokenizer v0.2.3-0.20250716014333-b9b58278e3cc // indirect
+	github.com/sugarme/tokenizer v0.2.3-0.20250806005049-d78f65a68e82 // indirect
 	github.com/viant/afs v1.26.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
@@ -122,14 +122,14 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/exp v0.0.0-20250717185816-542afb5b7346 // indirect
+	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 	google.golang.org/grpc v1.74.2 // indirect
-	google.golang.org/protobuf v1.36.7 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect

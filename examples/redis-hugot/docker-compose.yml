@@ -2,8 +2,8 @@
 version: '3.4'
 services:
   ragserver:
-    container_name: ragserver-redis
-    image: ragserver-redis:latest
+    container_name: ragserver-redis-hugot
+    image: ragserver-redis-hugot:latest
     depends_on:
       - redis
     links:
@@ -12,11 +12,12 @@ services:
       context: ./../../
       dockerfile: Dockerfile
       args:
-        CMD_PKG: examples/redis
+        CMD_PKG: examples/redis-hugot
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       DB_NAME: /data/db.sqlite
       REDIS_ADDR: redis:6379
+      HUGOT_BACKEND: ort
     volumes:
       - ragserver_data:/data
     ports:

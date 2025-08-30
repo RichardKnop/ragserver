@@ -3,6 +3,7 @@ http:
 
 db:
   name: db.sqlite
+  opts: _fk=true&_journal=WAL&_timeout=5000
 
 weaviate:
   addr: localhost:9035
@@ -27,6 +28,12 @@ relevant_topics:
     - net zero
     - net-zero target
     - net zero target
+
+hugot:
+  # Supported backends:
+  # 1. go
+  # 2. ort
+  backend: go
 
 adapter:
   # Supported adapters for extracting text from PDFs:
