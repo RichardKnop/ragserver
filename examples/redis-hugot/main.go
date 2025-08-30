@@ -98,56 +98,46 @@ func main() {
 	switch name := viper.GetString("adapter.embed.name"); name {
 	case "hugot":
 		log.Println("embed adapter: hugot")
+		var (
+			session *hugot.Session
+			err     error
+		)
 		switch backend := viper.GetString("hugot.backend"); backend {
 		case "go":
 			log.Println("hugot backend: go")
-
-			session, err := hugot.NewGoSession()
+			session, err = hugot.NewGoSession()
 			if err != nil {
 				log.Fatal("hugot session: ", err)
-			}
-			defer func() {
-				err := session.Destroy()
-				if err != nil {
-					log.Fatal("hugot session destroy: ", err)
-				}
-			}()
-			embebber, err = hugotAdapter.New(
-				session,
-				hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
-			)
-			if err != nil {
-				log.Fatal("hugot adapter: ", err)
 			}
 		case "ort":
 			log.Println("hugot backend: ort")
 
 			// Check if onnxruntime was installed
-			if _, err := os.Stat("/usr/lib64/onnxruntime.so"); errors.Is(err, os.ErrNotExist) {
-				log.Fatal("onnxruntime backend selected but /usr/lib64/libonnxruntime.so does not exist")
+			onnxPath := viper.GetString("hugot.onnxruntime_path")
+			if _, err := os.Stat(onnxPath); errors.Is(err, os.ErrNotExist) {
+				log.Fatalf("onnxruntime backend selected but %s does not exist", onnxPath)
 			}
-
-			session, err := hugot.NewORTSession(
-				hugotOptions.WithOnnxLibraryPath("/path/to/onnxruntime.so"),
+			session, err = hugot.NewORTSession(
+				hugotOptions.WithOnnxLibraryPath(onnxPath),
 			)
 			if err != nil {
 				log.Fatal("hugot session: ", err)
 			}
-			defer func() {
-				err := session.Destroy()
-				if err != nil {
-					log.Fatal("hugot session destroy: ", err)
-				}
-			}()
-			embebber, err = hugotAdapter.New(
-				session,
-				hugotAdapter.WithModel(viper.GetString("adapter.embed.model")),
-			)
-			if err != nil {
-				log.Fatal("hugot adapter: ", err)
-			}
 		default:
 			log.Fatalf("unknown hugot backend: %s", backend)
+		}
+		defer func() {
+			err := session.Destroy()
+			if err != nil {
+				log.Fatal("hugot session destroy: ", err)
+			}
+		}()
+		embebber, err = hugotAdapter.New(
+			session,
+			hugotAdapter.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
+		)
+		if err != nil {
+			log.Fatal("hugot adapter: ", err)
 		}
 	default:
 		log.Fatalf("unknown embed adapter: %s", name)

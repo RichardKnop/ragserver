@@ -8,25 +8,25 @@ import (
 )
 
 type Adapter struct {
-	session  *hugot.Session
-	pipeline *pipelines.FeatureExtractionPipeline
-	model    string
+	session        *hugot.Session
+	embedding      *pipelines.FeatureExtractionPipeline
+	embeddingModel string
 }
 
 type Option func(*Adapter)
 
-const defaultModel = "all-MiniLM-L6-v2"
+const defaultEmbeddingModel = "all-MiniLM-L6-v2"
 
-func WithModel(model string) Option {
+func WithEmbeddingModel(model string) Option {
 	return func(a *Adapter) {
-		a.model = model
+		a.embeddingModel = model
 	}
 }
 
 func New(session *hugot.Session, options ...Option) (*Adapter, error) {
 	a := &Adapter{
-		session: session,
-		model:   defaultModel,
+		session:        session,
+		embeddingModel: defaultEmbeddingModel,
 	}
 
 	for _, o := range options {
@@ -35,7 +35,7 @@ func New(session *hugot.Session, options ...Option) (*Adapter, error) {
 
 	log.Println(
 		"init hugot adapter,",
-		"model:", a.model,
+		"embedding model:", a.embeddingModel,
 	)
 
 	return a, a.init()
@@ -51,7 +51,7 @@ func (a *Adapter) init() error {
 	// Download the model
 	downloadOptions := hugot.NewDownloadOptions()
 	downloadOptions.OnnxFilePath = "onnx/model.onnx" // Specify which ONNX file to use
-	modelPath, err := hugot.DownloadModel("sentence-transformers/"+a.model, "./models/", downloadOptions)
+	modelPath, err := hugot.DownloadModel("sentence-transformers/"+a.embeddingModel, "./models/", downloadOptions)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (a *Adapter) init() error {
 	}
 
 	// Create the feature extraction pipeline
-	a.pipeline, err = hugot.NewPipeline(a.session, config)
+	a.embedding, err = hugot.NewPipeline(a.session, config)
 	if err != nil {
 		return nil
 	}

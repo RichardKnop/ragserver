@@ -15,7 +15,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 		sentences = append(sentences, aDocument.Content)
 	}
 
-	embeddingResult, err := a.pipeline.RunPipeline(sentences)
+	embeddingResult, err := a.embedding.RunPipeline(sentences)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 }
 
 func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.Vector, error) {
-	embeddingResult, err := a.pipeline.RunPipeline([]string{content})
+	embeddingResult, err := a.embedding.RunPipeline([]string{content})
 	if err != nil {
 		return ragserver.Vector{}, err
 	}

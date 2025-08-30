@@ -201,8 +201,8 @@ An example query request looks like this:
   "type": "metric", 
   "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
   "file_ids": [
-    "0eec273f-1a88-4f6b-8096-f4053b09ca9c",
-    "a8e67cc1-418f-423a-9598-84f99c56ad0e"
+    "90d6f733-8a67-4cd9-875d-2a6ac5632fe1",
+    "65c77688-0f65-4e93-8069-48848e8a1e22"
   ]
 }
 ```
@@ -228,8 +228,8 @@ For content, you could choose some of these example ESG related questions:
   "type": "metric", 
   "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
   "file_ids": [
-    "0eec273f-1a88-4f6b-8096-f4053b09ca9c",
-    "a8e67cc1-418f-423a-9598-84f99c56ad0e"
+    "90d6f733-8a67-4cd9-875d-2a6ac5632fe1",
+    "65c77688-0f65-4e93-8069-48848e8a1e22"
   ]
 }
 EOF

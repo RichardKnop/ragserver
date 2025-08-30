@@ -27,7 +27,11 @@ relevant_topics:
     - net zero target
 
 hugot:
+  # Supported backends:
+  # 1. go
+  # 2. ort
   backend: go
+  onnxruntime_path: /usr/lib64/onnxruntime.so
 
 adapter:
   extract: 

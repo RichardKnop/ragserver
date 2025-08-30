@@ -34,6 +34,7 @@ hugot:
   # 1. go
   # 2. ort
   backend: go
+  nnxruntime_path: /usr/lib64/onnxruntime.so
 
 adapter:
   # Supported adapters for extracting text from PDFs:
