@@ -43,6 +43,7 @@ type Transactional interface {
 }
 
 type FileStore interface {
+	SavePrincipal(ctx context.Context, principal authz.Principal) error
 	SaveFiles(ctx context.Context, file ...*File) error
 	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial) ([]*File, error)
 	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)

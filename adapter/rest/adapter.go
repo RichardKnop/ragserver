@@ -31,11 +31,14 @@ func New(ragServer RagServer) *Adapter {
 	}
 }
 
-const defaultTimeout = 3 * time.Second
+const (
+	defaultTimeout = 3 * time.Second
+)
 
-var staticPrincipal = authz.New(authz.ID{
-	UUID: uuid.Must(uuid.FromString("b486ea88-95c4-4140-86c9-dd19f6fa879f")),
-})
+var (
+	principalID     = authz.ID{UUID: uuid.Must(uuid.FromString("b486ea88-95c4-4140-86c9-dd19f6fa879f"))}
+	staticPrincipal = authz.New(principalID, "static-user")
+)
 
 func (a *Adapter) principalFromRequest(r *http.Request) authz.Principal {
 	// TODO - get actual principal from the request later when auth is implemented.

@@ -17,12 +17,12 @@ func (a *Adapter) SaveFiles(ctx context.Context, files ...*ragserver.File) error
 	}
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
-		if err := execBatchInsertQuery(ctx, tx, insertFilesQuery{files: files}); err != nil {
-			return fmt.Errorf("exec batch insert query failed: %w", err)
+		if err := execQueryCheckRowsAffected(ctx, tx, insertFilesQuery{files: files}); err != nil {
+			return fmt.Errorf("exec insert files query failed: %w", err)
 		}
 
-		if err := execBatchInsertQuery(ctx, tx, insertFileStatusEventsQuery{files: files}); err != nil {
-			return fmt.Errorf("exec batch insert query failed: %w", err)
+		if err := execQueryCheckRowsAffected(ctx, tx, insertFileStatusEventsQuery{files: files}); err != nil {
+			return fmt.Errorf("exec insert file status events query failed: %w", err)
 		}
 
 		return nil
@@ -44,12 +44,13 @@ func (q insertFilesQuery) SQL() (string, []any) {
 
 	query := `
 		with cte as (
-			values (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)
+			values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)
 	`
 	args := make([]any, 0, len(q.files)*13)
 	args = append(
 		args,
 		q.files[0].ID,
+		q.files[0].AuthorID,
 		q.files[0].FileName,
 		q.files[0].ContentType,
 		q.files[0].Extension,
@@ -59,14 +60,15 @@ func (q insertFilesQuery) SQL() (string, []any) {
 		q.files[0].Retriever,
 		q.files[0].Location,
 		q.files[0].Status,
-		q.files[0].CreatedAt,
-		q.files[0].UpdatedAt,
+		q.files[0].Created,
+		q.files[0].Updated,
 	)
 	for i := range q.files[1:] {
-		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.files[i+1].ID,
+			q.files[i+1].AuthorID,
 			q.files[i+1].FileName,
 			q.files[i+1].ContentType,
 			q.files[i+1].Extension,
@@ -76,14 +78,15 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			q.files[i+1].Retriever,
 			q.files[i+1].Location,
 			q.files[i+1].Status,
-			q.files[i+1].CreatedAt,
-			q.files[i+1].UpdatedAt,
+			q.files[i+1].Created,
+			q.files[i+1].Updated,
 		)
 	}
 	query += `
 		)
 		insert into "file" (
-			"id", 
+			"id",
+			"author",
 			"file_name", 
 			"content_type", 
 			"extension",
@@ -93,13 +96,14 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			"retriever",
 			"location",
 			"status",
-			"created_at",
-			"updated_at"
+			"created",
+			"updated"
 		)
 		select * 
 		from cte
 		where 1
 		on conflict("id") do update set
+			"author"=excluded."author",
 			"file_name"=excluded."file_name",
 			"content_type"=excluded."content_type",
 			"extension"=excluded."extension",
@@ -109,7 +113,7 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			"retriever"=excluded."retriever",
 			"location"=excluded."location",
 			"status"=excluded."status",
-			"updated_at"=excluded."updated_at"	
+			"updated"=excluded."updated"
 	`
 
 	return query, args
@@ -134,7 +138,7 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 		q.files[0].ID,
 		q.files[0].Status,
 		sql.NullString{String: q.files[0].StatusMessage, Valid: q.files[0].StatusMessage != ""},
-		q.files[0].CreatedAt,
+		q.files[0].Created,
 	)
 	for i := range q.files[1:] {
 		query += `, (?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)`
@@ -143,7 +147,7 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 			q.files[i+1].ID,
 			q.files[i+1].Status,
 			sql.NullString{String: q.files[i+1].StatusMessage, Valid: q.files[i+1].StatusMessage != ""},
-			q.files[i+1].CreatedAt,
+			q.files[i+1].Created,
 		)
 	}
 	query += `
@@ -152,7 +156,7 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 			"file", 
 			"status",
 			"message",
-			"created_at"
+			"created"
 		)
 		select * 
 		from cte
@@ -172,7 +176,7 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 		}.SQL()
 
 		// Add order by clause
-		sql += ` order by f."created_at" desc`
+		sql += ` order by f."created" desc`
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -206,6 +210,7 @@ func (q selectFilesQuery) SQL() (string, []any) {
 	query := `
 		select 
 			f."id",
+			f."author",
 			f."file_name", 
 			f."content_type", 
 			f."extension", 
@@ -216,8 +221,8 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			f."location",
 			fs."name" as "status",
 			fse."message" as "status_message",
-			f."created_at",
-			f."updated_at"
+			f."created",
+			f."updated"
 		from "file" f
 		inner join "file_status" fs on f."status" = fs."id"
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id"
@@ -266,7 +271,7 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 	}
 
 	if !filter.LastUpdatedBefore.T.IsZero() {
-		clauses = append(clauses, `f."updated_at" < ?`)
+		clauses = append(clauses, `f."updated" < ?`)
 		args = append(args, filter.LastUpdatedBefore)
 	}
 
@@ -314,6 +319,7 @@ func (q findFileQuery) SQL() (string, []any) {
 	query := `
 		select 
 			f."id",
+			f."author",
 			f."file_name", 
 			f."content_type", 
 			f."extension", 
@@ -324,8 +330,8 @@ func (q findFileQuery) SQL() (string, []any) {
 			f."location",
 			fs."name" as "status",
 			fse."message" as "status_message",
-			f."created_at",
-			f."updated_at"
+			f."created",
+			f."updated"
 		from "file" f
 		inner join "file_status" fs ON f."status" = fs."id"	
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id" 
@@ -352,6 +358,7 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 
 	if err := row.Scan(
 		&aFile.ID,
+		&aFile.AuthorID,
 		&aFile.FileName,
 		&aFile.ContentType,
 		&aFile.Extension,
@@ -362,13 +369,13 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 		&aFile.Location,
 		&aFile.Status,
 		&statusMessage,
-		&aFile.CreatedAt,
-		&aFile.UpdatedAt,
+		&aFile.Created,
+		&aFile.Updated,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
 		}
-		return nil, fmt.Errorf("scan failed: %w", err)
+		return nil, fmt.Errorf("scan file failed: %w", err)
 	}
 
 	if statusMessage.Valid {
@@ -387,7 +394,7 @@ func (q listFilesForProcessing) SQL() (string, []any) {
 	sql := `
 		update "file" set 
 			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
-			"updated_at" = ?
+			"updated" = ?
 		where 
 			"status" = (select "id" from "file_status" fs where fs."name" = ?)
 	`
@@ -433,7 +440,7 @@ func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time
 		for rows.Next() {
 			var id ragserver.FileID
 			if err := rows.Scan(&id); err != nil {
-				return fmt.Errorf("scan failed: %w", err)
+				return fmt.Errorf("scan file ID failed: %w", err)
 			}
 			ids = append(ids, id)
 		}
@@ -447,13 +454,13 @@ func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time
 		files := make([]*ragserver.File, 0, len(ids))
 		for _, id := range ids {
 			files = append(files, &ragserver.File{
-				ID:        id,
-				Status:    ragserver.FileStatusProcessing,
-				CreatedAt: now,
+				ID:      id,
+				Status:  ragserver.FileStatusProcessing,
+				Created: now,
 			})
 		}
-		if err := execBatchInsertQuery(ctx, tx, insertFileStatusEventsQuery{files: files}); err != nil {
-			return fmt.Errorf("exec batch insert query failed: %w", err)
+		if err := execQueryCheckRowsAffected(ctx, tx, insertFileStatusEventsQuery{files: files}); err != nil {
+			return fmt.Errorf("exec insert file status events query failed: %w", err)
 		}
 
 		return nil

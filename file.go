@@ -30,6 +30,12 @@ func NewFileID() FileID {
 	return FileID{uuid.Must(uuid.NewV4())}
 }
 
+type AuthorID struct{ uuid.UUID }
+
+func NewAuthorID() AuthorID {
+	return AuthorID{uuid.Must(uuid.NewV4())}
+}
+
 type FileStatus string
 
 const (
@@ -41,6 +47,7 @@ const (
 
 type File struct {
 	ID            FileID
+	AuthorID      AuthorID
 	FileName      string
 	ContentType   string
 	Extension     string
@@ -51,8 +58,8 @@ type File struct {
 	Location      string
 	Status        FileStatus
 	StatusMessage string
-	CreatedAt     Time
-	UpdatedAt     Time
+	Created       Time
+	Updated       Time
 	Documents     []Document
 }
 
@@ -65,7 +72,7 @@ func (f *File) CompleteWithStatus(newStatus FileStatus, message string, updatedA
 
 	f.Status = newStatus
 	f.StatusMessage = message
-	f.UpdatedAt = Time{T: updatedAt}
+	f.Updated = Time{T: updatedAt}
 
 	log.Printf("state change for file: %s status: %s", f.ID, f.Status)
 
@@ -111,6 +118,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 
 	aFile := &File{
 		ID:          NewFileID(),
+		AuthorID:    AuthorID{principal.ID().UUID},
 		FileName:    header.Filename,
 		ContentType: contentType,
 		Size:        fileSize,
@@ -119,8 +127,8 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		Retriever:   rs.retriever.Name(),
 		Location:    tempFile.Name(),
 		Status:      FileStatusUploaded,
-		CreatedAt:   Time{rs.now()},
-		UpdatedAt:   Time{rs.now()},
+		Created:     Time{rs.now()},
+		Updated:     Time{rs.now()},
 	}
 
 	switch contentType {
@@ -131,8 +139,11 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 	}
 
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		if err := rs.store.SavePrincipal(ctx, principal); err != nil {
+			return fmt.Errorf("error saving principal: %w", err)
+		}
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
-			return err
+			return fmt.Errorf("error saving file: %w", err)
 		}
 
 		return nil

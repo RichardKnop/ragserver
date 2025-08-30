@@ -228,8 +228,8 @@ For content, you could choose some of these example ESG related questions:
   "type": "metric", 
   "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
   "file_ids": [
-    "c0d830e7-ef05-4d36-aad7-a158f8fd7683",
-    "ff23583d-64c2-4bf7-9327-a8de680c975d"
+    "343111e0-e942-44ab-9fbf-f008c1b01770",
+    "35d7d479-a46b-47db-990c-747467b56924"
   ]
 }
 EOF

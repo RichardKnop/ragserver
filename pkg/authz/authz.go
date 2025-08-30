@@ -10,18 +10,27 @@ type ID struct{ uuid.UUID }
 
 type Principal interface {
 	ID() ID
+	Name() string
 }
 
 type user struct {
-	id ID
+	id   ID
+	name string
 }
 
 func (u user) ID() ID {
 	return u.id
 }
 
-func New(id ID) Principal {
-	return user{id: id}
+func (u user) Name() string {
+	return u.name
+}
+
+func New(id ID, name string) Principal {
+	return user{
+		id:   id,
+		name: name,
+	}
 }
 
 type Partial interface {

@@ -32,8 +32,12 @@ type Query interface {
 	SQL() (string, []any)
 }
 
-func execBatchInsertQuery(ctx context.Context, tx *sql.Tx, q Query) error {
+func execQueryCheckRowsAffected(ctx context.Context, tx *sql.Tx, q Query) error {
 	sql, args := q.SQL()
+	return execCheckRowsAffected(ctx, tx, sql, args...)
+}
+
+func execCheckRowsAffected(ctx context.Context, tx *sql.Tx, sql string, args ...any) error {
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
 		return fmt.Errorf("prepare statement failed: %w", err)

@@ -7,30 +7,23 @@ import (
 
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/pkg/authz"
+	"github.com/RichardKnop/ragserver/ragservertest"
 )
 
 func (s *StoreTestSuite) TestFindFile() {
 	ctx, cancel := testContext()
 	defer cancel()
 
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	aFile := &ragserver.File{
-		ID:          ragserver.NewFileID(),
-		FileName:    "test.pdf",
-		ContentType: "application/pdf",
-		Extension:   "pdf",
-		Size:        123,
-		Hash:        "abc123",
-		Embedder:    "google-genai",
-		Retriever:   "redis",
-		Location:    "some/location",
-		Status:      ragserver.FileStatusUploaded,
-		CreatedAt:   ragserver.Time{T: now},
-		UpdatedAt:   ragserver.Time{T: now},
-	}
+	var (
+		aFile = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithEmbedder("google-genai"),
+			ragservertest.WithRetriever("redis"),
+		)
+	)
 
-	err := s.adapter.SaveFiles(ctx, aFile)
-	s.Require().NoError(err)
+	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
+	s.Require().NoError(s.adapter.SaveFiles(ctx, aFile), "error saving file")
 
 	s.Run("Find file without partial", func() {
 		savedFile, err := s.adapter.FindFile(ctx, aFile.ID, authz.NilPartial)
@@ -51,59 +44,44 @@ func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 
 	var (
 		now   = time.Now().UTC().Truncate(time.Millisecond)
-		file1 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test1.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "abc123",
-			Embedder:    "google-genai",
-			Retriever:   "weaviate",
-			Location:    "some/location1",
-			Status:      ragserver.FileStatusUploaded,
-			CreatedAt:   ragserver.Time{T: now},
-			UpdatedAt:   ragserver.Time{T: now},
-		}
-		file2 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test2.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "def123",
-			Embedder:    "google-genai",
-			Retriever:   "redis",
-			Location:    "some/location2",
-			Status:      ragserver.FileStatusProcessing,
-			CreatedAt:   ragserver.Time{T: now},
-			UpdatedAt:   ragserver.Time{T: now},
-		}
+		file1 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusUploaded),
+			ragservertest.WithCreated(now),
+			ragservertest.WithUpdated(now),
+		)
+		file2 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusProcessing),
+			ragservertest.WithCreated(now),
+			ragservertest.WithUpdated(now),
+		)
 	)
 
+	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
+
 	// Save two files
-	err := s.adapter.SaveFiles(ctx, file1, file2)
-	s.Require().NoError(err)
+	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
 
 	savedFile1, err := s.adapter.FindFile(ctx, file1.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(file1, savedFile1)
 	s.Equal(ragserver.FileStatusUploaded, savedFile1.Status)
-	s.Equal(now, savedFile1.UpdatedAt.T)
+	s.Equal(now, savedFile1.Updated.T)
 
 	savedFile2, err := s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(file2, savedFile2)
 	s.Equal(ragserver.FileStatusProcessing, savedFile2.Status)
-	s.Equal(now, savedFile1.UpdatedAt.T)
+	s.Equal(now, savedFile1.Updated.T)
 
 	// Let's save again to cause an upsert
 	file1.Status = ragserver.FileStatusProcessing
-	file1.UpdatedAt.T = file1.UpdatedAt.T.Add(1 * time.Minute)
+	file1.Updated.T = file1.Updated.T.Add(1 * time.Minute)
 
 	file2.Status = ragserver.FileStatusProcessingFailed
 	file2.StatusMessage = "some error message"
-	file2.UpdatedAt.T = file2.UpdatedAt.T.Add(1 * time.Minute)
+	file2.Updated.T = file2.Updated.T.Add(1 * time.Minute)
 
 	err = s.adapter.SaveFiles(ctx, file1, file2)
 	s.Require().NoError(err)
@@ -112,14 +90,14 @@ func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 	s.Require().NoError(err)
 	s.Equal(file1, savedFile1)
 	s.Equal(ragserver.FileStatusProcessing, savedFile1.Status)
-	s.Greater(savedFile1.UpdatedAt.T, now)
+	s.Greater(savedFile1.Updated.T, now)
 
 	savedFile2, err = s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(file2, savedFile2)
 	s.Equal(ragserver.FileStatusProcessingFailed, savedFile2.Status)
 	s.Equal("some error message", savedFile2.StatusMessage)
-	s.Greater(savedFile2.UpdatedAt.T, now)
+	s.Greater(savedFile2.Updated.T, now)
 }
 
 func (s *StoreTestSuite) TestListFiles() {
@@ -132,38 +110,26 @@ func (s *StoreTestSuite) TestListFiles() {
 
 	var (
 		now   = time.Now().UTC().Truncate(time.Millisecond)
-		file1 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test1.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "abc123",
-			Embedder:    "google-genai",
-			Retriever:   "weaviate",
-			Location:    "some/location1",
-			Status:      ragserver.FileStatusProcessing,
-			CreatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
-			UpdatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
-		}
-		file2 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test2.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "def123",
-			Embedder:    "google-genai",
-			Retriever:   "redis",
-			Location:    "some/location2",
-			Status:      ragserver.FileStatusProcessedSuccessfully,
-			CreatedAt:   ragserver.Time{T: now},
-			UpdatedAt:   ragserver.Time{T: now},
-		}
+		file1 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusProcessing),
+			ragservertest.WithCreated(now.Add(-1*time.Hour)),
+			ragservertest.WithUpdated(now.Add(-1*time.Hour)),
+			ragservertest.WithEmbedder("google-genai"),
+			ragservertest.WithRetriever("weaviate"),
+		)
+		file2 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusProcessedSuccessfully),
+			ragservertest.WithCreated(now),
+			ragservertest.WithUpdated(now),
+			ragservertest.WithEmbedder("google-genai"),
+			ragservertest.WithRetriever("redis"),
+		)
 	)
 
-	err = s.adapter.SaveFiles(ctx, file1, file2)
-	s.Require().NoError(err)
+	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
+	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
 
 	s.Run("List all files, no filter", func() {
 		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
@@ -216,38 +182,22 @@ func (s *StoreTestSuite) TestListFilesForProcessing() {
 
 	var (
 		now   = time.Now().UTC().Truncate(time.Millisecond)
-		file1 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test1.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "abc123",
-			Embedder:    "google-genai",
-			Retriever:   "weaviate",
-			Location:    "some/location1",
-			Status:      ragserver.FileStatusProcessing,
-			CreatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
-			UpdatedAt:   ragserver.Time{T: now.Add(-1 * time.Hour)},
-		}
-		file2 = &ragserver.File{
-			ID:          ragserver.NewFileID(),
-			FileName:    "test2.pdf",
-			ContentType: "application/pdf",
-			Extension:   "pdf",
-			Size:        123,
-			Hash:        "def123",
-			Embedder:    "google-genai",
-			Retriever:   "redis",
-			Location:    "some/location2",
-			Status:      ragserver.FileStatusUploaded,
-			CreatedAt:   ragserver.Time{T: now},
-			UpdatedAt:   ragserver.Time{T: now},
-		}
+		file1 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusProcessing),
+			ragservertest.WithCreated(now.Add(-1*time.Hour)),
+			ragservertest.WithUpdated(now.Add(-1*time.Hour)),
+		)
+		file2 = gen.File(
+			ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithStatus(ragserver.FileStatusUploaded),
+			ragservertest.WithCreated(now),
+			ragservertest.WithUpdated(now),
+		)
 	)
 
-	err := s.adapter.SaveFiles(ctx, file1, file2)
-	s.Require().NoError(err)
+	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
+	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
 
 	ids, err := s.adapter.ListFilesForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial)
 	s.Require().NoError(err)
@@ -264,28 +214,21 @@ func (s *StoreTestSuite) TestListFilesForProcessing() {
 	s.Equal(ragserver.FileStatusProcessing, updatedFile2.Status)
 }
 
+var (
+	testNow = time.Now().UTC()
+	gen     = ragservertest.New(testNow.UnixNano(), testNow)
+)
+
 func (s *StoreTestSuite) TestDeleteFiles() {
 	ctx, cancel := testContext()
 	defer cancel()
 
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	aFile := &ragserver.File{
-		ID:          ragserver.NewFileID(),
-		FileName:    "test.pdf",
-		ContentType: "application/pdf",
-		Extension:   "pdf",
-		Size:        123,
-		Hash:        "abc123",
-		Embedder:    "google-genai",
-		Retriever:   "redis",
-		Location:    "some/location",
-		Status:      ragserver.FileStatusUploaded,
-		CreatedAt:   ragserver.Time{T: now},
-		UpdatedAt:   ragserver.Time{T: now},
-	}
+	var (
+		aFile = gen.File(ragservertest.WithAuthorID(ragserver.AuthorID(testPrincipal.ID())))
+	)
 
-	err := s.adapter.SaveFiles(ctx, aFile)
-	s.Require().NoError(err)
+	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
+	s.Require().NoError(s.adapter.SaveFiles(ctx, aFile), "error saving file")
 
 	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
 	s.Require().NoError(err)

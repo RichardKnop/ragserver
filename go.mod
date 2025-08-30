@@ -3,6 +3,7 @@ module github.com/RichardKnop/ragserver
 go 1.25.0
 
 require (
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/knights-analytics/hugot v0.4.3
