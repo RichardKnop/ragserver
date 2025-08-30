@@ -26,7 +26,5 @@ adapter:
   embed: 
     name: google-genai
     model: text-embedding-004
-  retrieve: 
-    name: weaviate
   generative: 
     model: gemini-2.5-flash

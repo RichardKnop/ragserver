@@ -41,8 +41,7 @@ COPY . /build
 WORKDIR /build
 RUN cp -R db/ /db && chown -R 1000:1000 /db
 RUN mkdir /data && chown -R 1000:1000 /data
-RUN cd ${CMD_PKG} && cp config.yaml /config.yaml && \
-    CGO_ENABLED=1 CGO_LDFLAGS="-L/usr/lib/" GOOS=linux GOARCH=amd64 go build -tags "ALL" -a -o /ragserver main.go
+RUN cd ${CMD_PKG} && CGO_ENABLED=1 CGO_LDFLAGS="-L/usr/lib/" GOOS=linux GOARCH=amd64 go build -tags "ALL" -a -o /ragserver main.go
 RUN chown 1000:1000 /ragserver
 WORKDIR /
 RUN rm -rf /build

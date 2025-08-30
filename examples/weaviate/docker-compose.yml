@@ -17,8 +17,12 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       DB_NAME: /data/db.sqlite
       WEAVIATE_ADDR: weaviate:9035
+      DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
     volumes:
       - ragserver_data:/data
+      - type: bind
+        source: config.yaml
+        target: /config.yaml
     ports:
       - 8080:8080
   weaviate:
@@ -44,4 +48,4 @@ services:
       DISABLE_TELEMETRY: true
 volumes:
   ragserver_data:
-  weaviate_data:
+  redis_data:
