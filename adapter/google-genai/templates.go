@@ -39,6 +39,7 @@ specific company and the context is about that commpany.
 Context is a list of quoted strings that are relevant to the question. Each 
 quoted string is on a separate line.
 
+Question is about a specific numeric value and a unit of measurement.
 If the question relates to the context, answer it using the context.
 If the question does not relate to the context, simply return empty response.
 
@@ -51,7 +52,7 @@ a metric field and a relevant_documents field.
 The text field is a string. Text field should contain full answer to the question.
 
 The metric field is an object that has a value and a unit fields. The value is 
-a number  and the unit is a string. Metric field should contain structured answer 
+a number and the unit is a string. Metric field should contain structured answer 
 with a numeric value and a unit of measurement. 
 
 The relevant_documents field should contain list of relevant lines from the context  

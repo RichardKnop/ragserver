@@ -12,6 +12,7 @@ import (
 
 type modelConfig struct {
 	name             string
+	onxFilePath      string
 	externalDataPath string
 }
 
@@ -38,6 +39,18 @@ func WithGenerativeModelName(name string) Option {
 	}
 }
 
+func WithEmbeddingModelOnnxFilePath(path string) Option {
+	return func(a *Adapter) {
+		a.embeddingConfig.onxFilePath = path
+	}
+}
+
+func WithGenerativeModelOnnxFilePath(path string) Option {
+	return func(a *Adapter) {
+		a.generativeConfig.onxFilePath = path
+	}
+}
+
 func WithGenerativeModelExternalDataPath(path string) Option {
 	return func(a *Adapter) {
 		a.generativeConfig.externalDataPath = path
@@ -50,13 +63,16 @@ func WithModelsDir(path string) Option {
 	}
 }
 
-const defaultModelsDir = "/models"
+const (
+	defaultModelsDir   = "/models"
+	defaultOnxFilePath = "onnx/model.onnx"
+)
 
 func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapter, error) {
 	a := &Adapter{
 		session:          session,
-		embeddingConfig:  modelConfig{},
-		generativeConfig: modelConfig{},
+		embeddingConfig:  modelConfig{onxFilePath: defaultOnxFilePath},
+		generativeConfig: modelConfig{onxFilePath: defaultOnxFilePath},
 		modelsDir:        defaultModelsDir,
 	}
 
@@ -93,7 +109,7 @@ func (a *Adapter) init(ctx context.Context) error {
 		log.Println("start downloading embedding model:", a.embeddingConfig.name)
 
 		downloadOptions := hugot.NewDownloadOptions()
-		downloadOptions.OnnxFilePath = "onnx/model.onnx"
+		downloadOptions.OnnxFilePath = a.embeddingConfig.onxFilePath
 		modelPath, err := hugot.DownloadModel(a.embeddingConfig.name, a.modelsDir, downloadOptions)
 		if err != nil {
 			return fmt.Errorf("failed to download embedding model: %w", err)
@@ -118,7 +134,7 @@ func (a *Adapter) init(ctx context.Context) error {
 		log.Println("start downloading generative model:", a.generativeConfig.name)
 
 		downloadOptions := hugot.NewDownloadOptions()
-		downloadOptions.OnnxFilePath = "onnx/model.onnx"
+		downloadOptions.OnnxFilePath = a.generativeConfig.onxFilePath
 		if a.generativeConfig.externalDataPath != "" {
 			downloadOptions.ExternalDataPath = a.generativeConfig.externalDataPath
 		}
@@ -131,9 +147,9 @@ func (a *Adapter) init(ctx context.Context) error {
 		config := hugot.TextGenerationConfig{
 			ModelPath:    modelPath,
 			Name:         "textGenerationPipeline",
-			OnnxFilename: "onnx/model.onnx",
+			OnnxFilename: a.generativeConfig.onxFilePath,
 			Options: []pipelineBackends.PipelineOption[*pipelines.TextGenerationPipeline]{
-				pipelines.WithMaxTokens(200),
+				pipelines.WithMaxTokens(2096),
 				pipelines.WithGemmaTemplate(),
 			},
 		}

@@ -111,7 +111,9 @@ func main() {
 		ctx,
 		session,
 		hugotAdapter.WithEmbeddingModelName(viper.GetString("adapter.embed.model")),
+		hugotAdapter.WithEmbeddingModelOnnxFilePath(viper.GetString("adapter.embed.onx_file_path")),
 		hugotAdapter.WithGenerativeModelName(viper.GetString("adapter.generative.model")),
+		hugotAdapter.WithGenerativeModelOnnxFilePath(viper.GetString("adapter.generative.onx_file_path")),
 		hugotAdapter.WithGenerativeModelExternalDataPath(viper.GetString("adapter.generative.external_data_path")),
 		hugotAdapter.WithModelsDir(viper.GetString("hugot.models_dir")),
 	)

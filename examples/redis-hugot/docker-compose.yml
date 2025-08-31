@@ -19,6 +19,14 @@ services:
       DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
       REDIS_ADDR: redis:6379
       HUGOT_BACKEND: ort
+      HUGOT_MODELS_DIR: /models
+      ADAPTER_EMBED_NAME: hugot
+      ADAPTER_EMBED_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      ADAPTER_EMBED_ONX_FILE_PATH: onnx/model.onnx
+      ADAPTER_GENERATIVE_NAME: hugot
+      ADAPTER_GENERATIVE_MODEL: onnx-community/gemma-3-1b-it-ONNX-GQA
+      ADAPTER_GENERATIVE_ONX_FILE_PATH: onnx/model.onnx
+      ADAPTER_GENERATIVE_EXTERNAL_DATA_PATH: onnx/model.onnx_data
     volumes:
       - ragserver_data:/data
       - ragserver_models:/models

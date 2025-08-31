@@ -57,7 +57,6 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 	if len(batchResult.GetOutput()) != 1 {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}
-	fmt.Println(batchResult.GetOutput())
 
 	log.Println("genai response:", batchResult.GetOutput()[0].(string))
 

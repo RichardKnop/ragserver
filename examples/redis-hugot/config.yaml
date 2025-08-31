@@ -41,9 +41,11 @@ adapter:
   embed: 
     name: hugot
     model: sentence-transformers/all-MiniLM-L6-v2
+    onx_file_path: onnx/model.onnx
   retrieve: 
     name: redis
   generative: 
     name: hugot
-    model: onnx-community/gemma-3-270m-it-ONNX
+    model: onnx-community/gemma-3-1b-it-ONNX-GQA
+    onx_file_path: onnx/model.onnx
     external_data_path: onnx/model.onnx_data

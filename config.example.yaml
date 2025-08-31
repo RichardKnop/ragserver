@@ -50,6 +50,7 @@ adapter:
   embed: 
     name: google-genai # google-genai or hugot
     model: text-embedding-004 # text-embedding-004 or all-MiniLM-L6-v2
+    # onx_file_path: onnx/model.onnx
   # Supported models for storing and retrieving embeddings:
   # 1. weaviate
   # 2. redis
@@ -62,5 +63,6 @@ adapter:
     name: google-genai
     model: gemini-2.5-flash
     # name: hugot
-    # model: onnx-community/gemma-3-270m-it-ONNX
+    # model: onnx-community/gemma-3-1b-it-ONNX-GQA
+    # onx_file_path: onnx/model.onnx
     # external_data_path: onnx/model.onnx_data
