@@ -110,8 +110,10 @@ func main() {
 	hugotAdapter, err := hugotAdapter.New(
 		ctx,
 		session,
-		hugotAdapter.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
-		hugotAdapter.WithGenerativeModel(viper.GetString("adapter.generative.model")),
+		hugotAdapter.WithEmbeddingModelName(viper.GetString("adapter.embed.model")),
+		hugotAdapter.WithGenerativeModelName(viper.GetString("adapter.generative.model")),
+		hugotAdapter.WithGenerativeModelExternalDataPath(viper.GetString("adapter.generative.external_data_path")),
+		hugotAdapter.WithModelsDir(viper.GetString("hugot.models_dir")),
 	)
 	if err != nil {
 		log.Fatal("hugot adapter: ", err)
@@ -206,7 +208,7 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       10 * time.Second,
 		Addr:              address,
-		Handler:           h,
+		Handler:           api.RecoveryMiddleware(h),
 	}
 
 	log.Println("listening on", address)

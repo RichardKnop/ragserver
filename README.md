@@ -5,7 +5,7 @@
     - [Extractor](#extractor)
     - [Embedder](#embedder)
     - [Retriever](#retriever)
-    - [LanguageModel](#languagemodel)
+    - [GenerativeModel](#generativemodel)
 - [Examples](#examples)
 - [SQLite Database](#sqlite-database)
 - [Configuration](#configuration)
@@ -29,11 +29,16 @@ Main components of the RAG server are:
 -  **Extractor**
 -  **Embedder**
 -  **Retriever**
--  **LanguageModel**
+-  **GenerativeModel**
 
 These are defined as interfaces. You can implement your own components that implement these interface or use one of the provided implementations from `adapter/` folder.
 
 ```go
+// Extractor extracts documents from various contents, optionally limited by relevant topics.
+type Extractor interface {
+	Extract(ctx context.Context, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
+}
+
 // Embedder encodes document passages as vectors
 type Embedder interface {
 	Name() string
@@ -49,8 +54,8 @@ type Retriever interface {
 	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
 }
 
-// LanguageModel uses generative AI to generate responses based on a query and relevant documents.
-type LanguageModel interface {
+// GenerativeModel uses generative AI to generate responses based on a query and relevant documents.
+type GenerativeModel interface {
 	Generate(ctx context.Context, query Query, documents []Document) ([]Response, error)
 }
 ```
@@ -62,7 +67,7 @@ rs := ragserver.New(
   extractor, 
   embebber, 
   retriever, 
-  languageModel, 
+  gm, 
   storeAdapter
 )
 restAdapter := rest.New(rs)
@@ -91,9 +96,9 @@ You can use either the `adapter/google-genai` or `adapter/hugot` or implement yo
 
 You can use either the `adapter/redis` or `adapter/weaviate` or implement your own.
 
-### LanguageModel
+### GenerativeModel
 
-You can use either the `adapter/google-genai` or implement your own.
+You can use either the `adapter/google-genai` or `adapter/hugot` or implement your own.
 
 # Examples
 
@@ -228,8 +233,8 @@ For content, you could choose some of these example ESG related questions:
   "type": "metric", 
   "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
   "file_ids": [
-    "90d6f733-8a67-4cd9-875d-2a6ac5632fe1",
-    "65c77688-0f65-4e93-8069-48848e8a1e22"
+    "62648476-f128-4449-adbc-71c490f6b028",
+    "fe6b3093-443a-4127-963f-c1c276a759f7"
   ]
 }
 EOF

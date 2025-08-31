@@ -182,6 +182,8 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		return fmt.Errorf("image file processing not implemented yet")
 	}
 
+	log.Printf("generating vectors for documents: %d", len(aFile.Documents))
+
 	// Use the batch embedding API to embed all documents at once.
 	vectors, err := rs.embedder.EmbedDocuments(ctx, aFile.Documents)
 	if err != nil {

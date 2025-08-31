@@ -168,7 +168,7 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       10 * time.Second,
 		Addr:              address,
-		Handler:           h,
+		Handler:           api.RecoveryMiddleware(h),
 	}
 
 	log.Println("listening on", address)

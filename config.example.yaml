@@ -35,6 +35,7 @@ hugot:
   # 2. ort
   backend: go
   nnxruntime_path: /usr/lib64/onnxruntime.so
+  models_dir: /models
 
 adapter:
   # Supported adapters for extracting text from PDFs:
@@ -54,6 +55,12 @@ adapter:
   # 2. redis
   retrieve: 
     name: redis
-  generative: 
+  # Supported models for generating text:
+  # 1. google-genai
+  # 2. hugot
+  generative:
     name: google-genai
     model: gemini-2.5-flash
+    # name: hugot
+    # model: onnx-community/gemma-3-270m-it-ONNX
+    # external_data_path: onnx/model.onnx_data

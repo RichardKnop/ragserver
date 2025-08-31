@@ -32,6 +32,7 @@ hugot:
   # 2. ort
   backend: go
   onnxruntime_path: /usr/lib64/onnxruntime.so
+  models_dir: /models
 
 adapter:
   extract: 
@@ -45,3 +46,4 @@ adapter:
   generative: 
     name: hugot
     model: onnx-community/gemma-3-270m-it-ONNX
+    external_data_path: onnx/model.onnx_data

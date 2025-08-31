@@ -48,7 +48,6 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	batchResult, err := a.generative.RunWithTemplate([][]pipelines.Message{
 		{
-			{Role: "system", Content: "You are a helpful assistant."},
 			{Role: "user", Content: prompt},
 		},
 	})

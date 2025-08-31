@@ -4,38 +4,60 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/knights-analytics/hugot"
 	"github.com/knights-analytics/hugot/pipelineBackends"
 	"github.com/knights-analytics/hugot/pipelines"
 )
 
+type modelConfig struct {
+	name             string
+	externalDataPath string
+}
+
 type Adapter struct {
-	session         *hugot.Session
-	embedding       *pipelines.FeatureExtractionPipeline
-	generative      *pipelines.TextGenerationPipeline
-	embeddingModel  string
-	generativeModel string
+	session          *hugot.Session
+	embedding        *pipelines.FeatureExtractionPipeline
+	generative       *pipelines.TextGenerationPipeline
+	embeddingConfig  modelConfig
+	generativeConfig modelConfig
+	modelsDir        string
 }
 
 type Option func(*Adapter)
 
-func WithEmbeddingModel(model string) Option {
+func WithEmbeddingModelName(name string) Option {
 	return func(a *Adapter) {
-		a.embeddingModel = model
+		a.embeddingConfig.name = name
 	}
 }
 
-func WithGenerativeModel(model string) Option {
+func WithGenerativeModelName(name string) Option {
 	return func(a *Adapter) {
-		a.generativeModel = model
+		a.generativeConfig.name = name
 	}
 }
+
+func WithGenerativeModelExternalDataPath(path string) Option {
+	return func(a *Adapter) {
+		a.generativeConfig.externalDataPath = path
+	}
+}
+
+func WithModelsDir(path string) Option {
+	return func(a *Adapter) {
+		a.modelsDir = path
+	}
+}
+
+const defaultModelsDir = "/models"
 
 func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapter, error) {
 	a := &Adapter{
-		session: session,
+		session:          session,
+		embeddingConfig:  modelConfig{},
+		generativeConfig: modelConfig{},
+		modelsDir:        defaultModelsDir,
 	}
 
 	for _, o := range options {
@@ -44,11 +66,16 @@ func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapt
 
 	log.Println(
 		"init hugot adapter,",
-		"embedding model:", a.embeddingModel,
-		"generative model:", a.generativeModel,
+		"embedding model config:", a.embeddingConfig,
+		"generative model config:", a.generativeConfig,
+		"models dir:", a.modelsDir,
 	)
 
-	return a, a.init(ctx)
+	if err := a.init(ctx); err != nil {
+		return nil, err
+	}
+
+	return a, nil
 }
 
 const adapterName = "hugot"
@@ -58,91 +85,67 @@ func (a *Adapter) Name() string {
 }
 
 func (a *Adapter) init(ctx context.Context) error {
-	if a.embeddingModel == "" && a.generativeModel == "" {
+	if a.embeddingConfig.name == "" && a.generativeConfig.name == "" {
 		return fmt.Errorf("either embedding model or generative model must be specified")
 	}
 
-	var (
-		wg            = new(sync.WaitGroup)
-		embeddingErr  error
-		generativeErr error
-	)
+	if a.embeddingConfig.name != "" {
+		log.Println("start downloading embedding model:", a.embeddingConfig.name)
 
-	if a.embeddingModel != "" {
-		wg.Go(func() {
-			log.Println("downloading embedding model:", a.embeddingModel)
-
-			downloadOptions := hugot.NewDownloadOptions()
-			downloadOptions.OnnxFilePath = "onnx/model.onnx" // Specify which ONNX file to use
-			modelPath, err := hugot.DownloadModel(a.embeddingModel, "./models/", downloadOptions)
-			if err != nil {
-				embeddingErr = fmt.Errorf("failed to download embedding model: %w", err)
-				return
-			}
-
-			// Create feature extraction pipeline configuration
-			config := hugot.FeatureExtractionConfig{
-				ModelPath: modelPath,
-				Name:      "embeddingPipeline",
-			}
-
-			// Create the feature extraction pipeline
-			a.embedding, err = hugot.NewPipeline(a.session, config)
-			if err != nil {
-				embeddingErr = fmt.Errorf("failed to create embedding pipeline: %w", err)
-				return
-			}
-		})
-	}
-
-	if a.generativeModel != "" {
-		wg.Go(func() {
-			log.Println("downloading generative model:", a.generativeModel)
-
-			modelPath, err := hugot.DownloadModel(a.generativeModel, "./models/", hugot.NewDownloadOptions())
-			if err != nil {
-				generativeErr = fmt.Errorf("failed to download generative model: %w", err)
-				return
-			}
-
-			// Create text generation pipeline configuration
-			config := hugot.TextGenerationConfig{
-				ModelPath:    modelPath,
-				Name:         "textGenerationPipeline",
-				OnnxFilename: "onnx/model.onnx",
-				Options: []pipelineBackends.PipelineOption[*pipelines.TextGenerationPipeline]{
-					pipelines.WithMaxTokens(200),
-				},
-			}
-
-			// Create the text extraction pipeline
-			a.generative, err = hugot.NewPipeline(a.session, config)
-			if err != nil {
-				generativeErr = fmt.Errorf("failed to create generative pipeline: %w", err)
-				return
-			}
-		})
-	}
-
-	done := make(chan struct{})
-
-	go func() {
-		wg.Wait()
-		done <- struct{}{}
-		close(done)
-	}()
-
-	select {
-	case <-ctx.Done(): // context cancelled or timed out
-		return ctx.Err()
-	case <-done: // wait group finished
-		if embeddingErr != nil {
-			return fmt.Errorf("failed to create embedding pipeline: %w", embeddingErr)
-		}
-		if generativeErr != nil {
-			return fmt.Errorf("failed to create generative pipeline: %w", generativeErr)
+		downloadOptions := hugot.NewDownloadOptions()
+		downloadOptions.OnnxFilePath = "onnx/model.onnx"
+		modelPath, err := hugot.DownloadModel(a.embeddingConfig.name, a.modelsDir, downloadOptions)
+		if err != nil {
+			return fmt.Errorf("failed to download embedding model: %w", err)
 		}
 
-		return nil
+		// Create feature extraction pipeline configuration
+		config := hugot.FeatureExtractionConfig{
+			ModelPath: modelPath,
+			Name:      "embeddingPipeline",
+		}
+
+		// Create the feature extraction pipeline
+		a.embedding, err = hugot.NewPipeline(a.session, config)
+		if err != nil {
+			return fmt.Errorf("failed to create embedding pipeline: %w", err)
+		}
+
+		log.Println("downloaded embedding model:", a.embeddingConfig.name)
 	}
+
+	if a.generativeConfig.name != "" {
+		log.Println("start downloading generative model:", a.generativeConfig.name)
+
+		downloadOptions := hugot.NewDownloadOptions()
+		downloadOptions.OnnxFilePath = "onnx/model.onnx"
+		if a.generativeConfig.externalDataPath != "" {
+			downloadOptions.ExternalDataPath = a.generativeConfig.externalDataPath
+		}
+		modelPath, err := hugot.DownloadModel(a.generativeConfig.name, a.modelsDir, downloadOptions)
+		if err != nil {
+			return fmt.Errorf("failed to download generative model: %w", err)
+		}
+
+		// Create text generation pipeline configuration
+		config := hugot.TextGenerationConfig{
+			ModelPath:    modelPath,
+			Name:         "textGenerationPipeline",
+			OnnxFilename: "onnx/model.onnx",
+			Options: []pipelineBackends.PipelineOption[*pipelines.TextGenerationPipeline]{
+				pipelines.WithMaxTokens(200),
+				pipelines.WithGemmaTemplate(),
+			},
+		}
+
+		// Create the text extraction pipeline
+		a.generative, err = hugot.NewPipeline(a.session, config)
+		if err != nil {
+			return fmt.Errorf("failed to create generative pipeline: %w", err)
+		}
+
+		log.Println("downloaded generative model:", a.generativeConfig.name)
+	}
+
+	return nil
 }

@@ -20,6 +20,7 @@ services:
       WEAVIATE_ADDR: weaviate:9035
     volumes:
       - ragserver_data:/data
+      - ragserver_models:/models
       - type: bind
         source: config.yaml
         target: /config.yaml
@@ -48,4 +49,5 @@ services:
       DISABLE_TELEMETRY: true
 volumes:
   ragserver_data:
-  redis_data:
+  ragserver_models:
+  weaviate_data:

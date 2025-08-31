@@ -15,14 +15,8 @@ If the question does not relate to the context, simply return empty response.
 For example, let's say the context has nothing in it about scope 1 emissions;
 then if I ask you about scope 1 emissions, just return empty answer.
 
-Return your answer as a JSON object with this format:
-{
-	"text": "Full answer to the question",
-	"relevant_documents": [
-		"Exact text from the context that was used to answer the question",
-		"Exact text from the context that was used to answer the question"
-	]
-}
+Answer the question with a valid JSON object. JSON object should have a text field 
+and a relevant_documents field. 
 
 The text field is a string. Text field should contain full answer to the question.
 
@@ -51,18 +45,8 @@ If the question does not relate to the context, simply return empty response.
 For example, let's say the context has nothing in it about scope 1 emissions;
 then if I ask you about scope 1 emissions, just return empty answer.
 
-Return your answer as a JSON object with this format:
-{
-	"text": "Full answer to the question",
-	"metric": {
-		"value": 77476,
-		"unit": "tCO2e"
-	},
-	"relevant_documents": [
-		"Exact text from the context that was used to answer the question",
-		"Exact text from the context that was used to answer the question"
-	]
-}
+Answer the question with a valid JSON object. JSON object should have a text field,
+a metric field and a relevant_documents field. 
 
 The text field is a string. Text field should contain full answer to the question.
 
@@ -97,15 +81,8 @@ If the question cannot be answered with true or false, return empty response.
 For example, let's say the context has nothing in it about net zero target;
 then if I ask you about net zero target, just return empty answer.
 
-Return your answer as a JSON object with this format:
-{
-	"text": "Full answer to the question",
-	"boolean": true,
-	"relevant_documents": [
-		"Exact text from the context that was used to answer the question",
-		"Exact text from the context that was used to answer the question"
-	]
-}
+Answer the question with a valid JSON object. JSON object should have 
+a text field, a boolean field and a relevant_documents field. 
 
 The text field is a string. Text field should contain full answer to the question.
 

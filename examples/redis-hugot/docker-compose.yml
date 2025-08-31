@@ -21,6 +21,7 @@ services:
       HUGOT_BACKEND: ort
     volumes:
       - ragserver_data:/data
+      - ragserver_models:/models
       - type: bind
         source: config.yaml
         target: /config.yaml
@@ -36,4 +37,5 @@ services:
       - redis_data:/data
 volumes:
   ragserver_data:
+  ragserver_models:
   redis_data:
