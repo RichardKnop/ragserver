@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/knights-analytics/hugot"
 	"github.com/knights-analytics/hugot/pipelineBackends"
@@ -106,13 +109,24 @@ func (a *Adapter) init(ctx context.Context) error {
 	}
 
 	if a.embeddingConfig.name != "" {
-		log.Println("start downloading embedding model:", a.embeddingConfig.name)
-
-		downloadOptions := hugot.NewDownloadOptions()
-		downloadOptions.OnnxFilePath = a.embeddingConfig.onxFilePath
-		modelPath, err := hugot.DownloadModel(a.embeddingConfig.name, a.modelsDir, downloadOptions)
+		modelPath, err := checkModelExists(a.modelsDir, a.embeddingConfig.name)
 		if err != nil {
-			return fmt.Errorf("failed to download embedding model: %w", err)
+			return fmt.Errorf("failed to check embedding model: %w", err)
+		}
+
+		if modelPath == "" {
+			log.Println("start downloading embedding model:", a.embeddingConfig.name)
+
+			downloadOptions := hugot.NewDownloadOptions()
+			downloadOptions.OnnxFilePath = a.embeddingConfig.onxFilePath
+			modelPath, err = hugot.DownloadModel(a.embeddingConfig.name, a.modelsDir, downloadOptions)
+			if err != nil {
+				return fmt.Errorf("failed to download embedding model: %w", err)
+			}
+
+			log.Println("downloaded embedding model:", a.embeddingConfig.name)
+		} else {
+			log.Println("embedding model already exists, skipping download:", modelPath)
 		}
 
 		// Create feature extraction pipeline configuration
@@ -126,21 +140,30 @@ func (a *Adapter) init(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create embedding pipeline: %w", err)
 		}
-
-		log.Println("downloaded embedding model:", a.embeddingConfig.name)
 	}
 
 	if a.generativeConfig.name != "" {
-		log.Println("start downloading generative model:", a.generativeConfig.name)
-
-		downloadOptions := hugot.NewDownloadOptions()
-		downloadOptions.OnnxFilePath = a.generativeConfig.onxFilePath
-		if a.generativeConfig.externalDataPath != "" {
-			downloadOptions.ExternalDataPath = a.generativeConfig.externalDataPath
-		}
-		modelPath, err := hugot.DownloadModel(a.generativeConfig.name, a.modelsDir, downloadOptions)
+		modelPath, err := checkModelExists(a.modelsDir, a.generativeConfig.name)
 		if err != nil {
-			return fmt.Errorf("failed to download generative model: %w", err)
+			return fmt.Errorf("failed to check generative model: %w", err)
+		}
+
+		if modelPath == "" {
+			log.Println("start downloading generative model:", a.generativeConfig.name)
+
+			downloadOptions := hugot.NewDownloadOptions()
+			downloadOptions.OnnxFilePath = a.generativeConfig.onxFilePath
+			if a.generativeConfig.externalDataPath != "" {
+				downloadOptions.ExternalDataPath = a.generativeConfig.externalDataPath
+			}
+			modelPath, err = hugot.DownloadModel(a.generativeConfig.name, a.modelsDir, downloadOptions)
+			if err != nil {
+				return fmt.Errorf("failed to download generative model: %w", err)
+			}
+
+			log.Println("downloaded generative model:", a.generativeConfig.name)
+		} else {
+			log.Println("generative model already exists, skipping download:", modelPath)
 		}
 
 		// Create text generation pipeline configuration
@@ -159,9 +182,25 @@ func (a *Adapter) init(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to create generative pipeline: %w", err)
 		}
-
-		log.Println("downloaded generative model:", a.generativeConfig.name)
 	}
 
 	return nil
+}
+
+func checkModelExists(destination, modelName string) (string, error) {
+	modelP := modelName
+	if strings.Contains(modelP, ":") {
+		modelP = strings.Split(modelName, ":")[0]
+	}
+	modelPath := path.Join(destination, strings.ReplaceAll(modelP, "/", "_"))
+
+	_, err := os.Stat(modelPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return modelPath, nil
 }

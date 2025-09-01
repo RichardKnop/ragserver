@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/RichardKnop/ragserver"
 	"github.com/knights-analytics/hugot/pipelines"
+
+	"github.com/RichardKnop/ragserver"
 )
 
 type MetricValue struct {
@@ -58,10 +59,15 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}
 
-	log.Println("genai response:", batchResult.GetOutput()[0].(string))
+	result := batchResult.GetOutput()[0].(string)
+
+	log.Println("genai response:", result)
+
+	result = strings.TrimPrefix(result, "```json")
+	result = strings.TrimSuffix(result, "```")
 
 	structuredResp := Response{}
-	if err := json.Unmarshal([]byte(batchResult.GetOutput()[0].(string)), &structuredResp); err != nil {
+	if err := json.Unmarshal([]byte(result), &structuredResp); err != nil {
 		return nil, fmt.Errorf("unmarshalling response: %v", err)
 	}
 
