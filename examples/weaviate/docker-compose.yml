@@ -18,12 +18,16 @@ services:
       DB_NAME: /data/ragserver-weaviate.sqlite
       DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
       WEAVIATE_ADDR: weaviate:9035
+      ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/google-genai/
     volumes:
       - ragserver_data:/data
       - ragserver_models:/models
       - type: bind
         source: config.yaml
         target: /config.yaml
+      - type: bind
+        source: ../../templates/
+        target: /templates
     ports:
       - 8080:8080
   weaviate:

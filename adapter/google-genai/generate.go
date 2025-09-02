@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -99,15 +101,39 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		return nil, fmt.Errorf("invalid query type")
 	}
 
+	var template string
+	switch query.Type {
+	case ragserver.QueryTypeText:
+		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "text.tmpl"))
+		if err != nil {
+			return nil, fmt.Errorf("reading text template: %w", err)
+		}
+		template = string(templateBytes)
+	case ragserver.QueryTypeMetric:
+		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "metric.tmpl"))
+		if err != nil {
+			return nil, fmt.Errorf("reading metric template: %w", err)
+		}
+		template = string(templateBytes)
+	case ragserver.QueryTypeBoolean:
+		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "boolean.tmpl"))
+		if err != nil {
+			return nil, fmt.Errorf("reading boolean template: %w", err)
+		}
+		template = string(templateBytes)
+	default:
+		return nil, fmt.Errorf("invalid query type")
+	}
+
 	// Create a RAG query for the LLM with the most relevant documents as context.
 	var prompt string
 	switch query.Type {
 	case ragserver.QueryTypeText:
-		prompt = fmt.Sprintf(ragTemplateStr, query.Text, strings.Join(contexts, "\n"))
+		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
 	case ragserver.QueryTypeMetric:
-		prompt = fmt.Sprintf(ragTemplateMetricValue, query.Text, strings.Join(contexts, "\n"))
+		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
 	case ragserver.QueryTypeBoolean:
-		prompt = fmt.Sprintf(ragTemplateBooleanValue, query.Text, strings.Join(contexts, "\n"))
+		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
 	default:
 		return nil, fmt.Errorf("invalid query type")
 	}

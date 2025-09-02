@@ -115,6 +115,7 @@ func main() {
 		hugotAdapter.WithGenerativeModelName(viper.GetString("adapter.generative.model")),
 		hugotAdapter.WithGenerativeModelOnnxFilePath(viper.GetString("adapter.generative.onx_file_path")),
 		hugotAdapter.WithGenerativeModelExternalDataPath(viper.GetString("adapter.generative.external_data_path")),
+		hugotAdapter.WithTemplatesDir(viper.GetString("adapter.generative.templates_dir")),
 		hugotAdapter.WithModelsDir(viper.GetString("hugot.models_dir")),
 	)
 	if err != nil {

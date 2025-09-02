@@ -25,6 +25,7 @@ type Adapter struct {
 	generative       *pipelines.TextGenerationPipeline
 	embeddingConfig  modelConfig
 	generativeConfig modelConfig
+	templatesDir     string
 	modelsDir        string
 }
 
@@ -60,6 +61,12 @@ func WithGenerativeModelExternalDataPath(path string) Option {
 	}
 }
 
+func WithTemplatesDir(dir string) Option {
+	return func(a *Adapter) {
+		a.templatesDir = dir
+	}
+}
+
 func WithModelsDir(path string) Option {
 	return func(a *Adapter) {
 		a.modelsDir = path
@@ -67,8 +74,9 @@ func WithModelsDir(path string) Option {
 }
 
 const (
-	defaultModelsDir   = "/models"
-	defaultOnxFilePath = "onnx/model.onnx"
+	defaultTemplatesDir = "templates/hugot/"
+	defaultModelsDir    = "/models"
+	defaultOnxFilePath  = "onnx/model.onnx"
 )
 
 func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapter, error) {
@@ -76,6 +84,7 @@ func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapt
 		session:          session,
 		embeddingConfig:  modelConfig{onxFilePath: defaultOnxFilePath},
 		generativeConfig: modelConfig{onxFilePath: defaultOnxFilePath},
+		templatesDir:     defaultTemplatesDir,
 		modelsDir:        defaultModelsDir,
 	}
 
@@ -87,6 +96,7 @@ func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapt
 		"init hugot adapter,",
 		"embedding model config:", a.embeddingConfig,
 		"generative model config:", a.generativeConfig,
+		"templates dir:", a.templatesDir,
 		"models dir:", a.modelsDir,
 	)
 

@@ -38,3 +38,4 @@ adapter:
   generative: 
     name: google-genai
     model: gemini-2.5-flash
+    templates_dir: templates/google-genai/

@@ -139,6 +139,7 @@ func main() {
 		gm = googlegenai.New(
 			genaiClient,
 			googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
+			googlegenai.WithTemplatesDir(viper.GetString("adapter.generative.templates_dir")),
 		)
 	default:
 		log.Fatalf("unknown generative adapter: %s", name)

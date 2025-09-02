@@ -10,6 +10,7 @@ type Adapter struct {
 	client          *genai.Client
 	embeddingModel  string
 	generativeModel string
+	templatesDir    string
 }
 
 type Option func(*Adapter)
@@ -26,9 +27,20 @@ func WithGenerativeModel(model string) Option {
 	}
 }
 
+func WithTemplatesDir(dir string) Option {
+	return func(a *Adapter) {
+		a.templatesDir = dir
+	}
+}
+
+const (
+	defaultTemplatesDir = "templates/google-genai/"
+)
+
 func New(client *genai.Client, options ...Option) *Adapter {
 	a := &Adapter{
-		client: client,
+		client:       client,
+		templatesDir: defaultTemplatesDir,
 	}
 
 	for _, o := range options {
@@ -39,6 +51,7 @@ func New(client *genai.Client, options ...Option) *Adapter {
 		"init google genai adapter,",
 		"embedding model:", a.embeddingModel,
 		"generative model:", a.generativeModel,
+		"templates dir:", a.templatesDir,
 	)
 
 	return a
