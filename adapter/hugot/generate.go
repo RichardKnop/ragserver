@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/knights-analytics/hugot/pipelines"
@@ -31,7 +30,7 @@ type Response struct {
 func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
-		contexts = append(contexts, strconv.Quote(strings.TrimSpace(doc.Content)))
+		contexts = append(contexts, doc.Content)
 	}
 
 	var template string
@@ -113,12 +112,12 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 
 	documentMap := make(map[string]ragserver.Document)
 	for _, doc := range documents {
-		hash := md5.Sum([]byte(strings.TrimSpace(doc.Content)))
+		hash := md5.Sum([]byte(strings.ReplaceAll(strings.TrimSpace(doc.Content), "\n", " ")))
 		documentMap[string(hash[:])] = doc
 	}
 
 	for _, docTxt := range structuredResp.RelevantDocuments {
-		hash := md5.Sum([]byte(strings.TrimSpace(docTxt)))
+		hash := md5.Sum([]byte(strings.ReplaceAll(strings.TrimSpace(docTxt), "\n", " ")))
 		doc, ok := documentMap[string(hash[:])]
 		if !ok {
 			log.Printf("could not find document for: %s", docTxt)

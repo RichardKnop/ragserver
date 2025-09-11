@@ -231,10 +231,10 @@ For content, you could choose some of these example ESG related questions:
 ./scripts/query.sh "$(<< 'EOF'
 {
   "type": "metric", 
-  "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?", 
+  "content": "What is the company's total scope 1 emissions value in 2022?",
   "file_ids": [
-    "3ce430fb-2519-4677-9e49-c8b748a529a4",
-    "78789e5c-b0a3-456b-8036-56dff3db934d"
+    "e21c57be-ee2d-4f50-89b1-ccc00c5d15f8",
+    "a5460fe9-b7d2-4cc8-a264-63ecdf9f2f31"
   ]
 }
 EOF

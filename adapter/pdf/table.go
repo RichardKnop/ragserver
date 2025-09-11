@@ -73,8 +73,7 @@ func (t Table) ToContexts() []string {
 	for _, aRow := range t.Rows {
 		for _, yearNumber := range aRow.YearNumbers {
 			aContext := strings.TrimSpace(fmt.Sprintf(
-				"%s: %s for year %d is %s %s",
-				t.Title,
+				"%s for year %d is %s %s",
 				aRow.Name,
 				yearNumber.Year,
 				yearNumber.Number.ToString(),

@@ -10,8 +10,11 @@ Question is about a specific numeric value and a unit of measurement.
 If the question relates to the context, answer it using the context.
 If the question does not relate to the context, simply return empty response.
 
-Answer the question with a valid JSON object. JSON object should have a text field,
-a metric field and a relevant_documents field. 
+For example, let's say the context has nothing in it about scope 1 emissions;
+then if I ask you about scope 1 emissions, just return empty answer.
+
+Answer the question with a valid JSON object. JSON object should have free fields: 
+a text field, a metric field and a relevant_documents field. 
 
 The text field is a string. Text field should contain full answer to the question.
 

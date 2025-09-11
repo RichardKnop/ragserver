@@ -18,6 +18,7 @@ services:
       DB_NAME: /data/ragserver-redis-hugot.sqlite
       DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
       REDIS_ADDR: redis:6379
+      REDIS_VECTOR_DISTANCE_METRIC: COSINE
       HUGOT_BACKEND: ort
       HUGOT_MODELS_DIR: /models
       ADAPTER_EMBED_NAME: hugot

@@ -112,12 +112,12 @@ func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.Document
 		return nil, err
 	}
 
-	// for _, doc := range results.Docs {
-	// 	fmt.Printf(
-	// 		"ID: %v, Distance:%v, Content:'%v'\n",
-	// 		doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
-	// 	)
-	// }
+	for _, doc := range results.Docs {
+		fmt.Printf(
+			"ID: %v, Distance:%v, Content:'%v'\n",
+			doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
+		)
+	}
 
 	return mapRedisDocuments(results.Docs)
 }

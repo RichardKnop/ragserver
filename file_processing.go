@@ -159,6 +159,7 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		}
 		for i := 0; i < len(documents); i++ {
 			documents[i].FileID = aFile.ID
+			documents[i] = documents[i].Sanitize()
 		}
 		aFile.Documents = documents
 	case "image/jpeg", "image/png":

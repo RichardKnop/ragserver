@@ -25,6 +25,12 @@ type Topic struct {
 	Keywords []string
 }
 
+func (d Document) Sanitize() Document {
+	d.Content = strings.TrimSpace(d.Content)
+	d.Content = strings.Join(strings.Fields(d.Content), " ")
+	return d
+}
+
 type RelevantTopics []Topic
 
 func (rt RelevantTopics) IsRelevant(content string) (Topic, bool) {

@@ -37,14 +37,14 @@ func TestTable_ToContext(t *testing.T) {
 	}
 
 	expected := []string{
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2019 is 86602 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2020 is 78087 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2021 is 73319 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 1 for year 2022 is 77476 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 2 (location) for year 2019 is 771327 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 2 (location) for year 2020 is 694011 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 2 (location) for year 2021 is 569633 MTCO2e",
-		"Scope 1 and Scope 2 emissions (location and market based): Total Scope 2 (location) for year 2022 is 593495 MTCO2e",
+		"Total Scope 1 for year 2019 is 86602 MTCO2e",
+		"Total Scope 1 for year 2020 is 78087 MTCO2e",
+		"Total Scope 1 for year 2021 is 73319 MTCO2e",
+		"Total Scope 1 for year 2022 is 77476 MTCO2e",
+		"Total Scope 2 (location) for year 2019 is 771327 MTCO2e",
+		"Total Scope 2 (location) for year 2020 is 694011 MTCO2e",
+		"Total Scope 2 (location) for year 2021 is 569633 MTCO2e",
+		"Total Scope 2 (location) for year 2022 is 593495 MTCO2e",
 	}
 
 	actual := table.ToContexts()

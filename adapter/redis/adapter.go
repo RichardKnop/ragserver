@@ -24,7 +24,7 @@ const (
 	defaultIndexPrefix          = "doc:"
 	defaultDialectVersion       = 2
 	defaultVectorDim            = 768
-	defaultVectorDistanceMetric = "L2"
+	defaultVectorDistanceMetric = "COSINE"
 )
 
 func New(ctx context.Context, client *redis.Client, options ...Option) (*Adapter, error) {
@@ -129,6 +129,8 @@ func (a *Adapter) dropIndex(ctx context.Context) error {
 }
 
 func (a *Adapter) createIndex(ctx context.Context) error {
+	// Read the documentation to choose the right options:
+	// https://redis.io/docs/latest/develop/ai/search-and-query/vectors/
 	_, err := a.client.FTCreate(ctx,
 		a.indexName,
 		&redis.FTCreateOptions{
@@ -153,7 +155,7 @@ func (a *Adapter) createIndex(ctx context.Context) error {
 			VectorArgs: &redis.FTVectorArgs{
 				HNSWOptions: &redis.FTHNSWOptions{
 					Dim:            a.vectorDim,
-					DistanceMetric: a.vectorDistanceMetric, // "COSINE", "IP", "L2"
+					DistanceMetric: a.vectorDistanceMetric,
 					Type:           "FLOAT32",
 				},
 			},

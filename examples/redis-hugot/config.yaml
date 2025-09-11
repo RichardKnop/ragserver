@@ -13,7 +13,7 @@ redis:
   index: ragserver-idx
   index_prefix: "doc:"
   vector_dim: 384
-  vector_distance_metric: L2
+  vector_distance_metric: COSINE # L2, IP, COSINE
 
 relevant_topics:
   scope:
@@ -37,7 +37,7 @@ hugot:
 adapter:
   extract: 
     name: pdf
-    model: gemini-2.5-flash
+    #model: gemini-2.5-flash
   embed: 
     name: hugot
     model: sentence-transformers/all-MiniLM-L6-v2
