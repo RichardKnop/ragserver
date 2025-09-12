@@ -48,12 +48,6 @@ func main() {
 		log.Fatal("fatal error config file: ", err)
 	}
 
-	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
-	genaiClient, err := genai.NewClient(ctx, nil)
-	if err != nil {
-		log.Fatal("genai client: ", err)
-	}
-
 	// Load the training data
 	training, err := sentences.LoadTraining([]byte(ragserver.TestEn))
 	if err != nil {
@@ -130,6 +124,13 @@ func main() {
 		extractor = pdf.New(training)
 	case "document":
 		log.Println("extract adapter: document")
+
+		// The client gets the API key from the environment variable `GEMINI_API_KEY`.
+		genaiClient, err := genai.NewClient(ctx, nil)
+		if err != nil {
+			log.Fatal("genai client: ", err)
+		}
+
 		extractor = document.New(
 			genaiClient,
 			training,

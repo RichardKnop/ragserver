@@ -1,6 +1,6 @@
 module github.com/RichardKnop/ragserver
 
-go 1.25.0
+go 1.25.1
 
 require (
 	github.com/brianvoe/gofakeit/v6 v6.28.0

@@ -21,7 +21,7 @@ var (
 		Type: genai.TypeObject,
 		Properties: map[string]*genai.Schema{
 			"text": {Type: genai.TypeString},
-			"relevant_documents": {
+			"relevant_snippets": {
 				Type: genai.TypeArray,
 				Items: &genai.Schema{
 					Type: genai.TypeString,
@@ -41,7 +41,7 @@ var (
 					"unit":  {Type: genai.TypeString},
 				},
 			},
-			"relevant_documents": {
+			"relevant_snippets": {
 				Type: genai.TypeArray,
 				Items: &genai.Schema{
 					Type: genai.TypeString,
@@ -55,7 +55,7 @@ var (
 		Properties: map[string]*genai.Schema{
 			"text":    {Type: genai.TypeString},
 			"boolean": {Type: genai.TypeBoolean},
-			"relevant_documents": {
+			"relevant_snippets": {
 				Type: genai.TypeArray,
 				Items: &genai.Schema{
 					Type: genai.TypeString,
@@ -71,10 +71,10 @@ type MetricValue struct {
 }
 
 type Response struct {
-	Text              string      `json:"text"`
-	Metric            MetricValue `json:"metric"`
-	Boolean           bool        `json:"boolean"`
-	RelevantDocuments []string    `json:"relevant_documents"`
+	Text             string      `json:"text"`
+	Metric           MetricValue `json:"metric"`
+	Boolean          bool        `json:"boolean"`
+	RelevantSnippets []string    `json:"relevant_snippets"`
 }
 
 func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
@@ -180,11 +180,11 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		documentMap[string(hash[:])] = doc
 	}
 
-	for _, docTxt := range structuredResp.RelevantDocuments {
-		hash := md5.Sum([]byte(strings.TrimSpace(docTxt)))
+	for _, aSnippet := range structuredResp.RelevantSnippets {
+		hash := md5.Sum([]byte(strings.TrimSpace(aSnippet)))
 		doc, ok := documentMap[string(hash[:])]
 		if !ok {
-			log.Printf("could not find document for: %s", docTxt)
+			log.Printf("could not find document for: %s", aSnippet)
 			continue
 		}
 		response.Documents = append(response.Documents, doc)

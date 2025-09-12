@@ -1,29 +1,23 @@
 I will ask you a question and will provide some additional context information.
-Assume the context information is factual and correct and do not consider any
-other information outside of the context. Assume the question relates to a
-specific company and the context is about that commpany.
-
-Context is a list of quoted strings that are relevant to the question. Each 
-quoted string is on a separate line.
+Do not consider any other information outside of the context.
+Context is a list of text strings separated by new line.
 
 Question is a yes/no question that can be answered with true or false.
-If the question relates to the context, answer it using the context.
-If the question does not relate to the context, simply return empty response.
-If the question cannot be answered with true or false, return empty response.
+If the context contains answer to the question, answer it using the context. 
+Otherwise, return empty response.
 
-For example, let's say the context has nothing in it about net zero target;
-then if I ask you about net zero target, just return empty answer.
+Answer the question according to provided schema. JSON object should have these fields: 
+- text
+- boolean
+- relevant_snippets 
 
-Answer the question according to provided schema. Schema defines a text field, 
-a boolean field and a relevant_documents field. 
+The "text" field is a string and contains the full answer to the question.
 
-The text field is a string. Text field should contain full answer to the question.
-
-The boolean field should be set to true if the answer to the question is yes 
+The "boolean" field should be set to true if the answer to the question is yes 
 and false if the answer is no.
 
-The relevant_documents field should contain list of relevant lines from the context  
-that were used to answer the question.
+The "relevant_snippets" field is list of exact text strings from the context that 
+contain the answer.
 
 Question:
 %s

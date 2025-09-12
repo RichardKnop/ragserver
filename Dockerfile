@@ -1,5 +1,5 @@
 ARG ONNXRUNTIME_VERSION=1.22.0
-ARG GO_VERSION=1.25.0
+ARG GO_VERSION=1.25.1
 ARG BUILD_PLATFORM=linux/amd64
 
 FROM --platform=$BUILD_PLATFORM public.ecr.aws/amazonlinux/amazonlinux:2023 AS ragserver-runtime

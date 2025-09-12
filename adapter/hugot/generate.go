@@ -21,10 +21,10 @@ type MetricValue struct {
 }
 
 type Response struct {
-	Text              string      `json:"text"`
-	Metric            MetricValue `json:"metric"`
-	Boolean           bool        `json:"boolean"`
-	RelevantDocuments []string    `json:"relevant_documents"`
+	Text             string      `json:"text"`
+	Metric           MetricValue `json:"metric"`
+	Boolean          bool        `json:"boolean"`
+	RelevantSnippets []string    `json:"relevant_snippets"`
 }
 
 func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
@@ -116,11 +116,11 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		documentMap[string(hash[:])] = doc
 	}
 
-	for _, docTxt := range structuredResp.RelevantDocuments {
-		hash := md5.Sum([]byte(strings.ReplaceAll(strings.TrimSpace(docTxt), "\n", " ")))
+	for _, aSnippet := range structuredResp.RelevantSnippets {
+		hash := md5.Sum([]byte(strings.ReplaceAll(strings.TrimSpace(aSnippet), "\n", " ")))
 		doc, ok := documentMap[string(hash[:])]
 		if !ok {
-			log.Printf("could not find document for: %s", docTxt)
+			log.Printf("could not find document for: %s", aSnippet)
 			continue
 		}
 		response.Documents = append(response.Documents, doc)
