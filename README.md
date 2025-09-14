@@ -56,7 +56,7 @@ type Retriever interface {
 
 // GenerativeModel uses generative AI to generate responses based on a query and relevant documents.
 type GenerativeModel interface {
-	Generate(ctx context.Context, query Query, documents []Document) ([]Response, error)
+	Generate(ctx context.Context, question Question, documents []Document) ([]Response, error)
 }
 ```
 
@@ -203,11 +203,13 @@ An example query request looks like this:
 
 ```json
 {
-  "type": "metric", 
-  "content": "What was the company's Scope 1 emissions value (in tCO2e)?", 
+  "question": {
+    "type": "METRIC", 
+    "content": "What is the company's total scope 1 emissions value in 2022?"
+  },
   "file_ids": [
-    "90d6f733-8a67-4cd9-875d-2a6ac5632fe1",
-    "65c77688-0f65-4e93-8069-48848e8a1e22"
+    "e21c57be-ee2d-4f50-89b1-ccc00c5d15f8",
+    "a5460fe9-b7d2-4cc8-a264-63ecdf9f2f31"
   ]
 }
 ```
@@ -230,11 +232,13 @@ For content, you could choose some of these example ESG related questions:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-  "type": "metric", 
-  "content": "What is the company's total scope 1 emissions value in 2022?",
+  "question": {
+    "type": "METRIC", 
+    "content": "What is the company's total scope 1 emissions value in 2022?"
+  },
   "file_ids": [
-    "e21c57be-ee2d-4f50-89b1-ccc00c5d15f8",
-    "a5460fe9-b7d2-4cc8-a264-63ecdf9f2f31"
+    "67817687-8652-4734-af0a-7962955bce4a",
+    "e6cdec78-1e35-46fc-a175-7764e71903ba"
   ]
 }
 EOF
@@ -272,7 +276,7 @@ Example response:
       "67224b92-bb64-457d-8cfc-584539292c5c",
       "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
-    "type": "metric"
+    "type": "METRIC"
   }
 }
 ```
@@ -282,8 +286,10 @@ Example response:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-  "type": "boolean", 
-  "content": "Does the company have a net zero target year?", 
+  "question": {
+    "type": "BOOLEAN", 
+    "content": "Does the company have a net zero target year?"
+  },
   "file_ids": [
     "67224b92-bb64-457d-8cfc-584539292c5c",
     "73ad3166-1627-4b7e-82a3-31427ad5444e"
@@ -331,7 +337,7 @@ Example response:
       "67224b92-bb64-457d-8cfc-584539292c5c",
       "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
-    "type": "boolean"
+    "type": "BOOLEAN"
   }
 }
 ```
@@ -341,8 +347,10 @@ Example response:
 ```sh
 ./scripts/query.sh "$(<< 'EOF'
 {
-  "type": "text", 
-  "content": "What is the company's specified net zero target year?", 
+  "question": {
+    "type": "TEXT", 
+    "content": "What is the company's specified net zero target year?"
+  },
   "file_ids": [
     "67224b92-bb64-457d-8cfc-584539292c5c",
     "73ad3166-1627-4b7e-82a3-31427ad5444e"
@@ -384,7 +392,7 @@ Example response:
       "67224b92-bb64-457d-8cfc-584539292c5c",
       "73ad3166-1627-4b7e-82a3-31427ad5444e"
     ],
-    "type": "text"
+    "type": "TEXT"
   }
 }
 ```
@@ -410,7 +418,7 @@ If you ask a question model cannot answer from the provided context, it will sim
     "file_ids": [
       "5f354dd1-447b-4cb4-a07d-aebf4ee0a058"
     ],
-    "type": "metric"
+    "type": "METRIC"
   }
 }
 ```

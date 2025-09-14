@@ -132,7 +132,7 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 		with cte as (
 			values (?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)
 	`
-	args := make([]any, 0, len(q.files)*13)
+	args := make([]any, 0, len(q.files)*4)
 	args = append(
 		args,
 		q.files[0].ID,
@@ -180,7 +180,7 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
-			return fmt.Errorf("query failed: %w", err)
+			return fmt.Errorf("select files query failed: %w", err)
 		}
 		defer rows.Close()
 
@@ -188,7 +188,7 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 			var aFile = new(ragserver.File)
 			aFile, err = scanFile(rows)
 			if err != nil {
-				return fmt.Errorf("scan failed: %w", err)
+				return fmt.Errorf("scan file failed: %w", err)
 			}
 			files = append(files, aFile)
 		}
@@ -226,6 +226,7 @@ func (q selectFilesQuery) SQL() (string, []any) {
 		from "file" f
 		inner join "file_status" fs on f."status" = fs."id"
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id"
+		left join "screening_file" sf on sf."file" = f."id"
 	`
 	args := []any{}
 
@@ -275,6 +276,11 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 		args = append(args, filter.LastUpdatedBefore)
 	}
 
+	if !filter.ScreeningID.UUID.IsNil() {
+		clauses = append(clauses, `sf."screening" = ?`)
+		args = append(args, filter.ScreeningID)
+	}
+
 	if len(clauses) == 0 {
 		return "", nil
 	}
@@ -292,14 +298,14 @@ func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID, partial aut
 
 		stmt, err := tx.Prepare(query)
 		if err != nil {
-			return fmt.Errorf("prepare statement failed: %w", err)
+			return fmt.Errorf("prepare find file statement failed: %w", err)
 		}
 		defer stmt.Close()
 
 		row := stmt.QueryRowContext(ctx, args...)
 		file, err = scanFile(row)
 		if err != nil {
-			return fmt.Errorf("scan failed: %w", err)
+			return err
 		}
 
 		return nil
@@ -333,7 +339,7 @@ func (q findFileQuery) SQL() (string, []any) {
 			f."created",
 			f."updated"
 		from "file" f
-		inner join "file_status" fs ON f."status" = fs."id"	
+		inner join "file_status" fs on f."status" = fs."id"	
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id" 
 		where f."id" = ?
 	`
@@ -383,34 +389,6 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 	}
 
 	return aFile, nil
-}
-
-type listFilesForProcessing struct {
-	now     ragserver.Time
-	partial authz.Partial
-}
-
-func (q listFilesForProcessing) SQL() (string, []any) {
-	sql := `
-		update "file" set 
-			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
-			"updated" = ?
-		where 
-			"status" = (select "id" from "file_status" fs where fs."name" = ?)
-	`
-	args := []any{ragserver.FileStatusProcessing, q.now, ragserver.FileStatusUploaded}
-
-	// Add where clauses from the partial if any
-	partialClauses, partialArgs := q.partial.SQL()
-	if partialClauses != "" {
-		sql += " and " + partialClauses
-
-		args = append(args, partialArgs...)
-	}
-
-	sql += ` returning "id"`
-
-	return sql, args
 }
 
 // ListFilesForProcessing lists IDs of files are in UPLOADED state and ready for PROCESSING.
@@ -471,6 +449,34 @@ func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time
 	return ids, nil
 }
 
+type listFilesForProcessing struct {
+	now     ragserver.Time
+	partial authz.Partial
+}
+
+func (q listFilesForProcessing) SQL() (string, []any) {
+	sql := `
+		update "file" set 
+			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
+			"updated" = ?
+		where 
+			"status" = (select "id" from "file_status" fs where fs."name" = ?)
+	`
+	args := []any{ragserver.FileStatusProcessing, q.now, ragserver.FileStatusUploaded}
+
+	// Add where clauses from the partial if any
+	partialClauses, partialArgs := q.partial.SQL()
+	if partialClauses != "" {
+		sql += " and " + partialClauses
+
+		args = append(args, partialArgs...)
+	}
+
+	sql += ` returning "id"`
+
+	return sql, args
+}
+
 func (a *Adapter) DeleteFiles(ctx context.Context, files ...*ragserver.File) error {
 	if len(files) < 1 {
 		return nil
@@ -478,11 +484,11 @@ func (a *Adapter) DeleteFiles(ctx context.Context, files ...*ragserver.File) err
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		if err := execQuery(ctx, tx, deleteFileStatusEventsQuery{files: files}); err != nil {
-			return fmt.Errorf("exec query failed: %w", err)
+			return fmt.Errorf("exec delete file status events query failed: %w", err)
 		}
 
 		if err := execQuery(ctx, tx, deleteFilesQuery{files: files}); err != nil {
-			return fmt.Errorf("exec query failed: %w", err)
+			return fmt.Errorf("exec delete files query failed: %w", err)
 		}
 
 		return nil

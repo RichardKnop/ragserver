@@ -10,19 +10,6 @@ import (
 
 type Vector []float32
 
-type QueryType string
-
-const (
-	QueryTypeText    QueryType = "text"
-	QueryTypeMetric  QueryType = "metric"
-	QueryTypeBoolean QueryType = "boolean"
-)
-
-type Query struct {
-	Type QueryType
-	Text string
-}
-
 type MetricValue struct {
 	Value float64
 	Unit  string
@@ -37,11 +24,11 @@ type Response struct {
 	Documents []Document
 }
 
-func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, query Query, fileIDs ...FileID) ([]Response, error) {
-	switch query.Type {
-	case QueryTypeText, QueryTypeMetric, QueryTypeBoolean:
+func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, question Question, fileIDs ...FileID) ([]Response, error) {
+	switch question.Type {
+	case QuestionTypeText, QuestionTypeMetric, QuestionTypeBoolean:
 	default:
-		return nil, fmt.Errorf("invalid query type: %s", query.Type)
+		return nil, fmt.Errorf("invalid question type: %s", question.Type)
 	}
 
 	fileIDMap := map[FileID]struct{}{}
@@ -53,7 +40,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 		return nil, fmt.Errorf("duplicate file IDs provided")
 	}
 
-	log.Printf("received query: %s, file IDs: %v", query, fileIDs)
+	log.Printf("received question: %s, file IDs: %v", question, fileIDs)
 
 	// Check all file IDs exist in the database and that they have been processed.
 	for _, fileID := range fileIDs {
@@ -67,7 +54,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	}
 
 	// Embed the query contents.
-	vector, err := rs.embedder.EmbedContent(ctx, query.Text)
+	vector, err := rs.embedder.EmbedContent(ctx, question.Content)
 	if err != nil {
 		return nil, fmt.Errorf("embedding query content: %v", err)
 	}
@@ -83,12 +70,12 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	}
 
 	if len(documents) == 0 {
-		return nil, fmt.Errorf("no documents found for query: %s", query)
+		return nil, fmt.Errorf("no documents found for question: %s", question)
 	}
 
 	log.Println("found documents:", len(documents))
 
-	responses, err := rs.generative.Generate(ctx, query, documents)
+	responses, err := rs.generative.Generate(ctx, question, documents)
 	if err != nil {
 		return nil, fmt.Errorf("calling generative model: %v", err)
 	}

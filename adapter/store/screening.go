@@ -1,0 +1,828 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/RichardKnop/ragserver"
+	"github.com/RichardKnop/ragserver/pkg/authz"
+)
+
+func (a *Adapter) SaveScreenings(ctx context.Context, screenings ...*ragserver.Screening) error {
+	if len(screenings) < 1 {
+		return nil
+	}
+
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec insert screenings query failed: %w", err)
+		}
+
+		if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningStatusEventsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec insert screening status events query failed: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Adapter) SaveScreeningFiles(ctx context.Context, screenings ...*ragserver.Screening) error {
+	if len(screenings) < 1 {
+		return nil
+	}
+
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		for _, aScreening := range screenings {
+			if len(aScreening.Files) == 0 {
+				continue
+			}
+
+			if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningFilesQuery{aScreening}); err != nil {
+				return fmt.Errorf("exec insert screening files query failed: %w", err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Adapter) SaveScreeningQuestions(ctx context.Context, screenings ...*ragserver.Screening) error {
+	if len(screenings) < 1 {
+		return nil
+	}
+
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		for _, aScreening := range screenings {
+			if len(aScreening.Questions) == 0 {
+				continue
+			}
+
+			if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningQuestionsQuery{aScreening}); err != nil {
+				return fmt.Errorf("exec insert screening questions query failed: %w", err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type insertScreeningsQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q insertScreeningsQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	query := `
+		with cte as (
+			values (?, ?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)
+	`
+	args := make([]any, 0, len(q.screenings)*5)
+	args = append(
+		args,
+		q.screenings[0].ID,
+		q.screenings[0].AuthorID,
+		q.screenings[0].Status,
+		q.screenings[0].Created,
+		q.screenings[0].Updated,
+	)
+	for i := range q.screenings[1:] {
+		query += `, (?, ?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)`
+		args = append(
+			args,
+			q.screenings[i+1].ID,
+			q.screenings[i+1].AuthorID,
+			q.screenings[i+1].Status,
+			q.screenings[i+1].Created,
+			q.screenings[i+1].Updated,
+		)
+	}
+	query += `
+		)
+		insert into "screening" (
+			"id",
+			"author",
+			"status",
+			"created",
+			"updated"
+		)
+		select * 
+		from cte
+		where 1
+		on conflict("id") do update set
+			"author"=excluded."author",
+			"status"=excluded."status",
+			"updated"=excluded."updated"
+	`
+
+	return query, args
+}
+
+type insertScreeningStatusEventsQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q insertScreeningStatusEventsQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	query := `
+		with cte as (
+			values (?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)
+	`
+	args := make([]any, 0, len(q.screenings)*4)
+	args = append(
+		args,
+		q.screenings[0].ID,
+		q.screenings[0].Status,
+		sql.NullString{String: q.screenings[0].StatusMessage, Valid: q.screenings[0].StatusMessage != ""},
+		q.screenings[0].Created,
+	)
+	for i := range q.screenings[1:] {
+		query += `, (?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)`
+		args = append(
+			args,
+			q.screenings[i+1].ID,
+			q.screenings[i+1].Status,
+			sql.NullString{String: q.screenings[i+1].StatusMessage, Valid: q.screenings[i+1].StatusMessage != ""},
+			q.screenings[i+1].Created,
+		)
+	}
+	query += `
+		)
+		insert into "screening_status_evt" (
+			"screening", 
+			"status",
+			"message",
+			"created"
+		)
+		select * 
+		from cte
+		where 1
+	`
+
+	return query, args
+}
+
+type insertScreeningFilesQuery struct {
+	*ragserver.Screening
+}
+
+func (q insertScreeningFilesQuery) SQL() (string, []any) {
+	if len(q.Files) == 0 {
+		return "", nil
+	}
+
+	query := `
+		with cte as (
+			values (?, ?, ?)
+	`
+	args := make([]any, 0, len(q.Files)*2)
+	args = append(
+		args,
+		q.ID,
+		q.Files[0].ID,
+		0, // order
+	)
+	for i := range q.Files[1:] {
+		query += `, (?, ?, ?)`
+		args = append(
+			args,
+			q.ID,
+			q.Files[i+1].ID,
+			i+1, // order
+		)
+	}
+	query += `
+		)
+		insert into "screening_file" (
+			"screening", 
+			"file",
+			"order"
+		)
+		select * 
+		from cte
+		where 1
+	`
+
+	return query, args
+}
+
+type insertScreeningQuestionsQuery struct {
+	*ragserver.Screening
+}
+
+func (q insertScreeningQuestionsQuery) SQL() (string, []any) {
+	if len(q.Questions) == 0 {
+		return "", nil
+	}
+
+	query := `
+		with cte as (
+			values (?, ?, (select "id" from "question_type" fs where fs."name" = ?), ?, ?, ?, ?)
+	`
+	args := make([]any, 0, len(q.Questions)*8)
+	args = append(
+		args,
+		q.Questions[0].ID,
+		q.Questions[0].AuthorID,
+		q.Questions[0].Type,
+		q.Questions[0].Content,
+		q.Questions[0].ScreeningID,
+		0, // order
+		q.Questions[0].Created,
+	)
+	for i := range q.Questions[1:] {
+		query += `, (?, ?, (select "id" from "question_type" fs where fs."name" = ?), ?, ?, ?, ?)`
+		args = append(
+			args,
+			q.Questions[i+1].ID,
+			q.Questions[i+1].AuthorID,
+			q.Questions[i+1].Type,
+			q.Questions[i+1].Content,
+			q.Questions[i+1].ScreeningID,
+			i+1, // order
+			q.Questions[i+1].Created,
+		)
+	}
+	query += `
+		)
+		insert into "question" (
+			"id",
+			"author",
+			"type", 
+			"content",
+			"screening",
+			"order",
+			"created"
+		)
+		select * 
+		from cte
+		where 1
+	`
+
+	return query, args
+}
+
+func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.ScreeningFilter, partial authz.Partial) ([]*ragserver.Screening, error) {
+	var screenings []*ragserver.Screening
+
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		sql, args := selectScreeningsQuery{
+			filter:  filter,
+			partial: partial,
+		}.SQL()
+
+		// Add order by clause
+		sql += ` order by s."created" desc`
+
+		rows, err := tx.QueryContext(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf("select screenings query failed: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var aScreening = new(ragserver.Screening)
+			aScreening, err = scanScreening(rows)
+			if err != nil {
+				return err
+			}
+			screenings = append(screenings, aScreening)
+		}
+
+		rows.Close()
+
+		for _, aScreening := range screenings {
+			sql, args = selectFilesQuery{
+				filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
+				partial: partial,
+			}.SQL()
+
+			// Add order by clause
+			sql += ` order by sf."order" desc`
+
+			rows, err = tx.QueryContext(ctx, sql, args...)
+			if err != nil {
+				return fmt.Errorf("select screening files query failed: %w", err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var aFile = new(ragserver.File)
+				aFile, err = scanFile(rows)
+				if err != nil {
+					return err
+				}
+				aScreening.Files = append(aScreening.Files, aFile)
+			}
+
+			rows.Close()
+
+			sql, args = selectQuestionsQuery{
+				filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
+				partial: partial,
+			}.SQL()
+
+			// Add order by clause
+			sql += ` order by q."order" desc`
+
+			rows, err = tx.QueryContext(ctx, sql, args...)
+			if err != nil {
+				return fmt.Errorf("select screening questions query failed: %w", err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var aQuestion = new(ragserver.Question)
+				aQuestion, err = scanQuestion(rows)
+				if err != nil {
+					return err
+				}
+				aScreening.Questions = append(aScreening.Questions, aQuestion)
+			}
+
+			rows.Close()
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return screenings, nil
+}
+
+type selectScreeningsQuery struct {
+	filter  ragserver.ScreeningFilter
+	partial authz.Partial
+}
+
+func (q selectScreeningsQuery) SQL() (string, []any) {
+	query := `
+		select 
+			s."id",
+			s."author",
+			ss."name" as "status",
+			sse."message" as "status_message",
+			s."created",
+			s."updated"
+		from "screening" s
+		inner join "screening_status" ss on s."status" = ss."id"
+		inner join "screening_status_evt" sse on sse."screening" = s."id" and sse."status" = ss."id"
+	`
+	args := []any{}
+
+	// Add where clauses from the filter and/or partial if any
+	where, whereArgs := screeningFilterClauses(q.filter)
+	partialClauses, partialArgs := q.partial.SQL()
+	if partialClauses != "" {
+		if where == "" {
+			where += partialClauses
+		} else {
+			where += " and " + partialClauses
+		}
+
+		whereArgs = append(whereArgs, partialArgs...)
+	}
+	if where != "" {
+		query += " where " + where
+		args = append(args, whereArgs...)
+	}
+
+	return query, args
+}
+
+func screeningFilterClauses(filter ragserver.ScreeningFilter) (string, []any) {
+	return "", nil
+}
+
+func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, partial authz.Partial) (*ragserver.Screening, error) {
+	var aScreening *ragserver.Screening
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		query, args := findScreeningQuery{
+			id:      id,
+			partial: partial,
+		}.SQL()
+
+		stmt, err := tx.Prepare(query)
+		if err != nil {
+			return fmt.Errorf("prepare find screening statement failed: %w", err)
+		}
+		defer stmt.Close()
+
+		row := stmt.QueryRowContext(ctx, args...)
+		aScreening, err = scanScreening(row)
+		if err != nil {
+			return err
+		}
+
+		sql, args := selectFilesQuery{
+			filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
+			partial: partial,
+		}.SQL()
+
+		// Add order by clause
+		sql += ` order by sf."order"`
+
+		rows, err := tx.QueryContext(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf("select screening files query failed: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var aFile = new(ragserver.File)
+			aFile, err = scanFile(rows)
+			if err != nil {
+				return err
+			}
+			aScreening.Files = append(aScreening.Files, aFile)
+		}
+
+		rows.Close()
+
+		sql, args = selectQuestionsQuery{
+			filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
+			partial: partial,
+		}.SQL()
+
+		// Add order by clause
+		sql += ` order by q."order"`
+
+		rows, err = tx.QueryContext(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf("select screening questions query failed: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var aQuestion = new(ragserver.Question)
+			aQuestion, err = scanQuestion(rows)
+			if err != nil {
+				return err
+			}
+			aScreening.Questions = append(aScreening.Questions, aQuestion)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return aScreening, nil
+}
+
+type findScreeningQuery struct {
+	id      ragserver.ScreeningID
+	partial authz.Partial
+}
+
+func (q findScreeningQuery) SQL() (string, []any) {
+	query := `
+		select 
+			s."id",
+			s."author",
+			ss."name" as "status",
+			sse."message" as "status_message",
+			s."created",
+			s."updated"
+		from "screening" s
+		inner join "screening_status" ss on s."status" = ss."id"	
+		inner join "screening_status_evt" sse on sse."screening" = s."id" and sse."status" = ss."id" 
+		where s."id" = ?
+	`
+	args := []any{q.id}
+
+	// Add where clauses from the partial if any
+	partialClauses, partialArgs := q.partial.SQL()
+	if partialClauses != "" {
+		query += " and " + partialClauses
+
+		args = append(args, partialArgs...)
+	}
+
+	return query, args
+}
+
+func scanScreening(row Scannable) (*ragserver.Screening, error) {
+	var (
+		aScreening    = new(ragserver.Screening)
+		statusMessage = sql.NullString{}
+	)
+
+	if err := row.Scan(
+		&aScreening.ID,
+		&aScreening.AuthorID,
+		&aScreening.Status,
+		&statusMessage,
+		&aScreening.Created,
+		&aScreening.Updated,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ragserver.ErrNotFound
+		}
+		return nil, fmt.Errorf("scan screening failed: %w", err)
+	}
+
+	if statusMessage.Valid {
+		aScreening.StatusMessage = statusMessage.String
+	}
+
+	return aScreening, nil
+}
+
+type selectQuestionsQuery struct {
+	filter  ragserver.QuestionFilter
+	partial authz.Partial
+}
+
+func (q selectQuestionsQuery) SQL() (string, []any) {
+	query := `
+		select 
+			q."id",
+			q."author",
+			q."type",
+			q."content",
+			q."screening",
+			q."created"
+		from "question" q
+		inner join "question_type" qt on q."type" = qt."id"
+	`
+	args := []any{}
+
+	// Add where clauses from the filter and/or partial if any
+	where, whereArgs := questionFilterClauses(q.filter)
+	partialClauses, partialArgs := q.partial.SQL()
+	if partialClauses != "" {
+		if where == "" {
+			where += partialClauses
+		} else {
+			where += " and " + partialClauses
+		}
+
+		whereArgs = append(whereArgs, partialArgs...)
+	}
+	if where != "" {
+		query += " where " + where
+		args = append(args, whereArgs...)
+	}
+
+	return query, args
+}
+
+func questionFilterClauses(filter ragserver.QuestionFilter) (string, []any) {
+	var (
+		clauses = []string{}
+		args    = []any{}
+	)
+
+	if !filter.ScreeningID.UUID.IsNil() {
+		clauses = append(clauses, `q."screening" = ?`)
+		args = append(args, filter.ScreeningID)
+	}
+
+	if len(clauses) == 0 {
+		return "", nil
+	}
+
+	return strings.Join(clauses, " AND "), args
+}
+
+func scanQuestion(row Scannable) (*ragserver.Question, error) {
+	var aQuestion = new(ragserver.Question)
+
+	if err := row.Scan(
+		&aQuestion.ID,
+		&aQuestion.AuthorID,
+		&aQuestion.Type,
+		&aQuestion.Content,
+		&aQuestion.ScreeningID,
+		&aQuestion.Created,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ragserver.ErrNotFound
+		}
+		return nil, fmt.Errorf("scan question failed: %w", err)
+	}
+
+	return aQuestion, nil
+}
+
+// ListScreeningsForProcessing lists IDs of screenings are in REQUESTED state and ready for GENERATING.
+// It starts with an UPDATE query to escalate transaction from read to write, this way concurrent
+// transactions will not be able to select the same screenings even within the same sqlite DB connection.
+func (a *Adapter) ListScreeningsForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial) ([]ragserver.ScreeningID, error) {
+	var ids []ragserver.ScreeningID
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		// First, update files from UPLOADED to PROCESSING to lock them for this transaction
+		sql, args := listScreeningsForProcessing{
+			now:     now,
+			partial: partial,
+		}.SQL()
+
+		stmt, err := tx.Prepare(sql)
+		if err != nil {
+			return fmt.Errorf("prepare statement failed: %w", err)
+		}
+		defer stmt.Close()
+
+		rows, err := stmt.QueryContext(ctx, args...)
+		if err != nil {
+			return fmt.Errorf("query context failed: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var id ragserver.ScreeningID
+			if err := rows.Scan(&id); err != nil {
+				return fmt.Errorf("scan file ID failed: %w", err)
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+
+		if len(ids) == 0 {
+			return nil
+		}
+
+		// Append screening lifecycle events for the screenings we just updated
+		screenings := make([]*ragserver.Screening, 0, len(ids))
+		for _, id := range ids {
+			screenings = append(screenings, &ragserver.Screening{
+				ID:      id,
+				Status:  ragserver.ScreeningStatusGenerating,
+				Created: now,
+			})
+		}
+		if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningStatusEventsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec insert screening status events query failed: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+type listScreeningsForProcessing struct {
+	now     ragserver.Time
+	partial authz.Partial
+}
+
+func (q listScreeningsForProcessing) SQL() (string, []any) {
+	sql := `
+		update "screening" set 
+			"status" = (select "id" from "screening_status" ss where ss."name" = ?), 
+			"updated" = ?
+		where 
+			"status" = (select "id" from "screening_status" ss where ss."name" = ?)
+	`
+	args := []any{ragserver.ScreeningStatusGenerating, q.now, ragserver.ScreeningStatusRequested}
+
+	// Add where clauses from the partial if any
+	partialClauses, partialArgs := q.partial.SQL()
+	if partialClauses != "" {
+		sql += " and " + partialClauses
+
+		args = append(args, partialArgs...)
+	}
+
+	sql += ` returning "id"`
+
+	return sql, args
+}
+
+func (a *Adapter) DeleteScreenings(ctx context.Context, screenings ...*ragserver.Screening) error {
+	if len(screenings) < 1 {
+		return nil
+	}
+
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		if err := execQuery(ctx, tx, deleteScreeningFilesQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec delete screening files query failed: %w", err)
+		}
+
+		if err := execQuery(ctx, tx, deleteScreeningQuestionsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec delete screening questions query failed: %w", err)
+		}
+
+		if err := execQuery(ctx, tx, deleteScreeningStatusEventsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec delete screening status events query failed: %w", err)
+		}
+
+		if err := execQuery(ctx, tx, deleteScreeningsQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec delete screenings query failed: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type deleteScreeningFilesQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q deleteScreeningFilesQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	sql := `delete from "screening_file" where "screening" in (?`
+	args := make([]any, 0, len(q.screenings))
+	args = append(args, q.screenings[0].ID)
+	for i := range q.screenings[1:] {
+		sql += `, ?`
+		args = append(args, q.screenings[i+1].ID)
+	}
+	sql += `)`
+
+	return sql, args
+}
+
+type deleteScreeningQuestionsQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q deleteScreeningQuestionsQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	sql := `delete from "question" where "screening" in (?`
+	args := make([]any, 0, len(q.screenings))
+	args = append(args, q.screenings[0].ID)
+	for i := range q.screenings[1:] {
+		sql += `, ?`
+		args = append(args, q.screenings[i+1].ID)
+	}
+	sql += `)`
+
+	return sql, args
+}
+
+type deleteScreeningStatusEventsQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q deleteScreeningStatusEventsQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	sql := `delete from "screening_status_evt" where "screening" in (?`
+	args := make([]any, 0, len(q.screenings))
+	args = append(args, q.screenings[0].ID)
+	for i := range q.screenings[1:] {
+		sql += `, ?`
+		args = append(args, q.screenings[i+1].ID)
+	}
+	sql += `)`
+
+	return sql, args
+}
+
+type deleteScreeningsQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q deleteScreeningsQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	sql := `delete from "screening" where "id" in (?`
+	args := make([]any, 0, len(q.screenings))
+	args = append(args, q.screenings[0].ID)
+	for i := range q.screenings[1:] {
+		sql += `, ?`
+		args = append(args, q.screenings[i+1].ID)
+	}
+	sql += `)`
+
+	return sql, args
+}

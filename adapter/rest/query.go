@@ -25,13 +25,13 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 	)
 	defer cancel()
 
-	apiRequest := api.Question{}
+	apiRequest := api.Query{}
 	if err := readRequestJSON(r, &apiRequest); err != nil {
 		renderJSONError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	fileIDs, err := mapOpenApiFileIDs(apiRequest.FileIds)
+	fileIDs, err := mapApiFileIDs(apiRequest.FileIds)
 	if err != nil {
 		renderJSONError(w, http.StatusInternalServerError, err)
 		return
@@ -42,22 +42,22 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := ragserver.Query{
-		Type: ragserver.QueryType(apiRequest.Type),
-		Text: apiRequest.Content,
+	question := ragserver.Question{
+		Type:    ragserver.QuestionType(apiRequest.Question.Type),
+		Content: apiRequest.Question.Content,
 	}
 
-	responses, err := a.ragServer.Generate(ctx, principal, query, fileIDs...)
+	responses, err := a.ragServer.Generate(ctx, principal, question, fileIDs...)
 	if err != nil {
 		log.Printf("error generating response: %s", err)
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error generating response: %w", err))
 		return
 	}
 
-	renderJSON(w, mapResponse(apiRequest, responses))
+	renderJSON(w, mapResponse(apiRequest.Question, responses))
 }
 
-func mapOpenApiFileIDs(ids []openapi_types.UUID) ([]ragserver.FileID, error) {
+func mapApiFileIDs(ids []openapi_types.UUID) ([]ragserver.FileID, error) {
 	fileIDs := make([]ragserver.FileID, 0, len(ids))
 	for _, id := range ids {
 		fileID, err := uuid.FromString(id.String())
@@ -78,13 +78,13 @@ func mapResponse(question api.Question, responses []ragserver.Response) api.Resp
 		answer := api.Answer{
 			Text: response.Text,
 		}
-		if question.Type == api.QuestionType(ragserver.QueryTypeMetric) {
+		if question.Type == api.QuestionType(ragserver.QuestionTypeMetric) {
 			answer.Metric = &api.MetricValue{
 				Value: response.Metric.Value,
 				Unit:  api.String(response.Metric.Unit),
 			}
 		}
-		if question.Type == api.QuestionType(ragserver.QueryTypeBoolean) {
+		if question.Type == api.QuestionType(ragserver.QuestionTypeBoolean) {
 			answer.Boolean = api.Boolean(bool(response.Boolean))
 		}
 		answer.Evidence = make([]api.Evidence, 0, len(response.Documents))

@@ -27,27 +27,27 @@ type Response struct {
 	RelevantSnippets []string    `json:"relevant_snippets"`
 }
 
-func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents []ragserver.Document) ([]ragserver.Response, error) {
+func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, documents []ragserver.Document) ([]ragserver.Response, error) {
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
 		contexts = append(contexts, doc.Content)
 	}
 
 	var template string
-	switch query.Type {
-	case ragserver.QueryTypeText:
+	switch question.Type {
+	case ragserver.QuestionTypeText:
 		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "text.tmpl"))
 		if err != nil {
 			return nil, fmt.Errorf("reading text template: %w", err)
 		}
 		template = string(templateBytes)
-	case ragserver.QueryTypeMetric:
+	case ragserver.QuestionTypeMetric:
 		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "metric.tmpl"))
 		if err != nil {
 			return nil, fmt.Errorf("reading metric template: %w", err)
 		}
 		template = string(templateBytes)
-	case ragserver.QueryTypeBoolean:
+	case ragserver.QuestionTypeBoolean:
 		templateBytes, err := os.ReadFile(path.Join(a.templatesDir, "boolean.tmpl"))
 		if err != nil {
 			return nil, fmt.Errorf("reading boolean template: %w", err)
@@ -58,17 +58,7 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 	}
 
 	// Create a RAG query for the LLM with the most relevant documents as context.
-	var prompt string
-	switch query.Type {
-	case ragserver.QueryTypeText:
-		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
-	case ragserver.QueryTypeMetric:
-		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
-	case ragserver.QueryTypeBoolean:
-		prompt = fmt.Sprintf(template, query.Text, strings.Join(contexts, "\n"))
-	default:
-		return nil, fmt.Errorf("invalid query type")
-	}
+	prompt := fmt.Sprintf(template, question.Content, strings.Join(contexts, "\n"))
 
 	log.Println("genai prompt:", prompt)
 
@@ -100,13 +90,13 @@ func (a *Adapter) Generate(ctx context.Context, query ragserver.Query, documents
 		Text: structuredResp.Text,
 	}
 
-	switch query.Type {
-	case ragserver.QueryTypeMetric:
+	switch question.Type {
+	case ragserver.QuestionTypeMetric:
 		response.Metric = ragserver.MetricValue{
 			Value: structuredResp.Metric.Value,
 			Unit:  structuredResp.Metric.Unit,
 		}
-	case ragserver.QueryTypeBoolean:
+	case ragserver.QuestionTypeBoolean:
 		response.Boolean = ragserver.BooleanValue(structuredResp.Boolean)
 	}
 

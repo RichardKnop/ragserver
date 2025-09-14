@@ -24,8 +24,17 @@ const (
 
 // Defines values for QuestionType.
 const (
-	Metric QuestionType = "metric"
-	Text   QuestionType = "text"
+	BOOLEAN QuestionType = "BOOLEAN"
+	METRIC  QuestionType = "METRIC"
+	TEXT    QuestionType = "TEXT"
+)
+
+// Defines values for ScreeningStatus.
+const (
+	FAILED     ScreeningStatus = "FAILED"
+	GENERATING ScreeningStatus = "GENERATING"
+	REQUESTED  ScreeningStatus = "REQUESTED"
+	SUCCESSFUL ScreeningStatus = "SUCCESSFUL"
 )
 
 // Answer defines model for Answer.
@@ -82,11 +91,16 @@ type MetricValue struct {
 	Value float64 `json:"value"`
 }
 
+// Query defines model for Query.
+type Query struct {
+	FileIds  []openapi_types.UUID `json:"file_ids"`
+	Question Question             `json:"question"`
+}
+
 // Question defines model for Question.
 type Question struct {
-	Content string               `json:"content"`
-	FileIds []openapi_types.UUID `json:"file_ids"`
-	Type    QuestionType         `json:"type"`
+	Content string       `json:"content"`
+	Type    QuestionType `json:"type"`
 }
 
 // QuestionType defines model for Question.Type.
@@ -98,6 +112,32 @@ type Response struct {
 	Question Question `json:"question"`
 }
 
+// Screening defines model for Screening.
+type Screening struct {
+	CreatedAt     time.Time          `json:"created_at"`
+	Files         []File             `json:"files"`
+	Id            openapi_types.UUID `json:"id"`
+	Questions     []Question         `json:"questions"`
+	Status        ScreeningStatus    `json:"status"`
+	StatusMessage *string            `json:"status_message,omitempty"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
+// ScreeningStatus defines model for Screening.Status.
+type ScreeningStatus string
+
+// ScreeningParams defines model for ScreeningParams.
+type ScreeningParams struct {
+	FileIds   []openapi_types.UUID `json:"file_ids"`
+	Id        *openapi_types.UUID  `json:"id,omitempty"`
+	Questions []Question           `json:"questions"`
+}
+
+// Screenings defines model for Screenings.
+type Screenings struct {
+	Screenings []Screening `json:"screenings"`
+}
+
 // UploadFileMultipartBody defines parameters for UploadFile.
 type UploadFileMultipartBody struct {
 	File *openapi_types.File `json:"file,omitempty"`
@@ -107,7 +147,10 @@ type UploadFileMultipartBody struct {
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
 // QueryJSONRequestBody defines body for Query for application/json ContentType.
-type QueryJSONRequestBody = Question
+type QueryJSONRequestBody = Query
+
+// CreateScreeningJSONRequestBody defines body for CreateScreening for application/json ContentType.
+type CreateScreeningJSONRequestBody = ScreeningParams
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -126,6 +169,15 @@ type ServerInterface interface {
 	// Query the RAG server.
 	// (POST /query)
 	Query(w http.ResponseWriter, r *http.Request)
+	// List screenings
+	// (GET /screenings)
+	ListScreenings(w http.ResponseWriter, r *http.Request)
+	// Create a screening.
+	// (POST /screenings)
+	CreateScreening(w http.ResponseWriter, r *http.Request)
+	// Get a single screening by ID
+	// (GET /screenings/{id})
+	GetScreeningById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -220,6 +272,59 @@ func (siw *ServerInterfaceWrapper) Query(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Query(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScreenings operation middleware
+func (siw *ServerInterfaceWrapper) ListScreenings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScreenings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateScreening operation middleware
+func (siw *ServerInterfaceWrapper) CreateScreening(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateScreening(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScreeningById operation middleware
+func (siw *ServerInterfaceWrapper) GetScreeningById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScreeningById(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -354,6 +459,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}", wrapper.GetFileById)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}/documents", wrapper.ListFileDocuments)
 	m.HandleFunc("POST "+options.BaseURL+"/query", wrapper.Query)
+	m.HandleFunc("GET "+options.BaseURL+"/screenings", wrapper.ListScreenings)
+	m.HandleFunc("POST "+options.BaseURL+"/screenings", wrapper.CreateScreening)
+	m.HandleFunc("GET "+options.BaseURL+"/screenings/{id}", wrapper.GetScreeningById)
 
 	return m
 }

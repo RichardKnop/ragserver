@@ -30,7 +30,7 @@ type Retriever interface {
 
 // GenerativeModel uses generative AI to generate responses based on a query and relevant documents.
 type GenerativeModel interface {
-	Generate(ctx context.Context, query Query, documents []Document) ([]Response, error)
+	Generate(ctx context.Context, question Question, documents []Document) ([]Response, error)
 }
 
 type Store interface {

@@ -80,7 +80,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Question"
+              $ref: "#/components/schemas/Query"
       responses:
         "200":
           description: Responses to the query
@@ -88,18 +88,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Response"
+  /screenings:
+    post:
+      summary: Create a screening.
+      operationId: createScreening
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreeningParams"
+      responses:
+        "200":
+          description: Screening object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
+    get:
+      summary: List screenings
+      operationId: listScreenings
+      responses:
+        "200":
+          description: Array of screening objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screenings"
+  /screenings/{id}:
+    get:
+      summary: Get a single screening by ID
+      operationId: getScreeningById
+      parameters:
+        - name: id
+          in: path
+          description: Screening ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A single screening object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Screening"
 
 components:
   schemas:
-    Files: 
-      type: object
-      required:
-        - files
-      properties:
-        files:
-          type: array
-          items:
-            $ref: "#/components/schemas/File"
     File:
       type: object
       required:
@@ -139,6 +176,15 @@ components:
         updated_at:
           type: string
           format: date-time
+    Files: 
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/File"
     Documents: 
       type: object
       required:
@@ -164,13 +210,20 @@ components:
       required:
         - type
         - content
-        - file_ids
       properties:
         type:
           type: string
-          enum: [text, metric]
+          enum: [TEXT, METRIC, BOOLEAN]
         content:
           type: string
+    Query:
+      type: object
+      required:
+        - file_ids
+        - question
+      properties:
+        question:
+          $ref: "#/components/schemas/Question"
         file_ids:
           type: array
           items:
@@ -232,3 +285,62 @@ components:
           format: double
         unit:
           type: string
+    ScreeningParams:
+      type: object
+      required:
+        - file_ids
+        - questions
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        questions: 
+          type: array
+          items:
+            $ref: "#/components/schemas/Question"
+    Screening:
+      type: object
+      required:
+        - id
+        - files
+        - questions
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        files: 
+          type: array
+          items:
+            $ref: "#/components/schemas/File"
+        questions: 
+          type: array
+          items:
+            $ref: "#/components/schemas/Question"
+        status:
+          type: string
+          enum: [REQUESTED, GENERATING, SUCCESSFUL, FAILED]
+        status_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Screenings: 
+      type: object
+      required:
+        - screenings
+      properties:
+        screenings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Screening"

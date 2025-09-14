@@ -84,6 +84,7 @@ type FileFilter struct {
 	Retriever         string
 	Status            FileStatus
 	LastUpdatedBefore Time
+	ScreeningID       ScreeningID
 }
 
 func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
