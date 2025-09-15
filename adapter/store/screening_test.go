@@ -21,9 +21,20 @@ func (s *StoreTestSuite) TestFindScreening() {
 		file2 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 		)
+		screeningID = ragserver.NewScreeningID()
+		question1   = gen.Question(
+			ragservertest.WithQuestionAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithQuestionScreeningID(screeningID),
+		)
+		question2 = gen.Question(
+			ragservertest.WithQuestionAuthorID(ragserver.AuthorID(testPrincipal.ID())),
+			ragservertest.WithQuestionScreeningID(screeningID),
+		)
 		aScreening = gen.Screening(
+			ragservertest.WithScreeningID(screeningID),
 			ragservertest.WithScreeningAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 			ragservertest.WithScreeningFiles(file1, file2),
+			ragservertest.WithScreeningQuestions(question1, question2),
 		)
 	)
 

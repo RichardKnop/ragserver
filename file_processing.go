@@ -70,7 +70,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 
 		var err error
 		// TODO: add limit to only process N files at a time
-		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.partial())
+		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.filePpartial())
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}
@@ -80,7 +80,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		}
 
 		for _, id := range ids {
-			aFile, err := rs.store.FindFile(ctx, id, rs.partial())
+			aFile, err := rs.store.FindFile(ctx, id, rs.filePpartial())
 			if err != nil {
 				return fmt.Errorf("find file: %w", err)
 			}
@@ -111,7 +111,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		files, err := rs.store.ListFiles(ctx, FileFilter{
 			Status:            FileStatusProcessing,
 			LastUpdatedBefore: Time{T: now.Add(-processFileTimeout)},
-		}, rs.partial())
+		}, rs.filePpartial())
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}

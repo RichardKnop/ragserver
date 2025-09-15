@@ -8,6 +8,12 @@ import (
 
 type ScreeningOption func(*ragserver.Screening)
 
+func WithScreeningID(id ragserver.ScreeningID) ScreeningOption {
+	return func(s *ragserver.Screening) {
+		s.ID = id
+	}
+}
+
 func WithScreeningAuthorID(id ragserver.AuthorID) ScreeningOption {
 	return func(s *ragserver.Screening) {
 		s.AuthorID = id

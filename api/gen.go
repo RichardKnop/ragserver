@@ -24,9 +24,16 @@ const (
 
 // Defines values for QuestionType.
 const (
-	BOOLEAN QuestionType = "BOOLEAN"
-	METRIC  QuestionType = "METRIC"
-	TEXT    QuestionType = "TEXT"
+	QuestionTypeBOOLEAN QuestionType = "BOOLEAN"
+	QuestionTypeMETRIC  QuestionType = "METRIC"
+	QuestionTypeTEXT    QuestionType = "TEXT"
+)
+
+// Defines values for QuestionParamsType.
+const (
+	QuestionParamsTypeBOOLEAN QuestionParamsType = "BOOLEAN"
+	QuestionParamsTypeMETRIC  QuestionParamsType = "METRIC"
+	QuestionParamsTypeTEXT    QuestionParamsType = "TEXT"
 )
 
 // Defines values for ScreeningStatus.
@@ -39,10 +46,11 @@ const (
 
 // Answer defines model for Answer.
 type Answer struct {
-	Boolean  *bool        `json:"boolean,omitempty"`
-	Evidence []Evidence   `json:"evidence"`
-	Metric   *MetricValue `json:"metric,omitempty"`
-	Text     string       `json:"text"`
+	Boolean    *bool              `json:"boolean,omitempty"`
+	Evidence   []Evidence         `json:"evidence"`
+	Metric     *MetricValue       `json:"metric,omitempty"`
+	QuestionId openapi_types.UUID `json:"question_id"`
+	Text       string             `json:"text"`
 }
 
 // Document defines model for Document.
@@ -99,12 +107,22 @@ type Query struct {
 
 // Question defines model for Question.
 type Question struct {
-	Content string       `json:"content"`
-	Type    QuestionType `json:"type"`
+	Content string             `json:"content"`
+	Id      openapi_types.UUID `json:"id"`
+	Type    QuestionType       `json:"type"`
 }
 
 // QuestionType defines model for Question.Type.
 type QuestionType string
+
+// QuestionParams defines model for QuestionParams.
+type QuestionParams struct {
+	Content string             `json:"content"`
+	Type    QuestionParamsType `json:"type"`
+}
+
+// QuestionParamsType defines model for QuestionParams.Type.
+type QuestionParamsType string
 
 // Response defines model for Response.
 type Response struct {
@@ -114,6 +132,7 @@ type Response struct {
 
 // Screening defines model for Screening.
 type Screening struct {
+	Answers       []Answer           `json:"answers"`
 	CreatedAt     time.Time          `json:"created_at"`
 	Files         []File             `json:"files"`
 	Id            openapi_types.UUID `json:"id"`
@@ -130,7 +149,7 @@ type ScreeningStatus string
 type ScreeningParams struct {
 	FileIds   []openapi_types.UUID `json:"file_ids"`
 	Id        *openapi_types.UUID  `json:"id,omitempty"`
-	Questions []Question           `json:"questions"`
+	Questions []QuestionParams     `json:"questions"`
 }
 
 // Screenings defines model for Screenings.

@@ -455,7 +455,7 @@ type listFilesForProcessing struct {
 }
 
 func (q listFilesForProcessing) SQL() (string, []any) {
-	sql := `
+	query := `
 		update "file" set 
 			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
 			"updated" = ?
@@ -467,14 +467,14 @@ func (q listFilesForProcessing) SQL() (string, []any) {
 	// Add where clauses from the partial if any
 	partialClauses, partialArgs := q.partial.SQL()
 	if partialClauses != "" {
-		sql += " and " + partialClauses
+		query += " and " + partialClauses
 
 		args = append(args, partialArgs...)
 	}
 
-	sql += ` returning "id"`
+	query += ` returning "id"`
 
-	return sql, args
+	return query, args
 }
 
 func (a *Adapter) DeleteFiles(ctx context.Context, files ...*ragserver.File) error {
@@ -508,16 +508,16 @@ func (q deleteFileStatusEventsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "file_status_evt" where "file" in (?`
+	query := `delete from "file_status_evt" where "file" in (?`
 	args := make([]any, 0, len(q.files))
 	args = append(args, q.files[0].ID)
 	for i := range q.files[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.files[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }
 
 type deleteFilesQuery struct {
@@ -529,14 +529,14 @@ func (q deleteFilesQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "file" where "id" in (?`
+	query := `delete from "file" where "id" in (?`
 	args := make([]any, 0, len(q.files))
 	args = append(args, q.files[0].ID)
 	for i := range q.files[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.files[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }

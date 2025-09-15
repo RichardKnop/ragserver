@@ -205,7 +205,7 @@ components:
         page:
           type: integer
           format: int32
-    Question:
+    QuestionParams:
       type: object
       required:
         - type
@@ -216,38 +216,31 @@ components:
           enum: [TEXT, METRIC, BOOLEAN]
         content:
           type: string
-    Query:
+    Question:
       type: object
       required:
-        - file_ids
-        - question
+        - id
+        - type
+        - content
       properties:
-        question:
-          $ref: "#/components/schemas/Question"
-        file_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-    Response:
-      type: object
-      required:
-        - question
-        - answers
-      properties:
-        question:
-          $ref: "#/components/schemas/Question"
-        answers:
-          type: array
-          items:
-            type: object
-            $ref: "#/components/schemas/Answer"
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TEXT, METRIC, BOOLEAN]
+        content:
+          type: string
     Answer:
       type: object
       required:
+        - question_id
         - text
         - evidence
       properties:
+        question_id:
+          type: string
+          format: uuid
         text:
           type: string
         metric:
@@ -302,13 +295,14 @@ components:
         questions: 
           type: array
           items:
-            $ref: "#/components/schemas/Question"
+            $ref: "#/components/schemas/QuestionParams"
     Screening:
       type: object
       required:
         - id
         - files
         - questions
+        - answers
         - status
         - created_at
         - updated_at
@@ -324,6 +318,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Question"
+        answers: 
+          type: array
+          items:
+            $ref: "#/components/schemas/Answer"
         status:
           type: string
           enum: [REQUESTED, GENERATING, SUCCESSFUL, FAILED]
@@ -344,3 +342,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Screening"
+    Query:
+      type: object
+      required:
+        - file_ids
+        - question
+      properties:
+        question:
+          $ref: "#/components/schemas/Question"
+        file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    Response:
+      type: object
+      required:
+        - question
+        - answers
+      properties:
+        question:
+          $ref: "#/components/schemas/Question"
+        answers:
+          type: array
+          items:
+            type: object
+            $ref: "#/components/schemas/Answer"

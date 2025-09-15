@@ -1,10 +1,14 @@
-drop table if exists "screening_status_evt";
-drop table if exists "screening_file";
-drop table if exists "screening";
-drop table if exists "screening_status";
+drop table if exists "answer";
 drop table if exists "question";
-drop table if exists "question_type";
+drop table if exists "screening_file";
+drop table if exists "screening_status_evt";
+drop table if exists "screening";
+
 drop table if exists "file_status_evt";
 drop table if exists "file";
+
+drop table if exists "question_type";
+drop table if exists "screening_status";
 drop table if exists "file_status";
+
 drop table if exists "principal";

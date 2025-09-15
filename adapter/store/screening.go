@@ -312,12 +312,11 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 		rows.Close()
 
 		for _, aScreening := range screenings {
+			// Select files
 			sql, args = selectFilesQuery{
 				filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
 				partial: partial,
 			}.SQL()
-
-			// Add order by clause
 			sql += ` order by sf."order" desc`
 
 			rows, err = tx.QueryContext(ctx, sql, args...)
@@ -337,12 +336,11 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 
 			rows.Close()
 
+			// Select questions
 			sql, args = selectQuestionsQuery{
 				filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
 				partial: partial,
 			}.SQL()
-
-			// Add order by clause
 			sql += ` order by q."order" desc`
 
 			rows, err = tx.QueryContext(ctx, sql, args...)
@@ -361,6 +359,28 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 			}
 
 			rows.Close()
+
+			// Select answers
+			if len(aScreening.Questions) > 0 {
+				sql, args = selectAnswersQuery{questions: aScreening.Questions}.SQL()
+
+				rows, err = tx.QueryContext(ctx, sql, args...)
+				if err != nil {
+					return fmt.Errorf("select screening answers query failed: %w", err)
+				}
+				defer rows.Close()
+
+				for rows.Next() {
+					var anAnswer ragserver.Answer
+					anAnswer, err = scanAnswer(rows)
+					if err != nil {
+						return err
+					}
+					aScreening.Answers = append(aScreening.Answers, anAnswer)
+				}
+
+				rows.Close()
+			}
 		}
 
 		return nil
@@ -435,12 +455,11 @@ func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, p
 			return err
 		}
 
+		// Select files
 		sql, args := selectFilesQuery{
 			filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
 			partial: partial,
 		}.SQL()
-
-		// Add order by clause
 		sql += ` order by sf."order"`
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
@@ -460,12 +479,11 @@ func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, p
 
 		rows.Close()
 
+		// Select questions
 		sql, args = selectQuestionsQuery{
 			filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
 			partial: partial,
 		}.SQL()
-
-		// Add order by clause
 		sql += ` order by q."order"`
 
 		rows, err = tx.QueryContext(ctx, sql, args...)
@@ -481,6 +499,28 @@ func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, p
 				return err
 			}
 			aScreening.Questions = append(aScreening.Questions, aQuestion)
+		}
+
+		rows.Close()
+
+		if len(aScreening.Questions) > 0 {
+			// Select answers
+			sql, args = selectAnswersQuery{questions: aScreening.Questions}.SQL()
+
+			rows, err = tx.QueryContext(ctx, sql, args...)
+			if err != nil {
+				return fmt.Errorf("select screening answers query failed: %w", err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var anAnswer ragserver.Answer
+				anAnswer, err = scanAnswer(rows)
+				if err != nil {
+					return err
+				}
+				aScreening.Answers = append(aScreening.Answers, anAnswer)
+			}
 		}
 
 		return nil
@@ -560,10 +600,11 @@ func (q selectQuestionsQuery) SQL() (string, []any) {
 		select 
 			q."id",
 			q."author",
-			q."type",
+			qt."name" as "type",
 			q."content",
 			q."screening",
-			q."created"
+			q."created",
+			q."answered"
 		from "question" q
 		inner join "question_type" qt on q."type" = qt."id"
 	`
@@ -617,6 +658,7 @@ func scanQuestion(row Scannable) (*ragserver.Question, error) {
 		&aQuestion.Content,
 		&aQuestion.ScreeningID,
 		&aQuestion.Created,
+		&aQuestion.Answered,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
@@ -625,6 +667,79 @@ func scanQuestion(row Scannable) (*ragserver.Question, error) {
 	}
 
 	return aQuestion, nil
+}
+
+type selectAnswersQuery struct {
+	questions []*ragserver.Question
+}
+
+func (q selectAnswersQuery) SQL() (string, []any) {
+	if len(q.questions) == 0 {
+		return "", nil
+	}
+
+	query := `
+		select 
+			a."question",
+			a."response",
+			a."created"
+		from "answer" a
+		where a."question" in (?
+	`
+	args := make([]any, 0, len(q.questions))
+	args = append(args, q.questions[0].ID)
+	for i := range q.questions[1:] {
+		query += `, ?`
+		args = append(args, q.questions[i+1].ID)
+	}
+	query += `)`
+
+	return query, args
+}
+
+func scanAnswer(row Scannable) (ragserver.Answer, error) {
+	var anAnswer = ragserver.Answer{}
+
+	if err := row.Scan(
+		&anAnswer.QuestionID,
+		&anAnswer.Response,
+		&anAnswer.Created,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ragserver.Answer{}, ragserver.ErrNotFound
+		}
+		return ragserver.Answer{}, fmt.Errorf("scan answer failed: %w", err)
+	}
+
+	return anAnswer, nil
+}
+
+func (a *Adapter) SaveAnswer(ctx context.Context, answer ragserver.Answer) error {
+	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
+		if err := execQuery(ctx, tx, insertAnswerQuery{answer}); err != nil {
+			return fmt.Errorf("exec insert answer query failed: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type insertAnswerQuery struct {
+	ragserver.Answer
+}
+
+func (q insertAnswerQuery) SQL() (string, []any) {
+	sql := `
+		insert into "answer" ("question", "response", "created")
+		values (?, ?, ?)
+	`
+	args := []any{q.QuestionID, q.Response, q.Created}
+
+	return sql, args
 }
 
 // ListScreeningsForProcessing lists IDs of screenings are in REQUESTED state and ready for GENERATING.
@@ -691,7 +806,7 @@ type listScreeningsForProcessing struct {
 }
 
 func (q listScreeningsForProcessing) SQL() (string, []any) {
-	sql := `
+	query := `
 		update "screening" set 
 			"status" = (select "id" from "screening_status" ss where ss."name" = ?), 
 			"updated" = ?
@@ -703,14 +818,14 @@ func (q listScreeningsForProcessing) SQL() (string, []any) {
 	// Add where clauses from the partial if any
 	partialClauses, partialArgs := q.partial.SQL()
 	if partialClauses != "" {
-		sql += " and " + partialClauses
+		query += " and " + partialClauses
 
 		args = append(args, partialArgs...)
 	}
 
-	sql += ` returning "id"`
+	query += ` returning "id"`
 
-	return sql, args
+	return query, args
 }
 
 func (a *Adapter) DeleteScreenings(ctx context.Context, screenings ...*ragserver.Screening) error {
@@ -752,16 +867,16 @@ func (q deleteScreeningFilesQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "screening_file" where "screening" in (?`
+	query := `delete from "screening_file" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.screenings[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }
 
 type deleteScreeningQuestionsQuery struct {
@@ -773,16 +888,16 @@ func (q deleteScreeningQuestionsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "question" where "screening" in (?`
+	query := `delete from "question" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.screenings[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }
 
 type deleteScreeningStatusEventsQuery struct {
@@ -794,16 +909,16 @@ func (q deleteScreeningStatusEventsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "screening_status_evt" where "screening" in (?`
+	query := `delete from "screening_status_evt" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.screenings[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }
 
 type deleteScreeningsQuery struct {
@@ -815,14 +930,14 @@ func (q deleteScreeningsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	sql := `delete from "screening" where "id" in (?`
+	query := `delete from "screening" where "id" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
-		sql += `, ?`
+		query += `, ?`
 		args = append(args, q.screenings[i+1].ID)
 	}
-	sql += `)`
+	query += `)`
 
-	return sql, args
+	return query, args
 }

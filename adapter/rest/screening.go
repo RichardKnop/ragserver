@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -44,11 +45,17 @@ func (a *Adapter) CreateScreening(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	apiScreening, err := mapScreening(aScreening)
+	if err != nil {
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error mapping screening: %w", err))
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	renderJSON(w, mapScreening(aScreening))
+	renderJSON(w, apiScreening)
 }
 
-func mapApiQuestions(apiQuestions []api.Question) []ragserver.Question {
+func mapApiQuestions(apiQuestions []api.QuestionParams) []ragserver.Question {
 	questions := make([]ragserver.Question, 0, len(apiQuestions))
 	for _, apiQuestion := range apiQuestions {
 		questions = append(questions, ragserver.Question{
@@ -59,8 +66,8 @@ func mapApiQuestions(apiQuestions []api.Question) []ragserver.Question {
 	return questions
 }
 
-func mapScreening(screening *ragserver.Screening) api.Screening {
-	return api.Screening{
+func mapScreening(screening *ragserver.Screening) (api.Screening, error) {
+	apiScreening := api.Screening{
 		Id:            openapi_types.UUID(screening.ID.UUID[0:16]),
 		Status:        api.ScreeningStatus(screening.Status),
 		StatusMessage: api.String(screening.StatusMessage),
@@ -69,6 +76,14 @@ func mapScreening(screening *ragserver.Screening) api.Screening {
 		CreatedAt:     screening.Created.T,
 		UpdatedAt:     screening.Updated.T,
 	}
+
+	var err error
+	apiScreening.Answers, err = mapAnswers(screening.Questions, screening.Answers)
+	if err != nil {
+		return api.Screening{}, err
+	}
+
+	return apiScreening, nil
 }
 
 func mapQuestions(questions []*ragserver.Question) []api.Question {
@@ -81,9 +96,61 @@ func mapQuestions(questions []*ragserver.Question) []api.Question {
 
 func mapQuestion(question *ragserver.Question) api.Question {
 	return api.Question{
+		Id:      openapi_types.UUID(question.ID.UUID[0:16]),
 		Type:    api.QuestionType(question.Type),
 		Content: question.Content,
 	}
+}
+
+func mapAnswers(questions []*ragserver.Question, answers []ragserver.Answer) ([]api.Answer, error) {
+	questionMap := map[ragserver.QuestionID]*ragserver.Question{}
+	for _, question := range questions {
+		questionMap[question.ID] = question
+	}
+
+	apiAnswers := make([]api.Answer, 0, len(answers))
+	for _, answer := range answers {
+		if _, ok := questionMap[answer.QuestionID]; !ok {
+			return nil, fmt.Errorf("question not found for answer: %s", answer.QuestionID)
+		}
+		apiAnswer, err := mapAnswer(questionMap[answer.QuestionID], answer)
+		if err != nil {
+			return nil, err
+		}
+		apiAnswers = append(apiAnswers, apiAnswer)
+	}
+	return apiAnswers, nil
+}
+
+func mapAnswer(question *ragserver.Question, answer ragserver.Answer) (api.Answer, error) {
+	var response = new(ragserver.Response)
+	if err := json.Unmarshal([]byte(answer.Response), response); err != nil {
+		return api.Answer{}, fmt.Errorf("error unmarshaling answer response: %w", err)
+	}
+
+	apiAnswer := api.Answer{
+		Text: response.Text,
+	}
+
+	if question.Type == ragserver.QuestionTypeMetric {
+		apiAnswer.Metric = &api.MetricValue{
+			Value: response.Metric.Value,
+			Unit:  api.String(response.Metric.Unit),
+		}
+	}
+	if question.Type == ragserver.QuestionTypeBoolean {
+		apiAnswer.Boolean = api.Boolean(bool(response.Boolean))
+	}
+	apiAnswer.Evidence = make([]api.Evidence, 0, len(response.Documents))
+	for _, doc := range response.Documents {
+		apiAnswer.Evidence = append(apiAnswer.Evidence, api.Evidence{
+			FileId: openapi_types.UUID(doc.FileID.UUID[0:16]),
+			Page:   int32(doc.Page),
+			Text:   doc.Content,
+		})
+	}
+
+	return apiAnswer, nil
 }
 
 // List screenings
@@ -102,17 +169,27 @@ func (a *Adapter) ListScreenings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderJSON(w, mapScreenings(screenings))
+	apiScreenings, err := mapScreenings(screenings)
+	if err != nil {
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error mapping screenings: %w", err))
+		return
+	}
+
+	renderJSON(w, apiScreenings)
 }
 
-func mapScreenings(screenings []*ragserver.Screening) api.Screenings {
-	apiResponse := api.Screenings{
+func mapScreenings(screenings []*ragserver.Screening) (api.Screenings, error) {
+	apiScreenings := api.Screenings{
 		Screenings: make([]api.Screening, 0, len(screenings)),
 	}
 	for _, aScreening := range screenings {
-		apiResponse.Screenings = append(apiResponse.Screenings, mapScreening(aScreening))
+		apiScreening, err := mapScreening(aScreening)
+		if err != nil {
+			return api.Screenings{}, err
+		}
+		apiScreenings.Screenings = append(apiScreenings.Screenings, apiScreening)
 	}
-	return apiResponse
+	return apiScreenings, nil
 }
 
 // Get a single screening by ID
@@ -142,5 +219,11 @@ func (a *Adapter) GetScreeningById(w http.ResponseWriter, r *http.Request, id op
 		return
 	}
 
-	renderJSON(w, mapScreening(aScreening))
+	apiScreening, err := mapScreening(aScreening)
+	if err != nil {
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error mapping screening: %w", err))
+		return
+	}
+
+	renderJSON(w, apiScreening)
 }

@@ -91,7 +91,16 @@ create table "question" (
   "content" text not null,
   "screening" text not null references "screening"("id"),
   "order" integer not null,
-  "created" text not null default (strftime('%Y-%m-%dT%H:%M:%fZ'))
+  "created" text not null default (strftime('%Y-%m-%dT%H:%M:%fZ')),
+  "answered" text
 ) strict;
 
 create index "question_screening_idx" on "question"("screening");
+
+create table "answer" (
+  "question" text not null references "question"("id"),
+  "response" text not null,
+  "created" text not null default (strftime('%Y-%m-%dT%H:%M:%fZ'))
+) strict;
+
+create index "answer_question_idx" on "answer"("question");

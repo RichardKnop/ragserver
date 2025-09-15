@@ -143,6 +143,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		if err := rs.store.SavePrincipal(ctx, principal); err != nil {
 			return fmt.Errorf("error saving principal: %w", err)
 		}
+
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
 			return fmt.Errorf("error saving file: %w", err)
 		}
@@ -159,7 +160,7 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		files, err = rs.store.ListFiles(ctx, FileFilter{}, rs.partial())
+		files, err = rs.store.ListFiles(ctx, FileFilter{}, rs.filePpartial())
 		if err != nil {
 			return err
 		}
@@ -171,10 +172,10 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 }
 
 func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id FileID) (*File, error) {
-	var file *File
+	var aFile *File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		file, err = rs.store.FindFile(ctx, id, rs.partial())
+		aFile, err = rs.store.FindFile(ctx, id, rs.filePpartial())
 		if err != nil {
 			return err
 		}
@@ -182,7 +183,7 @@ func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id
 	}); err != nil {
 		return nil, err
 	}
-	return file, nil
+	return aFile, nil
 }
 
 var allowedContentTypes = map[string]struct{}{

@@ -50,6 +50,10 @@ func New(extractor Extractor, embedder Embedder, retriever Retriever, gm Generat
 	return rs
 }
 
-func (rs *ragServer) partial() authz.Partial {
+func (rs *ragServer) filePpartial() authz.Partial {
 	return authz.FilterBy("embedder", rs.embedder.Name()).And("retriever", rs.retriever.Name())
+}
+
+func (rs *ragServer) screeningPartial() authz.Partial {
+	return authz.NilPartial
 }

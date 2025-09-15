@@ -31,27 +31,12 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 		return nil, fmt.Errorf("invalid question type: %s", question.Type)
 	}
 
-	fileIDMap := map[FileID]struct{}{}
-	for _, fileID := range fileIDs {
-		fileIDMap[fileID] = struct{}{}
-	}
-
-	if len(fileIDMap) < len(fileIDs) {
-		return nil, fmt.Errorf("duplicate file IDs provided")
+	_, err := rs.processedFilesFromIDs(ctx, fileIDs...)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Printf("received question: %s, file IDs: %v", question, fileIDs)
-
-	// Check all file IDs exist in the database and that they have been processed.
-	for _, fileID := range fileIDs {
-		aFile, err := rs.store.FindFile(ctx, fileID, rs.partial())
-		if err != nil {
-			return nil, fmt.Errorf("error finding file: %v", err)
-		}
-		if aFile.Status != FileStatusProcessedSuccessfully {
-			return nil, fmt.Errorf("file not processed: %s", fileID)
-		}
-	}
 
 	// Embed the query contents.
 	vector, err := rs.embedder.EmbedContent(ctx, question.Content)
@@ -81,4 +66,31 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	}
 
 	return responses, nil
+}
+
+func (rs *ragServer) processedFilesFromIDs(ctx context.Context, ids ...FileID) ([]*File, error) {
+	fileIDMap := map[FileID]struct{}{}
+	for _, fileID := range ids {
+		fileIDMap[fileID] = struct{}{}
+	}
+
+	if len(fileIDMap) < len(ids) {
+		return nil, fmt.Errorf("duplicate file IDs provided")
+	}
+
+	files := make([]*File, 0, len(ids))
+
+	// Check all file IDs exist in the database and that they have been processed.
+	for _, fileID := range ids {
+		aFile, err := rs.store.FindFile(ctx, fileID, rs.filePpartial())
+		if err != nil {
+			return nil, fmt.Errorf("error finding file: %v", err)
+		}
+		if aFile.Status != FileStatusProcessedSuccessfully {
+			return nil, fmt.Errorf("file not processed: %s", fileID)
+		}
+		files = append(files, aFile)
+	}
+
+	return files, nil
 }

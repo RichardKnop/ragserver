@@ -11,9 +11,9 @@
 - [Configuration](#configuration)
 - [API](#api)
 - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
-- [Querying the LLM](#querying-the-llm)
-  - [Query Types](#query-types)
-  - [Query Request](#query-request)
+- [Screening](#screening)
+  - [Questions Types](#questions-types)
+  - [Create Screening](#create-screening)
   - [Metric Query Example](#metric-query-example)
   - [Boolean Query Example](#boolean-query-example)
   - [Text Query Example](#text-query-example)
@@ -185,9 +185,9 @@ You can also list documents extracted from a specific file (currently limited to
 ./scripts/list-file-documents.sh bc4509b4-c156-4478-890d-8d98a44abf03
 ```
 
-# Querying the LLM
+# Screening
 
-## Query Types
+## Questions Types
 
 | Type    | Meaning |
 | ------- | ------- |
@@ -197,35 +197,31 @@ You can also list documents extracted from a specific file (currently limited to
 
 More types will be added later.
 
-## Query Request
+## Create Screening
 
-An example query request looks like this:
+NOTE: Screenings are still work in progress - skip to next example for now.
 
-```json
+```sh
+./scripts/create-screening.sh "$(<< 'EOF'
 {
-  "question": {
-    "type": "METRIC", 
-    "content": "What is the company's total scope 1 emissions value in 2022?"
-  },
+  "questions": [
+    {
+      "type": "METRIC", 
+      "content": "What is the company's total scope 1 emissions value in 2022?"
+    },
+    {
+      "type": "METRIC", 
+      "content": "What is the company's specified net zero target year in 2022?"
+    }
+  ],
   "file_ids": [
-    "e21c57be-ee2d-4f50-89b1-ccc00c5d15f8",
-    "a5460fe9-b7d2-4cc8-a264-63ecdf9f2f31"
+    "67817687-8652-4734-af0a-7962955bce4a",
+    "e6cdec78-1e35-46fc-a175-7764e71903ba"
   ]
 }
+EOF
+)"
 ```
-
-| Field    | Meaning |
-| -------- | ------- |
-| type     | Query type. |
-| content  | The question you want to ask the LLM. |
-| file_ids | Array of file IDs that you want to use as RAG context. |
-
-For content, you could choose some of these example ESG related questions:
-
-1. *What was the company's location-based Scope 2 emissions value (in tCO2e) in 2022?*
-2. *What was the company's location-based Scope 2 emissions value (in tCO2e) in 2022?*
-3. *What was the company's market-based Scope 2 emissions value (in tCO2e) in 2022?*
-4. *What is the company's specified net zero target year in 2022?*
 
 ## Metric Query Example
 

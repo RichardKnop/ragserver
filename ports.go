@@ -36,6 +36,7 @@ type GenerativeModel interface {
 type Store interface {
 	Transactional
 	FileStore
+	ScreeningStgore
 }
 
 type Transactional interface {
@@ -48,4 +49,14 @@ type FileStore interface {
 	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial) ([]*File, error)
 	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)
 	ListFilesForProcessing(ctx context.Context, now Time, partial authz.Partial) ([]FileID, error)
+}
+
+type ScreeningStgore interface {
+	SaveScreenings(ctx context.Context, screenings ...*Screening) error
+	SaveScreeningFiles(ctx context.Context, screenings ...*Screening) error
+	SaveScreeningQuestions(ctx context.Context, screenings ...*Screening) error
+	ListScreenings(ctx context.Context, filter ScreeningFilter, partial authz.Partial) ([]*Screening, error)
+	FindScreening(ctx context.Context, id ScreeningID, partial authz.Partial) (*Screening, error)
+	ListScreeningsForProcessing(ctx context.Context, now Time, partial authz.Partial) ([]ScreeningID, error)
+	SaveAnswer(ctx context.Context, answer Answer) error
 }
