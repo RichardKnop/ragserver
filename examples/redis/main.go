@@ -182,13 +182,13 @@ func main() {
 	}()
 
 	stop := rs.ProcessFiles(ctx)
+	defer stop()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
 	cancel()
-	stop()
 
 	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownRelease()

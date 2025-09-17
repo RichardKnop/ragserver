@@ -15,7 +15,7 @@ screening_id=$(echo "$PAYLOAD" | curl \
     -X POST \
     -H 'Content-Type: application/json' \
     -d @- \
-    http://localhost:8080/query | -s | jq -r ".id");
+    http://localhost:8080/screenings -s | jq -r ".id");
 
 printf "\nCreated a screening with ID $screening_id\n"
 
@@ -27,7 +27,7 @@ printf "\nPolling '${screening_url%\?*}' every $interval_in_seconds seconds, unt
 
 while true;
 do
-    status=$(curl -H 'Content-Type: application/json' $file_url | jq -r $status_path);
+    status=$(curl -H 'Content-Type: application/json' $screening_url | jq -r $status_path);
     printf "\r$(date +%H:%M:%S): $status";
     if [[ "$status" == "SUCCESSFUL" || "$status" == "FAILED" ]]; then
         curl \

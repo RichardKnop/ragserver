@@ -160,7 +160,7 @@ func (rs *ragServer) ListFiles(ctx context.Context, principal authz.Principal) (
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		files, err = rs.store.ListFiles(ctx, FileFilter{}, rs.filePpartial())
+		files, err = rs.store.ListFiles(ctx, FileFilter{}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return err
 		}

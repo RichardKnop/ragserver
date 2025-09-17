@@ -109,7 +109,7 @@ func (s *StoreTestSuite) TestListFiles() {
 	ctx, cancel := testContext()
 	defer cancel()
 
-	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Empty(files)
 
@@ -137,18 +137,24 @@ func (s *StoreTestSuite) TestListFiles() {
 	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
 
 	s.Run("List all files, no filter", func() {
-		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 2)
 		s.Contains(files, file1)
 		s.Contains(files, file2)
 	})
 
+	s.Run("List all files, with limit", func() {
+		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{Limit: 1})
+		s.Require().NoError(err)
+		s.Len(files, 1)
+	})
+
 	s.Run("Filter by embedder and retriever", func() {
 		files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{
 			Embedder:  "google-genai",
 			Retriever: "weaviate",
-		}, authz.NilPartial)
+		}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
 		s.Equal(file1, files[0])
@@ -157,7 +163,7 @@ func (s *StoreTestSuite) TestListFiles() {
 	s.Run("Filter by status", func() {
 		files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{
 			Status: ragserver.FileStatusProcessedSuccessfully,
-		}, authz.NilPartial)
+		}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
 		s.Equal(file2, files[0])
@@ -166,7 +172,7 @@ func (s *StoreTestSuite) TestListFiles() {
 	s.Run("Filter by last updated before", func() {
 		files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{
 			LastUpdatedBefore: ragserver.Time{T: now.Add(-time.Minute)},
-		}, authz.NilPartial)
+		}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
 		s.Equal(file1, files[0])
@@ -174,7 +180,7 @@ func (s *StoreTestSuite) TestListFiles() {
 
 	s.Run("List with a partial", func() {
 		partial := authz.FilterBy("embedder", "google-genai").And("retriever", "weaviate")
-		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, partial)
+		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, partial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
 		s.Equal(file1, files[0])
@@ -204,7 +210,7 @@ func (s *StoreTestSuite) TestListFilesForProcessing() {
 	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
 	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
 
-	ids, err := s.adapter.ListFilesForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial)
+	ids, err := s.adapter.ListFilesForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial, 10)
 	s.Require().NoError(err)
 	s.Len(ids, 1)
 	s.Equal(file2.ID, ids[0])
@@ -230,14 +236,14 @@ func (s *StoreTestSuite) TestDeleteFiles() {
 	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
 	s.Require().NoError(s.adapter.SaveFiles(ctx, aFile), "error saving file")
 
-	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+	files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Len(files, 1)
 
 	err = s.adapter.DeleteFiles(ctx, aFile)
 	s.Require().NoError(err)
 
-	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial)
+	files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Len(files, 0)
 }

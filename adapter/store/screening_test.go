@@ -125,7 +125,7 @@ func (s *StoreTestSuite) TestListScreenings() {
 	ctx, cancel := testContext()
 	defer cancel()
 
-	screenings, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial)
+	screenings, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Empty(screenings)
 
@@ -159,11 +159,17 @@ func (s *StoreTestSuite) TestListScreenings() {
 	s.Require().NoError(s.adapter.SaveScreeningFiles(ctx, screening1, screening2), "error saving screening files")
 
 	s.Run("List all screenings, no filter", func() {
-		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial)
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(screenings, 2)
 		s.Contains(screenings, screening1)
 		s.Contains(screenings, screening2)
+	})
+
+	s.Run("List all screenings, with limit", func() {
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{Limit: 1})
+		s.Require().NoError(err)
+		s.Len(screenings, 1)
 	})
 }
 
@@ -200,7 +206,7 @@ func (s *StoreTestSuite) TestListScreeningsForProcessing() {
 	s.Require().NoError(s.adapter.SaveScreenings(ctx, screening1, screening2), "error saving screening")
 	s.Require().NoError(s.adapter.SaveScreeningFiles(ctx, screening1, screening2), "error saving screening files")
 
-	ids, err := s.adapter.ListScreeningsForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial)
+	ids, err := s.adapter.ListScreeningsForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial, 10)
 	s.Require().NoError(err)
 	s.Len(ids, 1)
 	s.Equal(screening2.ID, ids[0])
@@ -234,14 +240,14 @@ func (s *StoreTestSuite) TestDeleteScreenings() {
 	s.Require().NoError(s.adapter.SaveScreenings(ctx, aScreening), "error saving screening")
 	s.Require().NoError(s.adapter.SaveScreeningFiles(ctx, aScreening), "error saving screening files")
 
-	screenings, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial)
+	screenings, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Len(screenings, 1)
 
 	err = s.adapter.DeleteScreenings(ctx, aScreening)
 	s.Require().NoError(err)
 
-	screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial)
+	screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
 	s.Require().NoError(err)
 	s.Len(screenings, 0)
 }

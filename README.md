@@ -215,12 +215,63 @@ NOTE: Screenings are still work in progress - skip to next example for now.
     }
   ],
   "file_ids": [
-    "67817687-8652-4734-af0a-7962955bce4a",
-    "e6cdec78-1e35-46fc-a175-7764e71903ba"
+    "d89263ab-3954-4acb-952b-7303d0151f7b",
+    "2d3e475a-493e-4b88-ab11-3de8ab74e59a"
   ]
 }
 EOF
 )"
+```
+
+Response:
+
+```json
+{
+  "answers": [],
+  "created_at": "2025-09-17T16:25:28.922341+01:00",
+  "files": [
+    {
+      "content_type": "application/pdf",
+      "created_at": "2025-09-17T15:16:49.719Z",
+      "extension": "pdf",
+      "file_name": "Statement on Emissions.pdf",
+      "hash": "65fa6d0a26e38f8a6edee1d6455d90ef6bc4ad11fd80ad69eab30f648fc0e0e4",
+      "id": "d89263ab-3954-4acb-952b-7303d0151f7b",
+      "size": 191945,
+      "status": "PROCESSED_SUCCESSFULLY",
+      "status_message": "",
+      "updated_at": "2025-09-17T15:16:50.79Z"
+    },
+    {
+      "content_type": "application/pdf",
+      "created_at": "2025-09-17T15:17:03.903Z",
+      "extension": "pdf",
+      "file_name": "TCFD Report.pdf",
+      "hash": "5498dc445bd261b635d47316828c3a0cea48e3af641b0279a667fa1e2a0c0e47",
+      "id": "2d3e475a-493e-4b88-ab11-3de8ab74e59a",
+      "size": 1500685,
+      "status": "PROCESSED_SUCCESSFULLY",
+      "status_message": "",
+      "updated_at": "2025-09-17T15:17:05.698Z"
+    }
+  ],
+  "id": "d5f54b05-a75c-4357-bd0b-137a5623c761",
+  "questions": [
+    {
+      "content": "What is the company's total scope 1 emissions value in 2022?",
+      "id": "373a4e5b-66b8-4964-8c70-305e6f0818ec",
+      "type": "METRIC"
+    },
+    {
+      "content": "What is the company's specified net zero target year in 2022?",
+      "id": "2d0a4f73-04bb-4497-b771-b45b52710c21",
+      "type": "METRIC"
+    }
+  ],
+  "status": "REQUESTED",
+  "status_message": "",
+  "updated_at": "2025-09-17T16:25:28.922341+01:00"
+}
 ```
 
 ## Metric Query Example

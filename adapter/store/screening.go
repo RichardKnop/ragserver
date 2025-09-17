@@ -282,7 +282,17 @@ func (q insertScreeningQuestionsQuery) SQL() (string, []any) {
 	return query, args
 }
 
-func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.ScreeningFilter, partial authz.Partial) ([]*ragserver.Screening, error) {
+var (
+	validScreeningSortFields = []string{
+		`s."created"`,
+	}
+	defaultScreeningSortParams = ragserver.SortParams{
+		By: `s."created"`, Order: ragserver.SortOrderDesc,
+		Limit: 100,
+	}
+)
+
+func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.ScreeningFilter, partial authz.Partial, params ragserver.SortParams) ([]*ragserver.Screening, error) {
 	var screenings []*ragserver.Screening
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
@@ -291,8 +301,15 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 			partial: partial,
 		}.SQL()
 
-		// Add order by clause
-		sql += ` order by s."created" desc`
+		// Add order by clause and/or limit if any
+		if params.Empty() {
+			params = defaultScreeningSortParams
+		}
+		if params.Valid(validScreeningSortFields) {
+			sql += params.SQL()
+		} else {
+			return fmt.Errorf("invalid sort params: %v", params)
+		}
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -432,7 +449,26 @@ func (q selectScreeningsQuery) SQL() (string, []any) {
 }
 
 func screeningFilterClauses(filter ragserver.ScreeningFilter) (string, []any) {
-	return "", nil
+	var (
+		clauses = []string{}
+		args    = []any{}
+	)
+
+	if filter.Status != "" {
+		clauses = append(clauses, `ss."name" = ?`)
+		args = append(args, filter.Status)
+	}
+
+	if !filter.LastUpdatedBefore.T.IsZero() {
+		clauses = append(clauses, `s."updated" < ?`)
+		args = append(args, filter.LastUpdatedBefore)
+	}
+
+	if len(clauses) == 0 {
+		return "", nil
+	}
+
+	return strings.Join(clauses, " and "), args
 }
 
 func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, partial authz.Partial) (*ragserver.Screening, error) {
@@ -745,13 +781,18 @@ func (q insertAnswerQuery) SQL() (string, []any) {
 // ListScreeningsForProcessing lists IDs of screenings are in REQUESTED state and ready for GENERATING.
 // It starts with an UPDATE query to escalate transaction from read to write, this way concurrent
 // transactions will not be able to select the same screenings even within the same sqlite DB connection.
-func (a *Adapter) ListScreeningsForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial) ([]ragserver.ScreeningID, error) {
+func (a *Adapter) ListScreeningsForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial, limit int) ([]ragserver.ScreeningID, error) {
+	if limit < 1 {
+		return nil, nil
+	}
+
 	var ids []ragserver.ScreeningID
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		// First, update files from UPLOADED to PROCESSING to lock them for this transaction
 		sql, args := listScreeningsForProcessing{
 			now:     now,
 			partial: partial,
+			limit:   limit,
 		}.SQL()
 
 		stmt, err := tx.Prepare(sql)
@@ -803,16 +844,21 @@ func (a *Adapter) ListScreeningsForProcessing(ctx context.Context, now ragserver
 type listScreeningsForProcessing struct {
 	now     ragserver.Time
 	partial authz.Partial
+	limit   int
 }
 
 func (q listScreeningsForProcessing) SQL() (string, []any) {
-	query := `
+	query := fmt.Sprintf(`
 		update "screening" set 
 			"status" = (select "id" from "screening_status" ss where ss."name" = ?), 
 			"updated" = ?
 		where 
-			"status" = (select "id" from "screening_status" ss where ss."name" = ?)
-	`
+			"id" in (
+				select "id" from "screening" 
+				where "status" = (select "id" from "screening_status" ss where ss."name" = ?) 
+				order by "created" asc limit %d
+			)
+	`, q.limit)
 	args := []any{ragserver.ScreeningStatusGenerating, q.now, ragserver.ScreeningStatusRequested}
 
 	// Add where clauses from the partial if any

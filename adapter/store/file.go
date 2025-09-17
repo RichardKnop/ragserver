@@ -166,7 +166,17 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 	return query, args
 }
 
-func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, partial authz.Partial) ([]*ragserver.File, error) {
+var (
+	validFileSortFields = []string{
+		`f."created"`,
+	}
+	defaultFileSortParams = ragserver.SortParams{
+		By: `f."created"`, Order: ragserver.SortOrderDesc,
+		Limit: 100,
+	}
+)
+
+func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, partial authz.Partial, params ragserver.SortParams) ([]*ragserver.File, error) {
 	var files []*ragserver.File
 
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
@@ -175,8 +185,15 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 			partial: partial,
 		}.SQL()
 
-		// Add order by clause
-		sql += ` order by f."created" desc`
+		// Add order by clause and/or limit if any
+		if params.Empty() {
+			params = defaultFileSortParams
+		}
+		if params.Valid(validFileSortFields) {
+			sql += params.SQL()
+		} else {
+			return fmt.Errorf("invalid sort params: %v", params)
+		}
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -285,7 +302,7 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 		return "", nil
 	}
 
-	return strings.Join(clauses, " AND "), args
+	return strings.Join(clauses, " and "), args
 }
 
 func (a *Adapter) FindFile(ctx context.Context, id ragserver.FileID, partial authz.Partial) (*ragserver.File, error) {
@@ -394,13 +411,18 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 // ListFilesForProcessing lists IDs of files are in UPLOADED state and ready for PROCESSING.
 // It starts with an UPDATE query to escalate transaction from read to write, this way concurrent
 // transactions will not be able to select the same files even within the same sqlite DB connection.
-func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial) ([]ragserver.FileID, error) {
+func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial, limit int) ([]ragserver.FileID, error) {
+	if limit < 1 {
+		return nil, nil
+	}
+
 	var ids []ragserver.FileID
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		// First, update files from UPLOADED to PROCESSING to lock them for this transaction
 		sql, args := listFilesForProcessing{
 			now:     now,
 			partial: partial,
+			limit:   limit,
 		}.SQL()
 
 		stmt, err := tx.Prepare(sql)
@@ -452,16 +474,21 @@ func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time
 type listFilesForProcessing struct {
 	now     ragserver.Time
 	partial authz.Partial
+	limit   int
 }
 
 func (q listFilesForProcessing) SQL() (string, []any) {
-	query := `
+	query := fmt.Sprintf(`
 		update "file" set 
 			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
 			"updated" = ?
 		where 
-			"status" = (select "id" from "file_status" fs where fs."name" = ?)
-	`
+			"id" in (
+				select "id" from "file" 
+				where "status" = (select "id" from "file_status" fs where fs."name" = ?) 
+				order by "created" asc limit %d
+			)
+	`, q.limit)
 	args := []any{ragserver.FileStatusProcessing, q.now, ragserver.FileStatusUploaded}
 
 	// Add where clauses from the partial if any

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 
@@ -42,7 +44,26 @@ type Screening struct {
 	Updated       Time
 }
 
-type ScreeningFilter struct{}
+// CompleteWithStatus changes the status of a screening to a completion status,
+// either ScreeningStatusCompleted or ScreeningStatusFailed.
+func (s *Screening) CompleteWithStatus(newStatus ScreeningStatus, message string, updatedAt time.Time) error {
+	if s.Status != ScreeningStatusGenerating {
+		return fmt.Errorf("cannot change status from %s to %s", s.Status, newStatus)
+	}
+
+	s.Status = newStatus
+	s.StatusMessage = message
+	s.Updated = Time{T: updatedAt}
+
+	log.Printf("state change for screening: %s status: %s", s.ID, s.Status)
+
+	return nil
+}
+
+type ScreeningFilter struct {
+	Status            ScreeningStatus
+	LastUpdatedBefore Time
+}
 
 type QuestionType string
 
@@ -134,7 +155,7 @@ func (rs *ragServer) ListScreenings(ctx context.Context, principal authz.Princip
 	var screenings []*Screening
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error
-		screenings, err = rs.store.ListScreenings(ctx, ScreeningFilter{}, rs.screeningPartial())
+		screenings, err = rs.store.ListScreenings(ctx, ScreeningFilter{}, rs.screeningPartial(), SortParams{})
 		if err != nil {
 			return err
 		}

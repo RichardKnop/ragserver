@@ -51,7 +51,10 @@ func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
 		}
 	})
 
-	return wg.Wait
+	return func() {
+		wg.Wait()
+		log.Println("Stopped processing files")
+	}
 }
 
 func jitter(ctx context.Context, jitterDuration time.Duration) error {
@@ -69,8 +72,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		now := rs.now()
 
 		var err error
-		// TODO: add limit to only process N files at a time
-		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.filePpartial())
+		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.filePpartial(), 10)
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}
@@ -111,7 +113,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		files, err := rs.store.ListFiles(ctx, FileFilter{
 			Status:            FileStatusProcessing,
 			LastUpdatedBefore: Time{T: now.Add(-processFileTimeout)},
-		}, rs.filePpartial())
+		}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}
@@ -197,10 +199,10 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		return fmt.Errorf("saving embeddings: %v", err)
 	}
 
-	return rs.processingSucceeded(ctx, aFile)
+	return rs.processingFileSucceeded(ctx, aFile)
 }
 
-func (rs *ragServer) processingSucceeded(ctx context.Context, aFile *File) error {
+func (rs *ragServer) processingFileSucceeded(ctx context.Context, aFile *File) error {
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		if err := aFile.CompleteWithStatus(FileStatusProcessedSuccessfully, "", rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)

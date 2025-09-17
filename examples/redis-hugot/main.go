@@ -217,8 +217,6 @@ func main() {
 
 	log.Println("listening on", address)
 
-	go rs.ProcessFiles(ctx)
-
 	go func() {
 		if err := httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("HTTP server error: %v", err)
@@ -226,9 +224,14 @@ func main() {
 		log.Println("Stopped serving new connections.")
 	}()
 
+	stop := rs.ProcessFiles(ctx)
+	defer stop()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
+
+	cancel()
 
 	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownRelease()
