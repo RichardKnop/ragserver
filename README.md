@@ -208,8 +208,12 @@ NOTE: Screenings are still work in progress - skip to next example for now.
       "content": "What is the company's total scope 1 emissions value in 2022?"
     },
     {
+      "type": "BOOLEAN", 
+      "content": "Does the company have a net zero target year?"
+    },
+    {
       "type": "METRIC", 
-      "content": "What is the company's specified net zero target year in 2022?"
+      "content": "What is the company's specified net zero target year?"
     }
   ],
   "file_ids": [
@@ -227,8 +231,64 @@ Response:
 {
   "screenings": [
     {
-      "answers": [],
-      "created_at": "2025-09-19T13:40:46.827688Z",
+      "answers": [
+        {
+          "evidence": [
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 43,
+              "text": "Total Scope 1 for year 2022 is 77476 MTCO2e"
+            }
+          ],
+          "metric": {
+            "unit": "MTCO2e",
+            "value": 77476
+          },
+          "question_id": "00000000-0000-0000-0000-000000000000",
+          "text": "The company's total Scope 1 emissions for the year 2022 is 77476 MTCO2e."
+        },
+        {
+          "evidence": [
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 3,
+              "text": "By 2050, our goal is to achieve net-zero greenhouse gas emissions, including our financed emissions."
+            },
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 20,
+              "text": "• Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15)."
+            },
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 58,
+              "text": "We continue to work toward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and purchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 (market-based) emissions."
+            },
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 13,
+              "text": "To facilitate its oversight of climate-related matters, the Corporate Responsibility Committee receives regular updates from our Chief Sustainability Officer and other leaders on matters such as climate-related finance and our goal of achieving net-zero GHG emissions, including financed emissions, by 2050."
+            },
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 47,
+              "text": "(9) Our Aviation target – to reduce by 20% the emissions intensity of our Aviation portfolio – is not based on a climate scenario aligned to net zero by 2050."
+            },
+            {
+              "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+              "page": 46,
+              "text": "As detailed in the Strategy section, in May 2022, we published CO2eMission , our methodology for aligning our financial portfolios with pathways to net-zero by 2050 and for setting interim emissions-based targets to track that alignment."
+            }
+          ],
+          "metric": {
+            "unit": "year",
+            "value": 2050
+          },
+          "question_id": "00000000-0000-0000-0000-000000000000",
+          "text": "The company's specified net-zero target year is 2050."
+        }
+      ],
+      "created_at": "2025-09-19T19:44:18.656981Z",
       "files": [
         {
           "content_type": "application/pdf",
@@ -255,22 +315,22 @@ Response:
           "updated_at": "2025-09-19T13:30:57.885305Z"
         }
       ],
-      "id": "3dcdc1bf-5d63-4411-891d-131c20a19ecc",
+      "id": "6d90a886-794c-4dac-93f7-3a04581017fc",
       "questions": [
         {
           "content": "What is the company's total scope 1 emissions value in 2022?",
-          "id": "a432f245-43ab-409c-a8ba-de00ce864172",
+          "id": "c75eba7c-4ff4-4f97-af43-798c88993a33",
           "type": "METRIC"
         },
         {
-          "content": "What is the company's specified net zero target year in 2022?",
-          "id": "d2fec63d-94a5-48f9-8cf1-0a990200e5c5",
+          "content": "What is the company's specified net zero target year?",
+          "id": "d1c60078-567f-481d-aacc-3416094627b7",
           "type": "METRIC"
         }
       ],
-      "status": "REQUESTED",
+      "status": "COMPLETED",
       "status_message": "",
-      "updated_at": "2025-09-19T13:40:46.827688Z"
+      "updated_at": "2025-09-19T19:44:26.476712Z"
     }
   ]
 }

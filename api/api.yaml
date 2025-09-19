@@ -17,7 +17,7 @@ paths:
                   type: string
                   format: binary
       responses:
-        "200":
+        "201":
           description: A single file object.
           content:
             application/json:
@@ -99,7 +99,7 @@ paths:
             schema:
               $ref: "#/components/schemas/ScreeningParams"
       responses:
-        "200":
+        "201":
           description: Screening object
           content:
             application/json:
@@ -134,6 +134,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Screening"
+    delete:
+      summary: Delete a screening by ID
+      operationId: deleteScreeningById
+      parameters:
+        - name: id
+          in: path
+          description: Screening ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Screening deleted successfully
 
 components:
   schemas:

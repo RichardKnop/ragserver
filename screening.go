@@ -197,3 +197,24 @@ func (rs *ragServer) FindScreening(ctx context.Context, principal authz.Principa
 	}
 	return aScreening, nil
 }
+
+func (rs *ragServer) DeleteScreening(ctx context.Context, principal authz.Principal, id ScreeningID) error {
+	log.Print("deleting screening: ", id)
+
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		var err error
+		aScreening, err := rs.store.FindScreening(ctx, id, rs.screeningPartial())
+		if err != nil {
+			return err
+		}
+
+		if aScreening.Status == ScreeningStatusRequested || aScreening.Status == ScreeningStatusGenerating {
+			return fmt.Errorf("cannot delete screening in status %s", aScreening.Status)
+		}
+
+		return rs.store.DeleteScreenings(ctx, aScreening)
+	}); err != nil {
+		return err
+	}
+	return nil
+}

@@ -2,9 +2,7 @@ package hugot
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
-	"math"
 
 	"github.com/RichardKnop/ragserver"
 )
@@ -49,15 +47,4 @@ func (a *Adapter) EmbedContent(ctx context.Context, content string) (ragserver.V
 		return ragserver.Vector{}, err
 	}
 	return embeddingResult.Embeddings[0], nil
-}
-
-func floatsToBytes(fs []float32) []byte {
-	buf := make([]byte, len(fs)*4)
-
-	for i, f := range fs {
-		u := math.Float32bits(f)
-		binary.NativeEndian.PutUint32(buf[i*4:], u)
-	}
-
-	return buf
 }

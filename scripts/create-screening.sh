@@ -8,7 +8,7 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-# Upload a file to the ragserver and capture the uploaded file ID
+# Create a screening to the ragserver and capture the created screening ID
 PAYLOAD=$1
 
 screening_id=$(echo "$PAYLOAD" | curl \
@@ -29,7 +29,7 @@ while true;
 do
     status=$(curl -H 'Content-Type: application/json' $screening_url | jq -r $status_path);
     printf "\r$(date +%H:%M:%S): $status";
-    if [[ "$status" == "SUCCESSFUL" || "$status" == "FAILED" ]]; then
+    if [[ "$status" == "COMPLETED" || "$status" == "FAILED" ]]; then
         curl \
             -H 'Content-Type: application/json' \
             ${screening_url} | jq .

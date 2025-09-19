@@ -194,6 +194,9 @@ type ServerInterface interface {
 	// Create a screening.
 	// (POST /screenings)
 	CreateScreening(w http.ResponseWriter, r *http.Request)
+	// Delete a screening by ID
+	// (DELETE /screenings/{id})
+	DeleteScreeningById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Get a single screening by ID
 	// (GET /screenings/{id})
 	GetScreeningById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
@@ -319,6 +322,31 @@ func (siw *ServerInterfaceWrapper) CreateScreening(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateScreening(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteScreeningById operation middleware
+func (siw *ServerInterfaceWrapper) DeleteScreeningById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteScreeningById(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -480,6 +508,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/query", wrapper.Query)
 	m.HandleFunc("GET "+options.BaseURL+"/screenings", wrapper.ListScreenings)
 	m.HandleFunc("POST "+options.BaseURL+"/screenings", wrapper.CreateScreening)
+	m.HandleFunc("DELETE "+options.BaseURL+"/screenings/{id}", wrapper.DeleteScreeningById)
 	m.HandleFunc("GET "+options.BaseURL+"/screenings/{id}", wrapper.GetScreeningById)
 
 	return m

@@ -10,9 +10,9 @@ import (
 )
 
 type Document struct {
-	FileID  FileID
-	Content string
-	Page    int
+	FileID  FileID `json:"file_id"`
+	Content string `json:"content"`
+	Page    int    `json:"page"`
 }
 
 type DocumentFilter struct {

@@ -22,6 +22,7 @@ type RagServer interface {
 	CreateScreening(ctx context.Context, principal authz.Principal, params ragserver.ScreeningParams) (*ragserver.Screening, error)
 	ListScreenings(ctx context.Context, principal authz.Principal) ([]*ragserver.Screening, error)
 	FindScreening(ctx context.Context, principal authz.Principal, id ragserver.ScreeningID) (*ragserver.Screening, error)
+	DeleteScreening(ctx context.Context, principal authz.Principal, id ragserver.ScreeningID) error
 }
 
 type Adapter struct {

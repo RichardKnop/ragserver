@@ -183,8 +183,11 @@ func main() {
 		log.Println("Stopped serving new connections.")
 	}()
 
-	stop := rs.ProcessFiles(ctx)
-	defer stop()
+	stopProcessingFiles := rs.ProcessFiles(ctx)
+	defer stopProcessingFiles()
+
+	stopProcessingScreenings := rs.ProcessScreenings(ctx)
+	defer stopProcessingScreenings()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

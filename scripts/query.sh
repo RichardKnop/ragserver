@@ -8,8 +8,6 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-set -x
-
 # Capture the query from the command-line argument
 PAYLOAD=$1
 

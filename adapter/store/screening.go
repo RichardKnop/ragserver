@@ -793,6 +793,10 @@ func (a *Adapter) DeleteScreenings(ctx context.Context, screenings ...*ragserver
 			return fmt.Errorf("exec delete screening files query failed: %w", err)
 		}
 
+		if err := execQuery(ctx, tx, deleteScreeningAnswersQuery{screenings: screenings}); err != nil {
+			return fmt.Errorf("exec delete screening answers query failed: %w", err)
+		}
+
 		if err := execQuery(ctx, tx, deleteScreeningQuestionsQuery{screenings: screenings}); err != nil {
 			return fmt.Errorf("exec delete screening questions query failed: %w", err)
 		}
@@ -830,6 +834,27 @@ func (q deleteScreeningFilesQuery) SQL() (string, []any) {
 		args = append(args, q.screenings[i+1].ID)
 	}
 	query += `)`
+
+	return toPostgresParams(query), args
+}
+
+type deleteScreeningAnswersQuery struct {
+	screenings []*ragserver.Screening
+}
+
+func (q deleteScreeningAnswersQuery) SQL() (string, []any) {
+	if len(q.screenings) == 0 {
+		return "", nil
+	}
+
+	query := `delete from "ragserver"."answer" where "question" in (select "id" from "ragserver"."question" where "screening" in (?`
+	args := make([]any, 0, len(q.screenings))
+	args = append(args, q.screenings[0].ID)
+	for i := range q.screenings[1:] {
+		query += `, ?`
+		args = append(args, q.screenings[i+1].ID)
+	}
+	query += `))`
 
 	return toPostgresParams(query), args
 }

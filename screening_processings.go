@@ -3,6 +3,7 @@ package ragserver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -114,9 +115,9 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 		screenings, err := rs.store.ListScreenings(ctx, ScreeningFilter{
 			Status:            ScreeningStatusGenerating,
 			LastUpdatedBefore: now.Add(-processScreeningTimeout - time.Minute),
-		}, rs.filePpartial(), SortParams{})
+		}, rs.screeningPartial(), SortParams{})
 		if err != nil {
-			return fmt.Errorf("list screenings: %w", err)
+			return fmt.Errorf("list screenings to fail: %w", err)
 		}
 
 		for _, aScreening := range screenings {
@@ -206,9 +207,18 @@ func (rs *ragServer) answwerQuestion(ctx context.Context, aQuestion *Question, f
 		return fmt.Errorf("calling generative model: %v", err)
 	}
 
+	if len(responses) != 1 {
+		return fmt.Errorf("expected 1 response, got %d", len(responses))
+	}
+
+	jsonResponse, err := json.Marshal(responses[0])
+	if err != nil {
+		return fmt.Errorf("marshaling response: %v", err)
+	}
+
 	if err := rs.store.SaveAnswer(ctx, Answer{
 		QuestionID: aQuestion.ID,
-		Response:   responses[0].Text,
+		Response:   string(jsonResponse),
 		Created:    rs.now(),
 	}); err != nil {
 		return fmt.Errorf("saving answer: %w", err)

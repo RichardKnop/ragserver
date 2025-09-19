@@ -130,7 +130,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 			LastUpdatedBefore: now.Add(-processFileTimeout - time.Minute),
 		}, rs.filePpartial(), SortParams{})
 		if err != nil {
-			return fmt.Errorf("list files: %w", err)
+			return fmt.Errorf("list files to fail: %w", err)
 		}
 
 		for _, aFile := range files {

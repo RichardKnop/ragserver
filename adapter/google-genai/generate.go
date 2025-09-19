@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"google.golang.org/genai"
@@ -87,7 +86,7 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
-		contexts = append(contexts, strconv.Quote(strings.TrimSpace(doc.Content)))
+		contexts = append(contexts, doc.Content)
 	}
 
 	switch question.Type {
@@ -128,7 +127,8 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 	// Create a RAG query for the LLM with the most relevant documents as context.
 	prompt := fmt.Sprintf(template, question.Content, strings.Join(contexts, "\n"))
 
-	log.Println("genai prompt:", prompt)
+	log.Println("generating answer for question:", question.Content)
+	//log.Println("genai prompt:", prompt)
 
 	resp, err := a.client.Models.GenerateContent(
 		ctx,
@@ -170,14 +170,22 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 		documentMap[string(hash[:])] = doc
 	}
 
-	for _, aSnippet := range structuredResp.RelevantSnippets {
-		hash := md5.Sum([]byte(strings.TrimSpace(aSnippet)))
-		doc, ok := documentMap[string(hash[:])]
-		if !ok {
-			log.Printf("could not find document for: %s", aSnippet)
-			continue
+	for _, possibleSnippet := range structuredResp.RelevantSnippets {
+		// Sometimes the model returns multiple snippets separated by new lines as one snippet,
+		// so we need to split them and treat each one individually.
+		for _, aSnippet := range strings.Split(possibleSnippet, "\n") {
+			aSnippet = strings.TrimSpace(aSnippet)
+			if aSnippet == "" {
+				continue
+			}
+			hash := md5.Sum([]byte(aSnippet))
+			doc, ok := documentMap[string(hash[:])]
+			if !ok {
+				log.Printf("could not find document for: %s", aSnippet)
+				continue
+			}
+			response.Documents = append(response.Documents, doc)
 		}
-		response.Documents = append(response.Documents, doc)
 	}
 
 	return []ragserver.Response{response}, nil

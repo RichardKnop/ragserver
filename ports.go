@@ -56,5 +56,6 @@ type ScreeningStgore interface {
 	SaveScreeningQuestions(ctx context.Context, screenings ...*Screening) error
 	ListScreenings(ctx context.Context, filter ScreeningFilter, partial authz.Partial, params SortParams) ([]*Screening, error)
 	FindScreening(ctx context.Context, id ScreeningID, partial authz.Partial) (*Screening, error)
+	DeleteScreenings(ctx context.Context, screenings ...*Screening) error
 	SaveAnswer(ctx context.Context, answer Answer) error
 }

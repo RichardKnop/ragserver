@@ -76,7 +76,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 					log.Printf("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
 					for _, aContext := range tableContexts {
 						documents = append(documents, ragserver.Document{
-							Content: aContext,
+							Content: strings.TrimSpace(aContext),
 							Page:    i + 1,
 						})
 					}

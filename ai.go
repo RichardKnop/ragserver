@@ -18,10 +18,10 @@ type MetricValue struct {
 type BooleanValue bool
 
 type Response struct {
-	Text      string
-	Metric    MetricValue
-	Boolean   BooleanValue
-	Documents []Document
+	Text      string       `json:"text"`
+	Metric    MetricValue  `json:"metric"`
+	Boolean   BooleanValue `json:"boolean"`
+	Documents []Document   `json:"documents"`
 }
 
 func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, question Question, fileIDs ...FileID) ([]Response, error) {

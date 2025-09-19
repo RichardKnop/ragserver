@@ -103,7 +103,7 @@ create index "question_screening_idx" on "ragserver"."question" using hash("scre
 
 create table "ragserver"."answer" (
   "question" uuid not null references "ragserver"."question"("id"),
-  "response" text not null,
+  "response" jsonb not null,
   "created" timestamp not null default now()
 );
 

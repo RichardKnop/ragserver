@@ -129,7 +129,8 @@ func mapAnswer(question *ragserver.Question, answer ragserver.Answer) (api.Answe
 	}
 
 	apiAnswer := api.Answer{
-		Text: response.Text,
+		QuestionId: openapi_types.UUID(question.ID.UUID[0:16]),
+		Text:       response.Text,
 	}
 
 	if question.Type == ragserver.QuestionTypeMetric {
@@ -226,4 +227,33 @@ func (a *Adapter) GetScreeningById(w http.ResponseWriter, r *http.Request, id op
 	}
 
 	renderJSON(w, apiScreening)
+}
+
+// Delete a screening by ID
+// (DELETE /screenings/{id})
+func (a *Adapter) DeleteScreeningById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var (
+		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
+		principal   = a.principalFromRequest(r)
+	)
+	defer cancel()
+
+	screeningID, err := uuid.FromString(id.String())
+	if err != nil {
+		log.Printf("invalid screening ID: %s", err)
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid screening ID: %w", err))
+		return
+	}
+
+	if err := a.ragServer.DeleteScreening(ctx, principal, ragserver.ScreeningID{UUID: screeningID}); err != nil {
+		if errors.Is(err, ragserver.ErrNotFound) {
+			renderJSONError(w, http.StatusNotFound, fmt.Errorf("screening not found"))
+			return
+		}
+		log.Printf("error finding file: %v", err)
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error finding screening: %w", err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
