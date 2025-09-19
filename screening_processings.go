@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-const (
-	processScreeningTimeout = 15 * time.Minute
-)
-
 func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 	var (
 		ticker = time.NewTicker(processInterval - maxJitter/2)
@@ -54,13 +50,29 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 	}
 }
 
+const (
+	processScreeningTimeout = 15 * time.Minute
+)
+
 func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 	var screenings []*Screening
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		var err error
+		// First let's check how many screenings are currently being processed
+		// If there are too many, we won't pick up any new ones
+		workersAvailable, err := rs.checkScreeningConcurrency(ctx)
+		if err != nil {
+			return err
+		}
+		if workersAvailable == 0 {
+			return nil
+		}
+
 		// For now, let's only process a single screening at a time by each processing goroutine
-		screenings, err = rs.store.ListScreenings(ctx, ScreeningFilter{}, rs.screeningPartial(), SortParams{
-			Limit: 1,
+		screenings, err = rs.store.ListScreenings(ctx, ScreeningFilter{
+			Status: ScreeningStatusRequested,
+			Lock:   true,
+		}, rs.screeningPartial(), SortParams{
+			Limit: workersAvailable,
 			Order: SortOrderAsc,
 			By:    `s."created"`,
 		})
@@ -101,7 +113,7 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 
 		screenings, err := rs.store.ListScreenings(ctx, ScreeningFilter{
 			Status:            ScreeningStatusGenerating,
-			LastUpdatedBefore: now.Add(-processScreeningTimeout),
+			LastUpdatedBefore: now.Add(-processScreeningTimeout - time.Minute),
 		}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return fmt.Errorf("list screenings: %w", err)
@@ -125,9 +137,84 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 	return len(screenings), nil
 }
 
+const maxConcurrentScreenings = 10
+
+// checkScreeningConcurrency checks how many screenings are currently being processed,
+// it is used to enforce a maximum number of concurrent screening processing jobs.
+func (rs *ragServer) checkScreeningConcurrency(ctx context.Context) (int, error) {
+	processing, err := rs.store.ListScreenings(ctx, ScreeningFilter{
+		Status: ScreeningStatusGenerating,
+	}, rs.screeningPartial(), SortParams{})
+	if err != nil {
+		return 0, fmt.Errorf("count screenings being processed: %w", err)
+	}
+	if len(processing) >= maxConcurrentScreenings {
+		log.Printf("max concurrent screenings reached: %d", len(processing))
+		return 0, nil
+	}
+	return maxConcurrentScreenings - len(processing), nil
+}
+
 func (rs *ragServer) processScreening(ctx context.Context, aScreening *Screening) error {
-	// TODO - implement
-	return fmt.Errorf("not implemented")
+	for _, aQuestion := range aScreening.Questions {
+		if err := rs.answwerQuestion(ctx, aQuestion, aScreening.FileIDs()...); err != nil {
+			return err
+		}
+	}
+
+	return rs.processingScreeningSucceeded(ctx, aScreening)
+}
+
+func (rs *ragServer) answwerQuestion(ctx context.Context, aQuestion *Question, fileIDs ...FileID) error {
+	switch aQuestion.Type {
+	case QuestionTypeText, QuestionTypeMetric, QuestionTypeBoolean:
+	default:
+		return fmt.Errorf("invalid question type: %s", aQuestion.Type)
+	}
+
+	_, err := rs.processedFilesFromIDs(ctx, fileIDs...)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("generating answer for question: %s, file IDs: %v", aQuestion, fileIDs)
+
+	// Embed the query contents.
+	vector, err := rs.embedder.EmbedContent(ctx, aQuestion.Content)
+	if err != nil {
+		return fmt.Errorf("embedding query content: %v", err)
+	}
+
+	// Search weaviate to find the most relevant (closest in vector space)
+	// documents to the query.
+	documents, err := rs.retriever.SearchDocuments(ctx, DocumentFilter{
+		Vector:  vector,
+		FileIDs: fileIDs,
+	}, 25)
+	if err != nil {
+		return fmt.Errorf("searching documents: %v", err)
+	}
+
+	if len(documents) == 0 {
+		return fmt.Errorf("no documents found for question: %s", aQuestion)
+	}
+
+	log.Println("found documents:", len(documents))
+
+	responses, err := rs.generative.Generate(ctx, *aQuestion, documents)
+	if err != nil {
+		return fmt.Errorf("calling generative model: %v", err)
+	}
+
+	if err := rs.store.SaveAnswer(ctx, Answer{
+		QuestionID: aQuestion.ID,
+		Response:   responses[0].Text,
+		Created:    rs.now(),
+	}); err != nil {
+		return fmt.Errorf("saving answer: %w", err)
+	}
+
+	return nil
 }
 
 func (rs *ragServer) processingScreeningSucceeded(ctx context.Context, aScreening *Screening) error {

@@ -44,6 +44,15 @@ type Screening struct {
 	Updated       time.Time
 }
 
+// FileIDs returns the IDs of the files associated with the screening.
+func (s *Screening) FileIDs() []FileID {
+	fileIDs := make([]FileID, 0, len(s.Files))
+	for _, aFile := range s.Files {
+		fileIDs = append(fileIDs, aFile.ID)
+	}
+	return fileIDs
+}
+
 // CompleteWithStatus changes the status of a screening to a completion status,
 // either ScreeningStatusCompleted or ScreeningStatusFailed.
 func (s *Screening) CompleteWithStatus(newStatus ScreeningStatus, message string, updatedAt time.Time) error {
@@ -101,6 +110,13 @@ type QuestionFilter struct {
 }
 
 func (rs *ragServer) CreateScreening(ctx context.Context, principal authz.Principal, params ScreeningParams) (*Screening, error) {
+	if len(params.Questions) == 0 {
+		return nil, fmt.Errorf("at least one question is required")
+	}
+	if len(params.FileIDs) == 0 {
+		return nil, fmt.Errorf("at least one file is required")
+	}
+
 	files, err := rs.processedFilesFromIDs(ctx, params.FileIDs...)
 	if err != nil {
 		return nil, err

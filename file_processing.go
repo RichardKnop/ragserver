@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	processInterval    = 1 * time.Second
-	maxJitter          = 100 * time.Millisecond
-	processFileTimeout = 15 * time.Minute
+	processInterval = 1 * time.Second
+	maxJitter       = 100 * time.Millisecond
 )
 
 func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
@@ -66,14 +65,28 @@ func jitter(ctx context.Context, jitterDuration time.Duration) error {
 	}
 }
 
+const (
+	processFileTimeout = 5 * time.Minute
+)
+
 func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		var err error
+		// First let's check how many screenings are currently being processed
+		// If there are too many, we won't pick up any new ones
+		workersAvailable, err := rs.checkFileConcurrency(ctx)
+		if err != nil {
+			return err
+		}
+		if workersAvailable == 0 {
+			return nil
+		}
+
 		files, err = rs.store.ListFiles(ctx, FileFilter{
 			Status: FileStatusUploaded,
+			Lock:   true,
 		}, rs.filePpartial(), SortParams{
-			Limit: 10,
+			Limit: workersAvailable,
 			Order: SortOrderAsc,
 			By:    `f."created"`,
 		})
@@ -114,7 +127,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 
 		files, err := rs.store.ListFiles(ctx, FileFilter{
 			Status:            FileStatusProcessing,
-			LastUpdatedBefore: now.Add(-processFileTimeout),
+			LastUpdatedBefore: now.Add(-processFileTimeout - time.Minute),
 		}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
@@ -136,6 +149,24 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 	}
 
 	return len(files), nil
+}
+
+const maxConcurrentFiles = 10
+
+// checkFileConcurrency checks how many files are currently being processed,
+// it is used to enforce a maximum number of concurrent file processing jobs.
+func (rs *ragServer) checkFileConcurrency(ctx context.Context) (int, error) {
+	processing, err := rs.store.ListFiles(ctx, FileFilter{
+		Status: FileStatusProcessing,
+	}, rs.filePpartial(), SortParams{})
+	if err != nil {
+		return 0, fmt.Errorf("count files being processed: %w", err)
+	}
+	if len(processing) >= maxConcurrentFiles {
+		log.Printf("max concurrent files reached: %d", len(processing))
+		return 0, nil
+	}
+	return maxConcurrentFiles - len(processing), nil
 }
 
 func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
