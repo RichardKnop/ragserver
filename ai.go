@@ -3,7 +3,6 @@ package ragserver
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/RichardKnop/ragserver/pkg/authz"
 )
@@ -35,8 +34,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("received question: %s, file IDs: %v", question, fileIDs)
+	rs.logger.Sugar().With("question", question.ID, "file_ids", fileIDs).Info("generating answer for question")
 
 	// Embed the query contents.
 	vector, err := rs.embedder.EmbedContent(ctx, question.Content)
@@ -58,7 +56,7 @@ func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, qu
 		return nil, fmt.Errorf("no documents found for question: %s", question)
 	}
 
-	log.Println("found documents:", len(documents))
+	rs.logger.Sugar().With("question", question.ID).Infof("found %d documents", len(documents))
 
 	responses, err := rs.generative.Generate(ctx, question, documents)
 	if err != nil {

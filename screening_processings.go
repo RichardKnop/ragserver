@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -29,7 +28,7 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 					jitterDuration := time.Duration(rand.Int63n(int64(maxJitter)))
 					if err := jitter(ctx, jitterDuration); err != nil {
 						if !errors.Is(err, context.Canceled) {
-							log.Println("random jitter failed:", err.Error())
+							rs.logger.Sugar().With("error", err).Error("random jitter failed")
 						}
 						return
 					}
@@ -37,9 +36,9 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 
 				total, err := rs.processScreenings(ctx)
 				if err != nil {
-					log.Println("error processing screenings:", err.Error())
+					rs.logger.Sugar().With("error", err).Error("error processing files")
 				} else if total > 0 {
-					log.Printf("processed %d screenings", total)
+					rs.logger.Sugar().Infof("processed %d screenings", total)
 				}
 			}
 		}
@@ -47,7 +46,7 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 
 	return func() {
 		wg.Wait()
-		log.Println("Stopped processing screenings")
+		rs.logger.Info("Stopped processing screenings")
 	}
 }
 
@@ -89,7 +88,7 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 		for _, aScreening := range screenings {
 			aScreening.Status = ScreeningStatusGenerating
 			aScreening.Updated = now
-			log.Printf("state change for screening: %s status: %s", aScreening.ID, aScreening.Status)
+			rs.logger.Sugar().With("id", aScreening.ID, "status", aScreening.Status).Info("state change for screening")
 		}
 
 		return rs.store.SaveScreenings(ctx, screenings...)
@@ -103,7 +102,7 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 		defer cancel()
 		if err := rs.processScreening(processCtx, aScreening); err != nil {
 			if err := rs.processingScreeningFailed(ctx, aScreening, err); err != nil {
-				log.Printf("error setting status to failed for screening: %s error %v", aScreening.ID, err)
+				rs.logger.Sugar().With("id", aScreening.ID, "error", err).Error("error setting status to failed for screening")
 			}
 		}
 	}
@@ -124,6 +123,7 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 			if err := aScreening.CompleteWithStatus(ScreeningStatusFailed, "timed out", now); err != nil {
 				return fmt.Errorf("change status: %w", err)
 			}
+			rs.logger.Sugar().With("id", aScreening.ID, "status", aScreening.Status).Info("state change for screening")
 		}
 
 		if err := rs.store.SaveScreenings(ctx, screenings...); err != nil {
@@ -150,7 +150,7 @@ func (rs *ragServer) checkScreeningConcurrency(ctx context.Context) (int, error)
 		return 0, fmt.Errorf("count screenings being processed: %w", err)
 	}
 	if len(processing) >= maxConcurrentScreenings {
-		log.Printf("max concurrent screenings reached: %d", len(processing))
+		rs.logger.Sugar().Infof("max concurrent screenings reached: %d", len(processing))
 		return 0, nil
 	}
 	return maxConcurrentScreenings - len(processing), nil
@@ -178,7 +178,7 @@ func (rs *ragServer) answwerQuestion(ctx context.Context, aQuestion *Question, f
 		return err
 	}
 
-	log.Printf("generating answer for question: %s, file IDs: %v", aQuestion, fileIDs)
+	rs.logger.Sugar().With("question", aQuestion.ID, "file_ids", fileIDs).Info("generating answer for question")
 
 	// Embed the query contents.
 	vector, err := rs.embedder.EmbedContent(ctx, aQuestion.Content)
@@ -200,7 +200,7 @@ func (rs *ragServer) answwerQuestion(ctx context.Context, aQuestion *Question, f
 		return fmt.Errorf("no documents found for question: %s", aQuestion)
 	}
 
-	log.Println("found documents:", len(documents))
+	rs.logger.Sugar().With("question", aQuestion.ID).Infof("found %d documents", len(documents))
 
 	responses, err := rs.generative.Generate(ctx, *aQuestion, documents)
 	if err != nil {
@@ -232,6 +232,7 @@ func (rs *ragServer) processingScreeningSucceeded(ctx context.Context, aScreenin
 		if err := aScreening.CompleteWithStatus(ScreeningStatusCompleted, "", rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
+		rs.logger.Sugar().With("id", aScreening.ID, "status", aScreening.Status).Info("state change for screening")
 		if err := rs.store.SaveScreenings(ctx, aScreening); err != nil {
 			return err
 		}
@@ -247,6 +248,7 @@ func (rs *ragServer) processingScreeningFailed(ctx context.Context, aScreening *
 		if err := aScreening.CompleteWithStatus(ScreeningStatusFailed, perr.Error(), rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
+		rs.logger.Sugar().With("id", aScreening.ID, "status", aScreening.Status).Info("state change for screening")
 		if err := rs.store.SaveScreenings(ctx, aScreening); err != nil {
 			return err
 		}

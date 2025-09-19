@@ -3,7 +3,6 @@ package googlegenai
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"google.golang.org/genai"
 
@@ -21,7 +20,7 @@ func (a *Adapter) EmbedDocuments(ctx context.Context, documents []ragserver.Docu
 		contents,
 		nil,
 	)
-	log.Printf("invoking embedding model with %v documents", len(documents))
+	a.logger.Sugar().Infof("invoking embedding model with %d documents", len(documents))
 	if err != nil {
 		return nil, fmt.Errorf("embed content error: %w", err)
 	}

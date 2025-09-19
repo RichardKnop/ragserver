@@ -3,7 +3,6 @@ package rest
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -49,7 +48,7 @@ func (a *Adapter) Query(w http.ResponseWriter, r *http.Request) {
 
 	responses, err := a.ragServer.Generate(ctx, principal, question, fileIDs...)
 	if err != nil {
-		log.Printf("error generating response: %s", err)
+		a.logger.Sugar().With("error", err).Error("error generating response")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error generating response: %w", err))
 		return
 	}

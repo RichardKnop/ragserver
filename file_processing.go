@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"sync"
@@ -34,7 +33,7 @@ func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
 					jitterDuration := time.Duration(rand.Int63n(int64(maxJitter)))
 					if err := jitter(ctx, jitterDuration); err != nil {
 						if !errors.Is(err, context.Canceled) {
-							log.Println("random jitter failed:", err.Error())
+							rs.logger.Sugar().With("error", err).Error("random jitter failed")
 						}
 						return
 					}
@@ -42,9 +41,9 @@ func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
 
 				total, err := rs.processFiles(ctx)
 				if err != nil {
-					log.Println("error processing files:", err.Error())
+					rs.logger.Sugar().With("error", err).Error("error processing files")
 				} else if total > 0 {
-					log.Printf("processed %d files", total)
+					rs.logger.Sugar().Infof("processed %d files", total)
 				}
 			}
 		}
@@ -52,7 +51,7 @@ func (rs *ragServer) ProcessFiles(ctx context.Context) func() {
 
 	return func() {
 		wg.Wait()
-		log.Println("Stopped processing files")
+		rs.logger.Info("Stopped processing files")
 	}
 }
 
@@ -102,7 +101,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		for _, aFile := range files {
 			aFile.Status = FileStatusProcessing
 			aFile.Updated = now
-			log.Printf("state change for file: %s status: %s", aFile.ID, aFile.Status)
+			rs.logger.Sugar().With("id", aFile.ID, "status", aFile.Status).Info("state change for file")
 		}
 
 		return rs.store.SaveFiles(ctx, files...)
@@ -116,7 +115,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 		defer cancel()
 		if err := rs.processFile(processCtx, aFile); err != nil {
 			if err := rs.processingFileFailed(ctx, aFile, err); err != nil {
-				log.Printf("error setting status to failed for file: %s error %v", aFile.ID, err)
+				rs.logger.Sugar().With("id", aFile.ID, "error", err).Error("error setting status to failed for file")
 			}
 		}
 	}
@@ -137,6 +136,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 			if err := aFile.CompleteWithStatus(FileStatusProcessingFailed, "timed out", now); err != nil {
 				return fmt.Errorf("change status: %w", err)
 			}
+			rs.logger.Sugar().With("id", aFile.ID, "status", aFile.Status).Info("state change for file")
 		}
 
 		if err := rs.store.SaveFiles(ctx, files...); err != nil {
@@ -163,7 +163,7 @@ func (rs *ragServer) checkFileConcurrency(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("count files being processed: %w", err)
 	}
 	if len(processing) >= maxConcurrentFiles {
-		log.Printf("max concurrent files reached: %d", len(processing))
+		rs.logger.Sugar().Infof("max concurrent files reached: %d", len(processing))
 		return 0, nil
 	}
 	return maxConcurrentFiles - len(processing), nil
@@ -176,14 +176,14 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 	}
 	defer func() {
 		if err := os.Remove(aFile.Location); err != nil {
-			log.Printf("error removing file: %s", aFile.Location)
+			rs.logger.Sugar().With("location", aFile.Location, "error", err).Error("error removing file")
 		}
 		if err := content.Close(); err != nil {
-			log.Printf("error closing content: %s", aFile.Location)
+			rs.logger.Sugar().With("location", aFile.Location, "error", err).Error("error closing file")
 		}
 	}()
 
-	log.Printf("processing file: %s location: %s", aFile.ID, aFile.Location)
+	rs.logger.Sugar().With("id", aFile.ID, "location", aFile.Location).Info("processing file")
 
 	switch aFile.ContentType {
 	case "application/pdf":
@@ -202,23 +202,19 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		// defer client.Close()
 
 		// if err := client.SetImageFromBytes(fileBytes); err != nil {
-		// 	log.Printf("client.SetImageFromBytes error: %v", err.Error())
 		// 	http.Error(w, "file processing error", http.StatusInternalServerError)
 		// }
 
 		// text, err := client.Text()
 		// if err != nil {
-		// 	log.Printf("client.Text error: %v", err.Error())
 		// 	http.Error(w, "file processing error", http.StatusInternalServerError)
 		// 	return
 		// }
 
-		// log.Printf("file processed, text: %v", text)
-
 		return fmt.Errorf("image file processing not implemented yet")
 	}
 
-	log.Printf("generating vectors for documents: %d", len(aFile.Documents))
+	rs.logger.Sugar().Infof("extracted documents: %d", len(aFile.Documents))
 
 	// Use the batch embedding API to embed all documents at once.
 	vectors, err := rs.embedder.EmbedDocuments(ctx, aFile.Documents)
@@ -226,7 +222,7 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		return fmt.Errorf("error generating vectors: %v", err)
 	}
 
-	log.Printf("generated vectors: %d", len(vectors))
+	rs.logger.Sugar().Infof("generated vectors: %d", len(vectors))
 
 	if err := rs.retriever.SaveDocuments(ctx, aFile.Documents, vectors); err != nil {
 		return fmt.Errorf("saving embeddings: %v", err)
@@ -240,6 +236,7 @@ func (rs *ragServer) processingFileSucceeded(ctx context.Context, aFile *File) e
 		if err := aFile.CompleteWithStatus(FileStatusProcessedSuccessfully, "", rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
+		rs.logger.Sugar().With("id", aFile.ID, "status", aFile.Status).Info("state change for file")
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
 			return err
 		}
@@ -255,6 +252,7 @@ func (rs *ragServer) processingFileFailed(ctx context.Context, aFile *File, perr
 		if err := aFile.CompleteWithStatus(FileStatusProcessingFailed, perr.Error(), rs.now()); err != nil {
 			return fmt.Errorf("change status: %w", err)
 		}
+		rs.logger.Sugar().With("id", aFile.ID, "status", aFile.Status).Info("state change for file")
 		if err := rs.store.SaveFiles(ctx, aFile); err != nil {
 			return err
 		}

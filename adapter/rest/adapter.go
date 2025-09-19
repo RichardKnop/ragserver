@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid/v5"
+	"go.uber.org/zap"
 
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/pkg/authz"
@@ -27,12 +28,28 @@ type RagServer interface {
 
 type Adapter struct {
 	ragServer RagServer
+	logger    *zap.Logger
 }
 
-func New(ragServer RagServer) *Adapter {
-	return &Adapter{
-		ragServer: ragServer,
+type Option func(*Adapter)
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
 	}
+}
+
+func New(ragServer RagServer, options ...Option) *Adapter {
+	a := &Adapter{
+		ragServer: ragServer,
+		logger:    zap.NewNop(),
+	}
+
+	for _, o := range options {
+		o(a)
+	}
+
+	return a
 }
 
 const (

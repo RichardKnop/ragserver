@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/neurosnap/sentences"
@@ -16,7 +15,7 @@ import (
 const summarizePrompt = `
 Summarize each page of this document. For each page, provide a full summary including 
 all the data from text on the page and all the data from tables on the page.
-Response is a JSON array, with each item being a full summary of a pge.
+Response is a JSON array, with each item being a full summary of a page.
 `
 
 func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
@@ -76,7 +75,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 
 	for i, page := range response {
 		pageNum := i + 1
-		log.Printf("processing page %d/%d", pageNum, numPages)
+		a.logger.Sugar().Infof("processing page %d/%d", pageNum, numPages)
 
 		for _, aSentence := range tokenizer.Tokenize(page) {
 			if len(topics) > 0 {
@@ -101,10 +100,10 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 	}
 
 	for name, count := range topicCount {
-		log.Printf("%s relevant sentences: %d", name, count)
+		a.logger.Sugar().Infof("%s relevant sentences: %d", name, count)
 	}
 
-	log.Printf("number of documents: %d", len(documents))
+	a.logger.Sugar().Infof("number of documents: %d", len(documents))
 
 	return documents, nil
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gofrs/uuid/v5"
@@ -165,7 +164,7 @@ func (a *Adapter) ListScreenings(w http.ResponseWriter, r *http.Request) {
 
 	screenings, err := a.ragServer.ListScreenings(ctx, principal)
 	if err != nil {
-		log.Printf("error listing screenings: %v", err)
+		a.logger.Sugar().With("error", err).Error("error listing screenings")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error listing screenings: %w", err))
 		return
 	}
@@ -204,7 +203,7 @@ func (a *Adapter) GetScreeningById(w http.ResponseWriter, r *http.Request, id op
 
 	screeningID, err := uuid.FromString(id.String())
 	if err != nil {
-		log.Printf("invalid screening ID: %s", err)
+		a.logger.Sugar().With("error", err).Error("invalid screening ID")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid screening ID: %w", err))
 		return
 	}
@@ -215,7 +214,7 @@ func (a *Adapter) GetScreeningById(w http.ResponseWriter, r *http.Request, id op
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("screening not found"))
 			return
 		}
-		log.Printf("error finding file: %v", err)
+		a.logger.Sugar().With("error", err).Error("error finding screening")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error finding screening: %w", err))
 		return
 	}
@@ -240,7 +239,7 @@ func (a *Adapter) DeleteScreeningById(w http.ResponseWriter, r *http.Request, id
 
 	screeningID, err := uuid.FromString(id.String())
 	if err != nil {
-		log.Printf("invalid screening ID: %s", err)
+		a.logger.Sugar().With("error", err).Error("invalid screening ID")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid screening ID: %w", err))
 		return
 	}
@@ -250,7 +249,7 @@ func (a *Adapter) DeleteScreeningById(w http.ResponseWriter, r *http.Request, id
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("screening not found"))
 			return
 		}
-		log.Printf("error finding file: %v", err)
+		a.logger.Sugar().With("error", err).Error("error finding screening")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error finding screening: %w", err))
 		return
 	}

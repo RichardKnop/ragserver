@@ -16,6 +16,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/weaviate/weaviate v1.32.5
 	github.com/weaviate/weaviate-go-client/v5 v5.4.1
+	go.uber.org/zap v1.27.0
 	google.golang.org/genai v1.22.0
 	seehuhn.de/go/geom v0.6.0
 	seehuhn.de/go/pdf v0.6.0
@@ -119,6 +120,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/net v0.43.0 // indirect

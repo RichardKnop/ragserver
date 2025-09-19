@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -79,7 +78,7 @@ func (a *Adapter) ListFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := a.ragServer.ListFiles(ctx, principal)
 	if err != nil {
-		log.Printf("error listing files: %v", err)
+		a.logger.Sugar().With("error", err).Error("error listing files")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error listing files: %w", err))
 		return
 	}
@@ -108,7 +107,7 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 
 	fileID, err := uuid.FromString(id.String())
 	if err != nil {
-		log.Printf("invalid file ID: %s", err)
+		a.logger.Sugar().With("error", err).Error("invalid file ID")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid file ID: %w", err))
 		return
 	}
@@ -119,7 +118,7 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file not found"))
 			return
 		}
-		log.Printf("error finding file: %v", err)
+		a.logger.Sugar().With("error", err).Error("error finding file")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error finding file: %w", err))
 		return
 	}
@@ -138,7 +137,7 @@ func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id o
 
 	fileID, err := uuid.FromString(id.String())
 	if err != nil {
-		log.Printf("invalid file ID: %s", err)
+		a.logger.Sugar().With("error", err).Error("invalid file ID")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid file ID: %w", err))
 		return
 	}
@@ -149,7 +148,7 @@ func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id o
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file documents not found"))
 			return
 		}
-		log.Printf("error listing file documents: %v", err)
+		a.logger.Sugar().With("error", err).Error("error listing file documents")
 		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error listing file documents: %w", err))
 		return
 	}

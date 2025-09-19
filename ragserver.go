@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/RichardKnop/ragserver/pkg/authz"
 )
 
@@ -23,6 +25,7 @@ type ragServer struct {
 	store          Store
 	now            clock
 	relevantTopics RelevantTopics
+	logger         *zap.Logger
 }
 
 type Option func(*ragServer)
@@ -30,6 +33,12 @@ type Option func(*ragServer)
 func WithRelevantTopics(topics RelevantTopics) Option {
 	return func(rs *ragServer) {
 		rs.relevantTopics = topics
+	}
+}
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(rs *ragServer) {
+		rs.logger = logger
 	}
 }
 
@@ -41,6 +50,7 @@ func New(extractor Extractor, embedder Embedder, retriever Retriever, gm Generat
 		generative: gm,
 		store:      storeAdapter,
 		now:        func() time.Time { return time.Now().UTC() },
+		logger:     zap.NewNop(),
 	}
 
 	for _, o := range options {

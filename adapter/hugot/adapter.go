@@ -3,7 +3,6 @@ package hugot
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/knights-analytics/hugot"
 	"github.com/knights-analytics/hugot/pipelineBackends"
 	"github.com/knights-analytics/hugot/pipelines"
+	"go.uber.org/zap"
 )
 
 type modelConfig struct {
@@ -27,9 +27,16 @@ type Adapter struct {
 	generativeConfig modelConfig
 	templatesDir     string
 	modelsDir        string
+	logger           *zap.Logger
 }
 
 type Option func(*Adapter)
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
+	}
+}
 
 func WithEmbeddingModelName(name string) Option {
 	return func(a *Adapter) {
@@ -86,19 +93,19 @@ func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapt
 		generativeConfig: modelConfig{onxFilePath: defaultOnxFilePath},
 		templatesDir:     defaultTemplatesDir,
 		modelsDir:        defaultModelsDir,
+		logger:           zap.NewNop(),
 	}
 
 	for _, o := range options {
 		o(a)
 	}
 
-	log.Println(
-		"init hugot adapter,",
-		"embedding model config:", a.embeddingConfig,
-		"generative model config:", a.generativeConfig,
-		"templates dir:", a.templatesDir,
-		"models dir:", a.modelsDir,
-	)
+	a.logger.Sugar().With(
+		"embedding model config", a.embeddingConfig,
+		"generative model config", a.generativeConfig,
+		"templates dir", a.templatesDir,
+		"models dir", a.modelsDir,
+	).Info("init hugot adapter")
 
 	if err := a.init(ctx); err != nil {
 		return nil, err
@@ -125,7 +132,7 @@ func (a *Adapter) init(ctx context.Context) error {
 		}
 
 		if modelPath == "" {
-			log.Println("start downloading embedding model:", a.embeddingConfig.name)
+			a.logger.Sugar().Info("start downloading embedding model:", a.embeddingConfig.name)
 
 			downloadOptions := hugot.NewDownloadOptions()
 			downloadOptions.OnnxFilePath = a.embeddingConfig.onxFilePath
@@ -134,9 +141,9 @@ func (a *Adapter) init(ctx context.Context) error {
 				return fmt.Errorf("failed to download embedding model: %w", err)
 			}
 
-			log.Println("downloaded embedding model:", a.embeddingConfig.name)
+			a.logger.Sugar().Info("downloaded embedding model:", a.embeddingConfig.name)
 		} else {
-			log.Println("embedding model already exists, skipping download:", modelPath)
+			a.logger.Sugar().Info("embedding model already exists, skipping download:", modelPath)
 		}
 
 		// Create feature extraction pipeline configuration
@@ -159,7 +166,7 @@ func (a *Adapter) init(ctx context.Context) error {
 		}
 
 		if modelPath == "" {
-			log.Println("start downloading generative model:", a.generativeConfig.name)
+			a.logger.Sugar().Info("start downloading generative model:", a.generativeConfig.name)
 
 			downloadOptions := hugot.NewDownloadOptions()
 			downloadOptions.OnnxFilePath = a.generativeConfig.onxFilePath
@@ -171,9 +178,9 @@ func (a *Adapter) init(ctx context.Context) error {
 				return fmt.Errorf("failed to download generative model: %w", err)
 			}
 
-			log.Println("downloaded generative model:", a.generativeConfig.name)
+			a.logger.Sugar().Info("downloaded generative model:", a.generativeConfig.name)
 		} else {
-			log.Println("generative model already exists, skipping download:", modelPath)
+			a.logger.Sugar().Info("generative model already exists, skipping download:", modelPath)
 		}
 
 		// Create text generation pipeline configuration

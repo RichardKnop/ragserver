@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -74,8 +73,6 @@ func (f *File) CompleteWithStatus(newStatus FileStatus, message string, updatedA
 	f.StatusMessage = message
 	f.Updated = updatedAt
 
-	log.Printf("state change for file: %s status: %s", f.ID, f.Status)
-
 	return nil
 }
 
@@ -109,7 +106,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("error seeking file to start: %w", err)
 	}
 
-	log.Printf("uploading file: %s, size: %d, mime header: %v", header.Filename, header.Size, header.Header)
+	rs.logger.Sugar().With("filename", header.Filename, "size", header.Size, "header", header.Header).Infof("uploading file")
 
 	hashWriter := sha256.New()
 	newReader := io.TeeReader(file, hashWriter)

@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -60,8 +59,7 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 	// Create a RAG query for the LLM with the most relevant documents as context.
 	prompt := fmt.Sprintf(template, question.Content, strings.Join(contexts, "\n"))
 
-	log.Println("generating answer for question:", question.Content)
-	//log.Println("genai prompt:", prompt)
+	a.logger.Sugar().With("question", question.Content).Info("generating answer")
 
 	batchResult, err := a.generative.RunWithTemplate([][]pipelines.Message{
 		{
@@ -77,7 +75,7 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 
 	result := batchResult.GetOutput()[0].(string)
 
-	log.Println("genai response:", result)
+	a.logger.Sugar().Infof("genai response: %s", result)
 
 	result = strings.TrimPrefix(result, "```json")
 	result = strings.TrimSuffix(result, "```")
@@ -118,7 +116,7 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 			hash := md5.Sum([]byte(aSnippet))
 			doc, ok := documentMap[string(hash[:])]
 			if !ok {
-				log.Printf("could not find document for: %s", aSnippet)
+				a.logger.Sugar().Warnf("could not find document for snippet: %s", aSnippet)
 				continue
 			}
 			response.Documents = append(response.Documents, doc)

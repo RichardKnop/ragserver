@@ -3,7 +3,6 @@ package weaviate
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
@@ -41,7 +40,6 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 		return err
 	}
 
-	log.Printf("stored %v objects in weaviate", len(objects))
 	return err
 }
 

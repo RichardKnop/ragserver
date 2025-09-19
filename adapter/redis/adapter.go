@@ -3,9 +3,9 @@ package redis
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 type Adapter struct {
@@ -15,6 +15,7 @@ type Adapter struct {
 	dialectVersion       int
 	vectorDim            int
 	vectorDistanceMetric string
+	logger               *zap.Logger
 }
 
 type Option func(*Adapter)
@@ -35,6 +36,7 @@ func New(ctx context.Context, client *redis.Client, options ...Option) (*Adapter
 		dialectVersion:       defaultDialectVersion,
 		vectorDim:            defaultVectorDim,
 		vectorDistanceMetric: defaultVectorDistanceMetric,
+		logger:               zap.NewNop(),
 	}
 
 	for _, o := range options {
@@ -48,16 +50,21 @@ func New(ctx context.Context, client *redis.Client, options ...Option) (*Adapter
 	// so we might want to create a separate index for that
 	a.indexName = fmt.Sprintf("%s_dim%d", a.indexName, a.vectorDim)
 
-	log.Println(
-		"init redis adapter,",
-		"index name:", a.indexName,
-		"prefix:", a.indexPrefix,
-		"dialect version:", a.dialectVersion,
-		"vector dim:", a.vectorDim,
-		"vector distance metric:", a.vectorDistanceMetric,
-	)
+	a.logger.Sugar().With(
+		"index name", a.indexName,
+		"prefix", a.indexPrefix,
+		"dialect version", a.dialectVersion,
+		"vector dim", a.vectorDim,
+		"vector distance metric", a.vectorDistanceMetric,
+	).Info("init redis adapter")
 
 	return a, a.init(ctx)
+}
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
+	}
 }
 
 func WithIndexName(indexName string) Option {
@@ -107,7 +114,7 @@ func (a *Adapter) init(ctx context.Context) error {
 	}
 	for _, existingIndex := range indexes {
 		if existingIndex == a.indexName {
-			log.Println("redis index already exists:", a.indexName)
+			a.logger.Sugar().Infof("redis index already exists: %s", a.indexName)
 			return nil
 		}
 	}
@@ -124,7 +131,7 @@ func (a *Adapter) dropIndex(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Println("dropped redis index:", a.indexName)
+	a.logger.Sugar().Infof("dropped redis index: %s", a.indexName)
 	return nil
 }
 
@@ -164,6 +171,6 @@ func (a *Adapter) createIndex(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error creating redis index: %v", err)
 	}
-	log.Println("created redis index:", a.indexName)
+	a.logger.Sugar().Infof("created redis index: %s", a.indexName)
 	return nil
 }

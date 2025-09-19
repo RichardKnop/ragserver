@@ -21,6 +21,7 @@ import (
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"google.golang.org/genai"
 
 	"github.com/RichardKnop/ragserver"
@@ -47,6 +48,12 @@ func main() {
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal("fatal error config file: ", err)
 	}
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatal("logger: ", err)
+	}
+	defer logger.Sync() // flushes buffer, if any
 
 	// Load the training data
 	training, err := sentences.LoadTraining([]byte(ragserver.TestEn))
@@ -122,6 +129,7 @@ func main() {
 		hugotAdapter.WithGenerativeModelExternalDataPath(viper.GetString("adapter.generative.external_data_path")),
 		hugotAdapter.WithTemplatesDir(viper.GetString("adapter.generative.templates_dir")),
 		hugotAdapter.WithModelsDir(viper.GetString("hugot.models_dir")),
+		hugotAdapter.WithLogger(logger),
 	)
 	if err != nil {
 		log.Fatal("hugot adapter: ", err)
@@ -132,7 +140,7 @@ func main() {
 	switch name := viper.GetString("adapter.extract.name"); name {
 	case "pdf":
 		log.Println("extract adapter: pdf")
-		extractor = pdf.New(training)
+		extractor = pdf.New(training, pdf.WithLogger(logger))
 	case "document":
 		log.Println("extract adapter: document")
 
@@ -181,6 +189,7 @@ func main() {
 			redisAdapter.WithDialectVersion(viper.GetInt("redis.protocol")),
 			redisAdapter.WithVectorDim(viper.GetInt("redis.vector_dim")),
 			redisAdapter.WithVectorDistanceMetric(viper.GetString("redis.vector_distance_metric")),
+			redisAdapter.WithLogger(logger),
 		)
 		if err != nil {
 			log.Fatal("redis adapter: ", err)
@@ -205,14 +214,16 @@ func main() {
 		log.Fatal("relevant topics: ", err)
 	}
 	log.Println("relevant topics configured", relevantTopics)
+
 	opts := []ragserver.Option{
 		ragserver.WithRelevantTopics(relevantTopics),
+		ragserver.WithLogger(logger),
 	}
 
 	var (
 		storeAdapter = store.New(db)
 		rs           = ragserver.New(extractor, embebber, retriever, gm, storeAdapter, opts...)
-		restAdapter  = rest.New(rs)
+		restAdapter  = rest.New(rs, rest.WithLogger(logger))
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
 		h       = api.HandlerFromMux(restAdapter, mux)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gofrs/uuid/v5"
@@ -63,8 +62,6 @@ func (s *Screening) CompleteWithStatus(newStatus ScreeningStatus, message string
 	s.Status = newStatus
 	s.StatusMessage = message
 	s.Updated = updatedAt
-
-	log.Printf("state change for screening: %s status: %s", s.ID, s.Status)
 
 	return nil
 }
@@ -199,7 +196,7 @@ func (rs *ragServer) FindScreening(ctx context.Context, principal authz.Principa
 }
 
 func (rs *ragServer) DeleteScreening(ctx context.Context, principal authz.Principal, id ScreeningID) error {
-	log.Print("deleting screening: ", id)
+	rs.logger.Sugar().With("id", id).Info("deleting screening")
 
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		var err error

@@ -19,6 +19,7 @@ import (
 	"github.com/neurosnap/sentences"
 	"github.com/spf13/viper"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
+	"go.uber.org/zap"
 	"google.golang.org/genai"
 
 	"github.com/RichardKnop/ragserver"
@@ -45,6 +46,12 @@ func main() {
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal("fatal error config file: ", err)
 	}
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatal("logger: ", err)
+	}
+	defer logger.Sync() // flushes buffer, if any
 
 	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
 	genaiClient, err := genai.NewClient(ctx, nil)
@@ -88,7 +95,7 @@ func main() {
 	switch name := viper.GetString("adapter.extract.name"); name {
 	case "pdf":
 		log.Println("extract adapter: pdf")
-		extractor = pdf.New(training)
+		extractor = pdf.New(training, pdf.WithLogger(logger))
 	case "document":
 		log.Println("extract adapter: document")
 		extractor = document.New(
@@ -108,6 +115,7 @@ func main() {
 		embebber = googlegenai.New(
 			genaiClient,
 			googlegenai.WithEmbeddingModel(viper.GetString("adapter.embed.model")),
+			googlegenai.WithLogger(logger),
 		)
 	default:
 		log.Fatalf("unknown embed adapter: %s", name)
@@ -142,6 +150,7 @@ func main() {
 			genaiClient,
 			googlegenai.WithGenerativeModel(viper.GetString("adapter.generative.model")),
 			googlegenai.WithTemplatesDir(viper.GetString("adapter.generative.templates_dir")),
+			googlegenai.WithLogger(logger),
 		)
 	default:
 		log.Fatalf("unknown generative adapter: %s", name)
@@ -153,14 +162,16 @@ func main() {
 		log.Fatal("relevant topics: ", err)
 	}
 	log.Println("relevant topics configured", relevantTopics)
+
 	opts := []ragserver.Option{
 		ragserver.WithRelevantTopics(relevantTopics),
+		ragserver.WithLogger(logger),
 	}
 
 	var (
 		storeAdapter = store.New(db)
 		rs           = ragserver.New(extractor, embebber, retriever, gm, storeAdapter, opts...)
-		restAdapter  = rest.New(rs)
+		restAdapter  = rest.New(rs, rest.WithLogger(logger))
 		mux          = http.NewServeMux()
 		// get an `http.Handler` that we can use
 		h       = api.HandlerFromMux(restAdapter, mux)

@@ -3,7 +3,6 @@ package pdf
 import (
 	"context"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/neurosnap/sentences"
@@ -17,7 +16,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 		return nil, err
 	}
 
-	log.Printf("extracted text from PDF file, pages: %d", numPages)
+	a.logger.Sugar().Infof("extracted text from PDF file, pages: %d", numPages)
 
 	var (
 		// Create the default sentence tokenizer
@@ -29,7 +28,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 
 	for i, page := range pageBytes {
 		pageNum := i + 1
-		log.Printf("processing page %d/%d", pageNum, numPages)
+		a.logger.Sugar().Infof("processing page %d/%d", pageNum, numPages)
 
 		// // Just saving the text to a file for debugging purposes
 		// f, err := os.Create(fmt.Sprintf("extracted_text_page_%d.txt", pageNum))
@@ -73,7 +72,7 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 				numTables += len(tables)
 				for _, aTable := range tables {
 					tableContexts := aTable.ToContexts()
-					log.Printf("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
+					a.logger.Sugar().Infof("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
 					for _, aContext := range tableContexts {
 						documents = append(documents, ragserver.Document{
 							Content: strings.TrimSpace(aContext),
@@ -91,10 +90,10 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 	}
 
 	for name, count := range topicCount {
-		log.Printf("%s relevant sentences: %d", name, count)
+		a.logger.Sugar().Infof("%s relevant sentences: %d", name, count)
 	}
 
-	log.Printf("number of documents: %d", len(documents))
+	a.logger.Sugar().Infof("number of documents: %d", len(documents))
 
 	return documents, nil
 }
