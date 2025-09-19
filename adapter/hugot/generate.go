@@ -86,7 +86,7 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 	}
 
 	response := ragserver.Response{
-		Text: structuredResp.Text,
+		Text: ragserver.TextValue(structuredResp.Text),
 	}
 
 	switch question.Type {

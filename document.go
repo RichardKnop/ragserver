@@ -9,6 +9,8 @@ import (
 	"github.com/RichardKnop/ragserver/pkg/authz"
 )
 
+type Vector []float32
+
 type Document struct {
 	FileID  FileID `json:"file_id"`
 	Content string `json:"content"`

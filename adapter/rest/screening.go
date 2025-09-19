@@ -141,7 +141,7 @@ func mapAnswer(question *ragserver.Question, answer ragserver.Answer) (api.Answe
 
 	apiAnswer := api.Answer{
 		QuestionId: openapi_types.UUID(question.ID.UUID[0:16]),
-		Text:       response.Text,
+		Text:       string(response.Text),
 	}
 
 	if question.Type == ragserver.QuestionTypeMetric {
