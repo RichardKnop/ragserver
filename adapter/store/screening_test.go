@@ -3,8 +3,6 @@ package store
 import (
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/pkg/authz"
 	"github.com/RichardKnop/ragserver/ragservertest"
@@ -56,7 +54,7 @@ func (s *StoreTestSuite) TestSaveScreenings_Upsert() {
 	defer cancel()
 
 	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
+		now   = time.Now().UTC()
 		file1 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 		)
@@ -88,21 +86,21 @@ func (s *StoreTestSuite) TestSaveScreenings_Upsert() {
 	s.Require().NoError(err)
 	s.Equal(screening1, savedScreening1)
 	s.Equal(ragserver.ScreeningStatusRequested, savedScreening1.Status)
-	s.Equal(now, savedScreening1.Updated.T)
+	s.Equal(now, savedScreening1.Updated)
 
 	savedScreening2, err := s.adapter.FindScreening(ctx, screening2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(screening2, savedScreening2)
 	s.Equal(ragserver.ScreeningStatusRequested, savedScreening2.Status)
-	s.Equal(now, savedScreening2.Updated.T)
+	s.Equal(now, savedScreening2.Updated)
 
 	// Let's save again to cause an upsert
 	screening1.Status = ragserver.ScreeningStatusGenerating
-	screening1.Updated.T = screening1.Updated.T.Add(1 * time.Minute)
+	screening1.Updated = screening1.Updated.Add(1 * time.Minute).UTC()
 
 	screening2.Status = ragserver.ScreeningStatusFailed
 	screening2.StatusMessage = "some error message"
-	screening2.Updated.T = screening2.Updated.T.Add(2 * time.Minute)
+	screening2.Updated = screening2.Updated.Add(2 * time.Minute).UTC()
 
 	err = s.adapter.SaveScreenings(ctx, screening1, screening2)
 	s.Require().NoError(err)
@@ -111,14 +109,14 @@ func (s *StoreTestSuite) TestSaveScreenings_Upsert() {
 	s.Require().NoError(err)
 	s.Equal(screening1, savedScreening1)
 	s.Equal(ragserver.ScreeningStatusGenerating, savedScreening1.Status)
-	s.Greater(savedScreening1.Updated.T, now)
+	s.Greater(savedScreening1.Updated, now)
 
 	savedScreening2, err = s.adapter.FindScreening(ctx, screening2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(screening2, savedScreening2)
 	s.Equal(ragserver.ScreeningStatusFailed, savedScreening2.Status)
 	s.Equal("some error message", savedScreening2.StatusMessage)
-	s.Greater(savedScreening2.Updated.T, savedScreening1.Updated.T)
+	s.Greater(savedScreening2.Updated, savedScreening1.Updated)
 }
 
 func (s *StoreTestSuite) TestListScreenings() {
@@ -130,7 +128,7 @@ func (s *StoreTestSuite) TestListScreenings() {
 	s.Empty(screenings)
 
 	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
+		now   = time.Now().UTC()
 		file1 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 		)
@@ -141,56 +139,8 @@ func (s *StoreTestSuite) TestListScreenings() {
 			ragservertest.WithScreeningAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 			ragservertest.WithScreeningFiles(file1),
 			ragservertest.WithScreeningStatus(ragserver.ScreeningStatusCompleted),
-			ragservertest.WithScreeningCreated(now),
-			ragservertest.WithScreeningUpdated(now),
-		)
-		screening2 = gen.Screening(
-			ragservertest.WithScreeningAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithScreeningFiles(file2),
-			ragservertest.WithScreeningStatus(ragserver.ScreeningStatusGenerating),
-			ragservertest.WithScreeningCreated(now),
-			ragservertest.WithScreeningUpdated(now),
-		)
-	)
-
-	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
-	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
-	s.Require().NoError(s.adapter.SaveScreenings(ctx, screening1, screening2), "error saving screening")
-	s.Require().NoError(s.adapter.SaveScreeningFiles(ctx, screening1, screening2), "error saving screening files")
-
-	s.Run("List all screenings, no filter", func() {
-		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
-		s.Require().NoError(err)
-		s.Len(screenings, 2)
-		s.Contains(screenings, screening1)
-		s.Contains(screenings, screening2)
-	})
-
-	s.Run("List all screenings, with limit", func() {
-		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{Limit: 1})
-		s.Require().NoError(err)
-		s.Len(screenings, 1)
-	})
-}
-
-func (s *StoreTestSuite) TestListScreeningsForProcessing() {
-	ctx, cancel := testContext()
-	defer cancel()
-
-	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
-		file1 = gen.File(
-			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-		)
-		file2 = gen.File(
-			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-		)
-		screening1 = gen.Screening(
-			ragservertest.WithScreeningAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithScreeningFiles(file1),
-			ragservertest.WithScreeningStatus(ragserver.ScreeningStatusGenerating),
-			ragservertest.WithScreeningCreated(now.Add(-1*time.Minute)),
-			ragservertest.WithScreeningUpdated(now.Add(-1*time.Minute)),
+			ragservertest.WithScreeningCreated(now.Add(-1*time.Hour).UTC()),
+			ragservertest.WithScreeningUpdated(now.Add(-1*time.Hour).UTC()),
 		)
 		screening2 = gen.Screening(
 			ragservertest.WithScreeningAuthorID(ragserver.AuthorID(testPrincipal.ID())),
@@ -206,19 +156,32 @@ func (s *StoreTestSuite) TestListScreeningsForProcessing() {
 	s.Require().NoError(s.adapter.SaveScreenings(ctx, screening1, screening2), "error saving screening")
 	s.Require().NoError(s.adapter.SaveScreeningFiles(ctx, screening1, screening2), "error saving screening files")
 
-	ids, err := s.adapter.ListScreeningsForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial, 10)
-	s.Require().NoError(err)
-	s.Len(ids, 1)
-	s.Equal(screening2.ID, ids[0])
+	s.Run("List all screenings, no filter", func() {
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{})
+		s.Require().NoError(err)
+		s.Len(screenings, 2)
+		s.Equal(screenings[0], screening2)
+		s.Equal(screenings[1], screening1)
+	})
 
-	sameScreening1, err := s.adapter.FindScreening(ctx, screening1.ID, authz.NilPartial)
-	s.Require().NoError(err)
-	s.Equal(screening1, sameScreening1)
+	s.Run("List all screenings, with limit", func() {
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{}, authz.NilPartial, ragserver.SortParams{Limit: 1})
+		s.Require().NoError(err)
+		s.Len(screenings, 1)
+	})
 
-	updatedScreening2, err := s.adapter.FindScreening(ctx, screening2.ID, authz.NilPartial)
-	s.Require().NoError(err)
-	s.NotEqual(screening2, updatedScreening2)
-	s.Equal(ragserver.ScreeningStatusGenerating, updatedScreening2.Status)
+	s.Run("For update skip locked", func() {
+		files, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{
+			Status: ragserver.ScreeningStatusRequested,
+			Lock:   true,
+		}, authz.NilPartial, ragserver.SortParams{
+			Limit: 1,
+			Order: ragserver.SortOrderAsc,
+			By:    `s."created"`,
+		})
+		s.Require().NoError(err)
+		s.Len(files, 1)
+	})
 }
 
 func (s *StoreTestSuite) TestDeleteScreenings() {

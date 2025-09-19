@@ -3,8 +3,6 @@ package store
 import (
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/pkg/authz"
 	"github.com/RichardKnop/ragserver/ragservertest"
@@ -48,7 +46,7 @@ func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 	defer cancel()
 
 	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
+		now   = time.Now().UTC()
 		file1 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
 			ragservertest.WithFileStatus(ragserver.FileStatusUploaded),
@@ -72,21 +70,21 @@ func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 	s.Require().NoError(err)
 	s.Equal(file1, savedFile1)
 	s.Equal(ragserver.FileStatusUploaded, savedFile1.Status)
-	s.Equal(now, savedFile1.Updated.T)
+	s.Equal(now, savedFile1.Updated)
 
 	savedFile2, err := s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(file2, savedFile2)
 	s.Equal(ragserver.FileStatusProcessing, savedFile2.Status)
-	s.Equal(now, savedFile1.Updated.T)
+	s.Equal(now, savedFile1.Updated)
 
 	// Let's save again to cause an upsert
 	file1.Status = ragserver.FileStatusProcessing
-	file1.Updated.T = file1.Updated.T.Add(1 * time.Minute)
+	file1.Updated = file1.Updated.Add(1 * time.Minute).UTC()
 
 	file2.Status = ragserver.FileStatusProcessingFailed
 	file2.StatusMessage = "some error message"
-	file2.Updated.T = file2.Updated.T.Add(2 * time.Minute)
+	file2.Updated = file2.Updated.Add(2 * time.Minute).UTC()
 
 	err = s.adapter.SaveFiles(ctx, file1, file2)
 	s.Require().NoError(err)
@@ -95,14 +93,14 @@ func (s *StoreTestSuite) TestSaveFiles_Upsert() {
 	s.Require().NoError(err)
 	s.Equal(file1, savedFile1)
 	s.Equal(ragserver.FileStatusProcessing, savedFile1.Status)
-	s.Greater(savedFile1.Updated.T, now)
+	s.Greater(savedFile1.Updated, now)
 
 	savedFile2, err = s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
 	s.Require().NoError(err)
 	s.Equal(file2, savedFile2)
 	s.Equal(ragserver.FileStatusProcessingFailed, savedFile2.Status)
 	s.Equal("some error message", savedFile2.StatusMessage)
-	s.Greater(savedFile2.Updated.T, savedFile1.Updated.T)
+	s.Greater(savedFile2.Updated, savedFile1.Updated)
 }
 
 func (s *StoreTestSuite) TestListFiles() {
@@ -114,18 +112,18 @@ func (s *StoreTestSuite) TestListFiles() {
 	s.Empty(files)
 
 	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
+		now   = time.Now().UTC()
 		file1 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithFileStatus(ragserver.FileStatusProcessing),
-			ragservertest.WithFileCreated(now.Add(-1*time.Hour)),
-			ragservertest.WithFileUpdated(now.Add(-1*time.Hour)),
+			ragservertest.WithFileStatus(ragserver.FileStatusProcessedSuccessfully),
+			ragservertest.WithFileCreated(now.Add(-1*time.Hour).UTC()),
+			ragservertest.WithFileUpdated(now.Add(-1*time.Hour).UTC()),
 			ragservertest.WithFileEmbedder("google-genai"),
 			ragservertest.WithFileRetriever("weaviate"),
 		)
 		file2 = gen.File(
 			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithFileStatus(ragserver.FileStatusProcessedSuccessfully),
+			ragservertest.WithFileStatus(ragserver.FileStatusUploaded),
 			ragservertest.WithFileCreated(now),
 			ragservertest.WithFileUpdated(now),
 			ragservertest.WithFileEmbedder("google-genai"),
@@ -140,8 +138,8 @@ func (s *StoreTestSuite) TestListFiles() {
 		files, err = s.adapter.ListFiles(ctx, ragserver.FileFilter{}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 2)
-		s.Contains(files, file1)
-		s.Contains(files, file2)
+		s.Equal(files[0], file2)
+		s.Equal(files[1], file1)
 	})
 
 	s.Run("List all files, with limit", func() {
@@ -166,12 +164,12 @@ func (s *StoreTestSuite) TestListFiles() {
 		}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
-		s.Equal(file2, files[0])
+		s.Equal(file1, files[0])
 	})
 
 	s.Run("Filter by last updated before", func() {
 		files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{
-			LastUpdatedBefore: ragserver.Time{T: now.Add(-time.Minute)},
+			LastUpdatedBefore: now.Add(-time.Minute).UTC(),
 		}, authz.NilPartial, ragserver.SortParams{})
 		s.Require().NoError(err)
 		s.Len(files, 1)
@@ -185,44 +183,19 @@ func (s *StoreTestSuite) TestListFiles() {
 		s.Len(files, 1)
 		s.Equal(file1, files[0])
 	})
-}
 
-func (s *StoreTestSuite) TestListFilesForProcessing() {
-	ctx, cancel := testContext()
-	defer cancel()
-
-	var (
-		now   = time.Now().UTC().Truncate(time.Millisecond)
-		file1 = gen.File(
-			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithFileStatus(ragserver.FileStatusProcessing),
-			ragservertest.WithFileCreated(now.Add(-1*time.Minute)),
-			ragservertest.WithFileUpdated(now.Add(-1*time.Minute)),
-		)
-		file2 = gen.File(
-			ragservertest.WithFileAuthorID(ragserver.AuthorID(testPrincipal.ID())),
-			ragservertest.WithFileStatus(ragserver.FileStatusUploaded),
-			ragservertest.WithFileCreated(now),
-			ragservertest.WithFileUpdated(now),
-		)
-	)
-
-	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal")
-	s.Require().NoError(s.adapter.SaveFiles(ctx, file1, file2), "error saving files")
-
-	ids, err := s.adapter.ListFilesForProcessing(ctx, ragserver.Time{T: now}, authz.NilPartial, 10)
-	s.Require().NoError(err)
-	s.Len(ids, 1)
-	s.Equal(file2.ID, ids[0])
-
-	sameFile1, err := s.adapter.FindFile(ctx, file1.ID, authz.NilPartial)
-	s.Require().NoError(err)
-	s.Equal(file1, sameFile1)
-
-	updatedFile2, err := s.adapter.FindFile(ctx, file2.ID, authz.NilPartial)
-	s.Require().NoError(err)
-	s.NotEqual(file2, updatedFile2)
-	s.Equal(ragserver.FileStatusProcessing, updatedFile2.Status)
+	s.Run("For update skip locked", func() {
+		files, err := s.adapter.ListFiles(ctx, ragserver.FileFilter{
+			Status: ragserver.FileStatusUploaded,
+			Lock:   true,
+		}, authz.NilPartial, ragserver.SortParams{
+			Limit: 10,
+			Order: ragserver.SortOrderAsc,
+			By:    `f."created"`,
+		})
+		s.Require().NoError(err)
+		s.Len(files, 1)
+	})
 }
 
 func (s *StoreTestSuite) TestDeleteFiles() {

@@ -19,7 +19,7 @@ screening_id=$(echo "$PAYLOAD" | curl \
 
 printf "\nCreated a screening with ID $screening_id\n"
 
-screening_url="http://localhost:8080/screnings/$screening_id"
+screening_url="http://localhost:8080/screenings/$screening_id"
 interval_in_seconds=1
 status_path=".status"
 

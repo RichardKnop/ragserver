@@ -67,7 +67,7 @@ func TestScreening_CompleteWithStatus(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.to, s.Status)
 			assert.Equal(t, tt.message, s.StatusMessage)
-			assert.Equal(t, updatedAt, s.Updated.T)
+			assert.Equal(t, updatedAt, s.Updated)
 		})
 	}
 }

@@ -28,13 +28,13 @@ func WithScreeningStatus(status ragserver.ScreeningStatus) ScreeningOption {
 
 func WithScreeningCreated(created time.Time) ScreeningOption {
 	return func(s *ragserver.Screening) {
-		s.Created = ragserver.Time{T: created}
+		s.Created = created
 	}
 }
 
 func WithScreeningUpdated(updated time.Time) ScreeningOption {
 	return func(s *ragserver.Screening) {
-		s.Updated = ragserver.Time{T: updated}
+		s.Updated = updated
 	}
 }
 
@@ -64,8 +64,8 @@ func (g *DataGen) Screening(options ...ScreeningOption) *ragserver.Screening {
 		ID:       ragserver.NewScreeningID(),
 		AuthorID: ragserver.NewAuthorID(),
 		Status:   screeningStates[0],
-		Created:  ragserver.Time{T: g.now},
-		Updated:  ragserver.Time{T: g.now},
+		Created:  g.now,
+		Updated:  g.now,
 	}
 
 	for _, o := range options {

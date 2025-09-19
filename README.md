@@ -7,7 +7,7 @@
     - [Retriever](#retriever)
     - [GenerativeModel](#generativemodel)
 - [Examples](#examples)
-- [SQLite Database](#sqlite-database)
+- [Database](#database)
 - [Configuration](#configuration)
 - [API](#api)
 - [Adding Documents To Knowledge Base](#adding-documents-to-knowledge-base)
@@ -128,11 +128,9 @@ docker compose -f examples/redis-hugot/docker-compose.yml up -d
 
 You need to have `GEMINI_API_KEY` environment variable set for the examples to work.
 
-# SQLite Database
+# Database
 
-This project uses sqlite as simple embedded SQL database. It is used to store information about uploaded files including file size, hash, content type etc. UUIDs from the SQL database should be referenced in the weaviate database as a `file_id` property.
-
-When you ran the application, it will create a new `db.sqlite` database. You can change the database file by setting `DB_NAME` environment variable.
+This project uses Postgres database. It is used to store information about uploaded files including file size, hash, content type etc. UUIDs from the SQL database should be referenced in the weaviate database as a `file_id` property.
 
 # Configuration
 
@@ -215,8 +213,8 @@ NOTE: Screenings are still work in progress - skip to next example for now.
     }
   ],
   "file_ids": [
-    "d89263ab-3954-4acb-952b-7303d0151f7b",
-    "2d3e475a-493e-4b88-ab11-3de8ab74e59a"
+    "ad0e1f45-871b-4677-838b-3ef9f28bca39",
+    "e6ce00b8-49cb-4ac7-9610-a5b42c3045da"
   ]
 }
 EOF
@@ -227,50 +225,54 @@ Response:
 
 ```json
 {
-  "answers": [],
-  "created_at": "2025-09-17T16:25:28.922341+01:00",
-  "files": [
+  "screenings": [
     {
-      "content_type": "application/pdf",
-      "created_at": "2025-09-17T15:16:49.719Z",
-      "extension": "pdf",
-      "file_name": "Statement on Emissions.pdf",
-      "hash": "65fa6d0a26e38f8a6edee1d6455d90ef6bc4ad11fd80ad69eab30f648fc0e0e4",
-      "id": "d89263ab-3954-4acb-952b-7303d0151f7b",
-      "size": 191945,
-      "status": "PROCESSED_SUCCESSFULLY",
+      "answers": [],
+      "created_at": "2025-09-19T13:40:46.827688Z",
+      "files": [
+        {
+          "content_type": "application/pdf",
+          "created_at": "2025-09-19T13:30:47.488015Z",
+          "extension": "pdf",
+          "file_name": "Statement on Emissions.pdf",
+          "hash": "65fa6d0a26e38f8a6edee1d6455d90ef6bc4ad11fd80ad69eab30f648fc0e0e4",
+          "id": "ad0e1f45-871b-4677-838b-3ef9f28bca39",
+          "size": 191945,
+          "status": "PROCESSED_SUCCESSFULLY",
+          "status_message": "",
+          "updated_at": "2025-09-19T13:30:49.136571Z"
+        },
+        {
+          "content_type": "application/pdf",
+          "created_at": "2025-09-19T13:30:56.445173Z",
+          "extension": "pdf",
+          "file_name": "TCFD Report.pdf",
+          "hash": "5498dc445bd261b635d47316828c3a0cea48e3af641b0279a667fa1e2a0c0e47",
+          "id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
+          "size": 1500685,
+          "status": "PROCESSED_SUCCESSFULLY",
+          "status_message": "",
+          "updated_at": "2025-09-19T13:30:57.885305Z"
+        }
+      ],
+      "id": "3dcdc1bf-5d63-4411-891d-131c20a19ecc",
+      "questions": [
+        {
+          "content": "What is the company's total scope 1 emissions value in 2022?",
+          "id": "a432f245-43ab-409c-a8ba-de00ce864172",
+          "type": "METRIC"
+        },
+        {
+          "content": "What is the company's specified net zero target year in 2022?",
+          "id": "d2fec63d-94a5-48f9-8cf1-0a990200e5c5",
+          "type": "METRIC"
+        }
+      ],
+      "status": "REQUESTED",
       "status_message": "",
-      "updated_at": "2025-09-17T15:16:50.79Z"
-    },
-    {
-      "content_type": "application/pdf",
-      "created_at": "2025-09-17T15:17:03.903Z",
-      "extension": "pdf",
-      "file_name": "TCFD Report.pdf",
-      "hash": "5498dc445bd261b635d47316828c3a0cea48e3af641b0279a667fa1e2a0c0e47",
-      "id": "2d3e475a-493e-4b88-ab11-3de8ab74e59a",
-      "size": 1500685,
-      "status": "PROCESSED_SUCCESSFULLY",
-      "status_message": "",
-      "updated_at": "2025-09-17T15:17:05.698Z"
+      "updated_at": "2025-09-19T13:40:46.827688Z"
     }
-  ],
-  "id": "d5f54b05-a75c-4357-bd0b-137a5623c761",
-  "questions": [
-    {
-      "content": "What is the company's total scope 1 emissions value in 2022?",
-      "id": "373a4e5b-66b8-4964-8c70-305e6f0818ec",
-      "type": "METRIC"
-    },
-    {
-      "content": "What is the company's specified net zero target year in 2022?",
-      "id": "2d0a4f73-04bb-4497-b771-b45b52710c21",
-      "type": "METRIC"
-    }
-  ],
-  "status": "REQUESTED",
-  "status_message": "",
-  "updated_at": "2025-09-17T16:25:28.922341+01:00"
+  ]
 }
 ```
 
@@ -284,8 +286,8 @@ Response:
     "content": "What is the company's total scope 1 emissions value in 2022?"
   },
   "file_ids": [
-    "67817687-8652-4734-af0a-7962955bce4a",
-    "e6cdec78-1e35-46fc-a175-7764e71903ba"
+    "ad0e1f45-871b-4677-838b-3ef9f28bca39",
+    "e6ce00b8-49cb-4ac7-9610-a5b42c3045da"
   ]
 }
 EOF
@@ -300,29 +302,22 @@ Example response:
     {
       "evidence": [
         {
-          "file_id": "73ad3166-1627-4b7e-82a3-31427ad5444e",
+          "file_id": "e6ce00b8-49cb-4ac7-9610-a5b42c3045da",
           "page": 43,
-          "text": "Total Scope 1 emissions: 86,602 (2019 baseline), 78,087 (2020), 73,319* (2021), 77,476* (2022)."
-        },
-        {
-          "file_id": "67224b92-bb64-457d-8cfc-584539292c5c",
-          "page": 3,
-          "text": "For Scope 1 and Scope 2 (location & market based) Emissions in 2022: Total Scope 1 was 77,476; Total Scope 2 (location) was 593,495; Total Scope 2 (market) was 4,424; Total Scope 1 and 2 (location) was 670,972; Total Scope 1 and 2 (market) was 81,901."
+          "text": "Total Scope 1 for year 2022 is 77476 MTCO2e"
         }
       ],
       "metric": {
-        "unit": "tCO2e",
+        "unit": "MTCO2e",
         "value": 77476
       },
-      "text": "The company's Scope 1 emissions value in 2022 was 77,476 tCO2e."
+      "question_id": "00000000-0000-0000-0000-000000000000",
+      "text": "The company's total Scope 1 emissions for 2022 are 77476 MTCO2e."
     }
   ],
   "question": {
-    "content": "What was the company's Scope 1 emissions value (in tCO2e) in 2022?",
-    "file_ids": [
-      "67224b92-bb64-457d-8cfc-584539292c5c",
-      "73ad3166-1627-4b7e-82a3-31427ad5444e"
-    ],
+    "content": "What is the company's total scope 1 emissions value in 2022?",
+    "id": "00000000-0000-0000-0000-000000000000",
     "type": "METRIC"
   }
 }

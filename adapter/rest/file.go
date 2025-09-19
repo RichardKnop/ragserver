@@ -63,8 +63,8 @@ func mapFile(file *ragserver.File) api.File {
 		Hash:          file.Hash,
 		Status:        api.FileStatus(file.Status),
 		StatusMessage: file.StatusMessage,
-		CreatedAt:     file.Created.T,
-		UpdatedAt:     file.Updated.T,
+		CreatedAt:     file.Created,
+		UpdatedAt:     file.Updated,
 	}
 }
 

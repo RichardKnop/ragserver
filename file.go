@@ -58,8 +58,8 @@ type File struct {
 	Location      string
 	Status        FileStatus
 	StatusMessage string
-	Created       Time
-	Updated       Time
+	Created       time.Time
+	Updated       time.Time
 	Documents     []Document
 }
 
@@ -72,7 +72,7 @@ func (f *File) CompleteWithStatus(newStatus FileStatus, message string, updatedA
 
 	f.Status = newStatus
 	f.StatusMessage = message
-	f.Updated = Time{T: updatedAt}
+	f.Updated = updatedAt
 
 	log.Printf("state change for file: %s status: %s", f.ID, f.Status)
 
@@ -83,8 +83,9 @@ type FileFilter struct {
 	Embedder          string
 	Retriever         string
 	Status            FileStatus
-	LastUpdatedBefore Time
+	LastUpdatedBefore time.Time
 	ScreeningID       ScreeningID
+	Lock              bool
 }
 
 func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
@@ -128,8 +129,8 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		Retriever:   rs.retriever.Name(),
 		Location:    tempFile.Name(),
 		Status:      FileStatusUploaded,
-		Created:     Time{rs.now()},
-		Updated:     Time{rs.now()},
+		Created:     rs.now(),
+		Updated:     rs.now(),
 	}
 
 	switch contentType {

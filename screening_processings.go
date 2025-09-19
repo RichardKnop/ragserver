@@ -57,29 +57,29 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 	var screenings []*Screening
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		now := rs.now()
-
 		var err error
 		// For now, let's only process a single screening at a time by each processing goroutine
-		ids, err := rs.store.ListScreeningsForProcessing(ctx, Time{T: now}, rs.screeningPartial(), 1)
+		screenings, err = rs.store.ListScreenings(ctx, ScreeningFilter{}, rs.screeningPartial(), SortParams{
+			Limit: 1,
+			Order: SortOrderAsc,
+			By:    `s."created"`,
+		})
 		if err != nil {
 			return fmt.Errorf("list screenings: %w", err)
 		}
 
-		if len(ids) == 0 {
+		if len(screenings) == 0 {
 			return nil
 		}
 
-		for _, id := range ids {
-			aScreening, err := rs.store.FindScreening(ctx, id, rs.screeningPartial())
-			if err != nil {
-				return fmt.Errorf("find file: %w", err)
-			}
-			screenings = append(screenings, aScreening)
+		now := rs.now()
+		for _, aScreening := range screenings {
+			aScreening.Status = ScreeningStatusGenerating
+			aScreening.Updated = now
 			log.Printf("state change for screening: %s status: %s", aScreening.ID, aScreening.Status)
 		}
 
-		return nil
+		return rs.store.SaveScreenings(ctx, screenings...)
 	}); err != nil {
 		return 0, err
 	}
@@ -101,7 +101,7 @@ func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {
 
 		screenings, err := rs.store.ListScreenings(ctx, ScreeningFilter{
 			Status:            ScreeningStatusGenerating,
-			LastUpdatedBefore: Time{T: now.Add(-processScreeningTimeout)},
+			LastUpdatedBefore: now.Add(-processScreeningTimeout),
 		}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return fmt.Errorf("list screenings: %w", err)

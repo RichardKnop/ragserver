@@ -73,8 +73,8 @@ func mapScreening(screening *ragserver.Screening) (api.Screening, error) {
 		StatusMessage: api.String(screening.StatusMessage),
 		Files:         mapFiles(screening.Files).Files,
 		Questions:     mapQuestions(screening.Questions),
-		CreatedAt:     screening.Created.T,
-		UpdatedAt:     screening.Updated.T,
+		CreatedAt:     screening.Created,
+		UpdatedAt:     screening.Updated,
 	}
 
 	var err error

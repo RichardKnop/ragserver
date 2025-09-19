@@ -34,7 +34,7 @@ func WithQuestionContent(content string) QuestionOption {
 
 func WithQuestionCreated(created time.Time) QuestionOption {
 	return func(q *ragserver.Question) {
-		q.Created = ragserver.Time{T: created}
+		q.Created = created
 	}
 }
 
@@ -51,7 +51,7 @@ func (g *DataGen) Question(options ...QuestionOption) *ragserver.Question {
 		ID:       ragserver.NewQuestionID(),
 		AuthorID: ragserver.NewAuthorID(),
 		Type:     questionTypes[0],
-		Created:  ragserver.Time{T: g.now},
+		Created:  g.now,
 	}
 
 	for _, o := range options {

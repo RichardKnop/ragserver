@@ -67,7 +67,7 @@ func TestFile_CompleteWithStatus(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.to, f.Status)
 			assert.Equal(t, tt.message, f.StatusMessage)
-			assert.Equal(t, updatedAt, f.Updated.T)
+			assert.Equal(t, updatedAt, f.Updated)
 		})
 	}
 }

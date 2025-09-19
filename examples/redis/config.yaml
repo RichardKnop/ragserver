@@ -2,8 +2,16 @@ http:
   port: 8080
 
 db:
-  name: db.sqlite
-  opts: _fk=true&_journal=WAL&_timeout=5000
+  host: localhost
+  port: 5432
+  user: "ragserver"
+  password: "ragserver"
+  name: "ragserver"
+  sslmode: disable
+
+weaviate:
+  addr: localhost:9035
+
 
 redis:
   addr: localhost:6379

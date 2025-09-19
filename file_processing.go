@@ -69,28 +69,30 @@ func jitter(ctx context.Context, jitterDuration time.Duration) error {
 func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 	var files []*File
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
-		now := rs.now()
-
 		var err error
-		ids, err := rs.store.ListFilesForProcessing(ctx, Time{T: now}, rs.filePpartial(), 10)
+		files, err = rs.store.ListFiles(ctx, FileFilter{
+			Status: FileStatusUploaded,
+		}, rs.filePpartial(), SortParams{
+			Limit: 10,
+			Order: SortOrderAsc,
+			By:    `f."created"`,
+		})
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)
 		}
 
-		if len(ids) == 0 {
+		if len(files) == 0 {
 			return nil
 		}
 
-		for _, id := range ids {
-			aFile, err := rs.store.FindFile(ctx, id, rs.filePpartial())
-			if err != nil {
-				return fmt.Errorf("find file: %w", err)
-			}
-			files = append(files, aFile)
+		now := rs.now()
+		for _, aFile := range files {
+			aFile.Status = FileStatusProcessing
+			aFile.Updated = now
 			log.Printf("state change for file: %s status: %s", aFile.ID, aFile.Status)
 		}
 
-		return nil
+		return rs.store.SaveFiles(ctx, files...)
 	}); err != nil {
 		return 0, err
 	}
@@ -112,7 +114,7 @@ func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
 
 		files, err := rs.store.ListFiles(ctx, FileFilter{
 			Status:            FileStatusProcessing,
-			LastUpdatedBefore: Time{T: now.Add(-processFileTimeout)},
+			LastUpdatedBefore: now.Add(-processFileTimeout),
 		}, rs.filePpartial(), SortParams{})
 		if err != nil {
 			return fmt.Errorf("list files: %w", err)

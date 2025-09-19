@@ -34,13 +34,13 @@ func WithFileStatus(status ragserver.FileStatus) FileOption {
 
 func WithFileCreated(created time.Time) FileOption {
 	return func(f *ragserver.File) {
-		f.Created = ragserver.Time{T: created}
+		f.Created = created
 	}
 }
 
 func WithFileUpdated(updated time.Time) FileOption {
 	return func(f *ragserver.File) {
-		f.Updated = ragserver.Time{T: updated}
+		f.Updated = updated
 	}
 }
 
@@ -66,8 +66,8 @@ func (g *DataGen) File(options ...FileOption) *ragserver.File {
 		Retriever:   g.Name(),
 		Location:    g.Word(),
 		Status:      fileStates[0],
-		Created:     ragserver.Time{T: g.now},
-		Updated:     ragserver.Time{T: g.now},
+		Created:     g.now,
+		Updated:     g.now,
 	}
 
 	for _, o := range options {

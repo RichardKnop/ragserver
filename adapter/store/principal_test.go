@@ -2,7 +2,6 @@ package store
 
 import (
 	"github.com/gofrs/uuid/v5"
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/RichardKnop/ragserver/pkg/authz"
 )
@@ -20,7 +19,7 @@ func (s *StoreTestSuite) TestSavePrincipal() {
 	s.Require().NoError(s.adapter.SavePrincipal(ctx, testPrincipal), "error saving principal again (upsert)")
 
 	// Check principal was saved
-	stmt, err := s.db.Prepare(`select "id", "name" from "principal" where "id" = ?`)
+	stmt, err := s.db.Prepare(toPostgresParams(`select "id", "name" from "principal" where "id" = ?`))
 	s.Require().NoError(err)
 	defer stmt.Close()
 

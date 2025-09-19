@@ -48,7 +48,6 @@ type FileStore interface {
 	SaveFiles(ctx context.Context, file ...*File) error
 	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial, params SortParams) ([]*File, error)
 	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)
-	ListFilesForProcessing(ctx context.Context, now Time, partial authz.Partial, limit int) ([]FileID, error)
 }
 
 type ScreeningStgore interface {
@@ -57,6 +56,5 @@ type ScreeningStgore interface {
 	SaveScreeningQuestions(ctx context.Context, screenings ...*Screening) error
 	ListScreenings(ctx context.Context, filter ScreeningFilter, partial authz.Partial, params SortParams) ([]*Screening, error)
 	FindScreening(ctx context.Context, id ScreeningID, partial authz.Partial) (*Screening, error)
-	ListScreeningsForProcessing(ctx context.Context, now Time, partial authz.Partial, limit int) ([]ScreeningID, error)
 	SaveAnswer(ctx context.Context, answer Answer) error
 }

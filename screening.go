@@ -40,8 +40,8 @@ type Screening struct {
 	Answers       []Answer
 	Status        ScreeningStatus
 	StatusMessage string
-	Created       Time
-	Updated       Time
+	Created       time.Time
+	Updated       time.Time
 }
 
 // CompleteWithStatus changes the status of a screening to a completion status,
@@ -53,7 +53,7 @@ func (s *Screening) CompleteWithStatus(newStatus ScreeningStatus, message string
 
 	s.Status = newStatus
 	s.StatusMessage = message
-	s.Updated = Time{T: updatedAt}
+	s.Updated = updatedAt
 
 	log.Printf("state change for screening: %s status: %s", s.ID, s.Status)
 
@@ -62,7 +62,8 @@ func (s *Screening) CompleteWithStatus(newStatus ScreeningStatus, message string
 
 type ScreeningFilter struct {
 	Status            ScreeningStatus
-	LastUpdatedBefore Time
+	LastUpdatedBefore time.Time
+	Lock              bool
 }
 
 type QuestionType string
@@ -85,14 +86,14 @@ type Question struct {
 	ScreeningID ScreeningID
 	Type        QuestionType
 	Content     string
-	Created     Time
-	Answered    Time
+	Created     time.Time
+	Answered    time.Time
 }
 
 type Answer struct {
 	QuestionID QuestionID
 	Response   string
-	Created    Time
+	Created    time.Time
 }
 
 type QuestionFilter struct {
@@ -109,8 +110,8 @@ func (rs *ragServer) CreateScreening(ctx context.Context, principal authz.Princi
 		ID:        NewScreeningID(),
 		AuthorID:  AuthorID{principal.ID().UUID},
 		Status:    ScreeningStatusRequested,
-		Created:   Time{rs.now()},
-		Updated:   Time{rs.now()},
+		Created:   rs.now(),
+		Updated:   rs.now(),
 		Files:     files,
 		Questions: make([]*Question, 0, len(params.Questions)),
 	}
@@ -122,7 +123,7 @@ func (rs *ragServer) CreateScreening(ctx context.Context, principal authz.Princi
 			ScreeningID: aScreening.ID,
 			Type:        aQuestion.Type,
 			Content:     aQuestion.Content,
-			Created:     Time{rs.now()},
+			Created:     rs.now(),
 		})
 	}
 

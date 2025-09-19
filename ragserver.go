@@ -40,7 +40,7 @@ func New(extractor Extractor, embedder Embedder, retriever Retriever, gm Generat
 		retriever:  retriever,
 		generative: gm,
 		store:      storeAdapter,
-		now:        time.Now,
+		now:        func() time.Time { return time.Now().UTC() },
 	}
 
 	for _, o := range options {

@@ -91,8 +91,14 @@ func (q insertScreeningsQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, ?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)
+		insert into "ragserver"."screening" (
+			"id",
+			"author",
+			"status",
+			"created",
+			"updated"
+		)
+		values (?, ?, (select "id" from "ragserver"."screening_status" fs where fs."name" = ?), ?, ?)
 	`
 	args := make([]any, 0, len(q.screenings)*5)
 	args = append(
@@ -104,7 +110,7 @@ func (q insertScreeningsQuery) SQL() (string, []any) {
 		q.screenings[0].Updated,
 	)
 	for i := range q.screenings[1:] {
-		query += `, (?, ?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, ?, (select "id" from "ragserver"."screening_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.screenings[i+1].ID,
@@ -115,24 +121,13 @@ func (q insertScreeningsQuery) SQL() (string, []any) {
 		)
 	}
 	query += `
-		)
-		insert into "screening" (
-			"id",
-			"author",
-			"status",
-			"created",
-			"updated"
-		)
-		select * 
-		from cte
-		where 1
 		on conflict("id") do update set
 			"author"=excluded."author",
 			"status"=excluded."status",
 			"updated"=excluded."updated"
 	`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type insertScreeningStatusEventsQuery struct {
@@ -145,8 +140,13 @@ func (q insertScreeningStatusEventsQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)
+		insert into "ragserver"."screening_status_evt" (
+			"screening", 
+			"status",
+			"message",
+			"created"
+		)
+		values (?, (select "id" from "ragserver"."screening_status" fs where fs."name" = ?), ?, ?)
 	`
 	args := make([]any, 0, len(q.screenings)*4)
 	args = append(
@@ -157,7 +157,7 @@ func (q insertScreeningStatusEventsQuery) SQL() (string, []any) {
 		q.screenings[0].Created,
 	)
 	for i := range q.screenings[1:] {
-		query += `, (?, (select "id" from "screening_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, (select "id" from "ragserver"."screening_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.screenings[i+1].ID,
@@ -166,20 +166,8 @@ func (q insertScreeningStatusEventsQuery) SQL() (string, []any) {
 			q.screenings[i+1].Created,
 		)
 	}
-	query += `
-		)
-		insert into "screening_status_evt" (
-			"screening", 
-			"status",
-			"message",
-			"created"
-		)
-		select * 
-		from cte
-		where 1
-	`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type insertScreeningFilesQuery struct {
@@ -192,8 +180,12 @@ func (q insertScreeningFilesQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, ?, ?)
+		insert into "ragserver"."screening_file" (
+			"screening", 
+			"file",
+			"order"
+		)
+		values (?, ?, ?)
 	`
 	args := make([]any, 0, len(q.Files)*2)
 	args = append(
@@ -211,19 +203,8 @@ func (q insertScreeningFilesQuery) SQL() (string, []any) {
 			i+1, // order
 		)
 	}
-	query += `
-		)
-		insert into "screening_file" (
-			"screening", 
-			"file",
-			"order"
-		)
-		select * 
-		from cte
-		where 1
-	`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type insertScreeningQuestionsQuery struct {
@@ -236,8 +217,16 @@ func (q insertScreeningQuestionsQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, ?, (select "id" from "question_type" fs where fs."name" = ?), ?, ?, ?, ?)
+		insert into "ragserver"."question" (
+			"id",
+			"author",
+			"type", 
+			"content",
+			"screening",
+			"order",
+			"created"
+		)
+		values (?, ?, (select "id" from "ragserver"."question_type" fs where fs."name" = ?), ?, ?, ?, ?)
 	`
 	args := make([]any, 0, len(q.Questions)*8)
 	args = append(
@@ -251,7 +240,7 @@ func (q insertScreeningQuestionsQuery) SQL() (string, []any) {
 		q.Questions[0].Created,
 	)
 	for i := range q.Questions[1:] {
-		query += `, (?, ?, (select "id" from "question_type" fs where fs."name" = ?), ?, ?, ?, ?)`
+		query += `, (?, ?, (select "id" from "ragserver"."question_type" fs where fs."name" = ?), ?, ?, ?, ?)`
 		args = append(
 			args,
 			q.Questions[i+1].ID,
@@ -263,23 +252,8 @@ func (q insertScreeningQuestionsQuery) SQL() (string, []any) {
 			q.Questions[i+1].Created,
 		)
 	}
-	query += `
-		)
-		insert into "question" (
-			"id",
-			"author",
-			"type", 
-			"content",
-			"screening",
-			"order",
-			"created"
-		)
-		select * 
-		from cte
-		where 1
-	`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 var (
@@ -295,21 +269,17 @@ var (
 func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.ScreeningFilter, partial authz.Partial, params ragserver.SortParams) ([]*ragserver.Screening, error) {
 	var screenings []*ragserver.Screening
 
+	// Validate params
+	if !params.Empty() && !params.Valid(validScreeningSortFields) {
+		return nil, fmt.Errorf("invalid sort params: %v", params)
+	}
+
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		sql, args := selectScreeningsQuery{
 			filter:  filter,
 			partial: partial,
+			params:  params,
 		}.SQL()
-
-		// Add order by clause and/or limit if any
-		if params.Empty() {
-			params = defaultScreeningSortParams
-		}
-		if params.Valid(validScreeningSortFields) {
-			sql += params.SQL()
-		} else {
-			return fmt.Errorf("invalid sort params: %v", params)
-		}
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -333,8 +303,8 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 			sql, args = selectFilesQuery{
 				filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
 				partial: partial,
+				params:  ragserver.SortParams{By: `sf."order"`, Order: ragserver.SortOrderAsc},
 			}.SQL()
-			sql += ` order by sf."order" desc`
 
 			rows, err = tx.QueryContext(ctx, sql, args...)
 			if err != nil {
@@ -357,8 +327,8 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 			sql, args = selectQuestionsQuery{
 				filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
 				partial: partial,
+				params:  ragserver.SortParams{By: `q."order"`, Order: ragserver.SortOrderAsc},
 			}.SQL()
-			sql += ` order by q."order" desc`
 
 			rows, err = tx.QueryContext(ctx, sql, args...)
 			if err != nil {
@@ -411,6 +381,7 @@ func (a *Adapter) ListScreenings(ctx context.Context, filter ragserver.Screening
 type selectScreeningsQuery struct {
 	filter  ragserver.ScreeningFilter
 	partial authz.Partial
+	params  ragserver.SortParams
 }
 
 func (q selectScreeningsQuery) SQL() (string, []any) {
@@ -422,7 +393,7 @@ func (q selectScreeningsQuery) SQL() (string, []any) {
 			sse."message" as "status_message",
 			s."created",
 			s."updated"
-		from "screening" s
+		from "ragserver"."screening" s
 		inner join "screening_status" ss on s."status" = ss."id"
 		inner join "screening_status_evt" sse on sse."screening" = s."id" and sse."status" = ss."id"
 	`
@@ -445,7 +416,17 @@ func (q selectScreeningsQuery) SQL() (string, []any) {
 		args = append(args, whereArgs...)
 	}
 
-	return query, args
+	// Add order by clause and/or limit if any
+	if q.params.Empty() {
+		q.params = defaultScreeningSortParams
+	}
+	query += q.params.SQL()
+
+	if q.filter.Lock {
+		query += " for update skip locked"
+	}
+
+	return toPostgresParams(query), args
 }
 
 func screeningFilterClauses(filter ragserver.ScreeningFilter) (string, []any) {
@@ -459,7 +440,7 @@ func screeningFilterClauses(filter ragserver.ScreeningFilter) (string, []any) {
 		args = append(args, filter.Status)
 	}
 
-	if !filter.LastUpdatedBefore.T.IsZero() {
+	if !filter.LastUpdatedBefore.IsZero() {
 		clauses = append(clauses, `s."updated" < ?`)
 		args = append(args, filter.LastUpdatedBefore)
 	}
@@ -495,8 +476,8 @@ func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, p
 		sql, args := selectFilesQuery{
 			filter:  ragserver.FileFilter{ScreeningID: aScreening.ID},
 			partial: partial,
+			params:  ragserver.SortParams{By: `sf."order"`, Order: ragserver.SortOrderAsc},
 		}.SQL()
-		sql += ` order by sf."order"`
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -519,8 +500,8 @@ func (a *Adapter) FindScreening(ctx context.Context, id ragserver.ScreeningID, p
 		sql, args = selectQuestionsQuery{
 			filter:  ragserver.QuestionFilter{ScreeningID: aScreening.ID},
 			partial: partial,
+			params:  ragserver.SortParams{By: `q."order"`, Order: ragserver.SortOrderAsc},
 		}.SQL()
-		sql += ` order by q."order"`
 
 		rows, err = tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -581,7 +562,7 @@ func (q findScreeningQuery) SQL() (string, []any) {
 			sse."message" as "status_message",
 			s."created",
 			s."updated"
-		from "screening" s
+		from "ragserver"."screening" s
 		inner join "screening_status" ss on s."status" = ss."id"	
 		inner join "screening_status_evt" sse on sse."screening" = s."id" and sse."status" = ss."id" 
 		where s."id" = ?
@@ -596,13 +577,15 @@ func (q findScreeningQuery) SQL() (string, []any) {
 		args = append(args, partialArgs...)
 	}
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 func scanScreening(row Scannable) (*ragserver.Screening, error) {
 	var (
 		aScreening    = new(ragserver.Screening)
 		statusMessage = sql.NullString{}
+		created       sql.NullTime
+		updated       sql.NullTime
 	)
 
 	if err := row.Scan(
@@ -610,8 +593,8 @@ func scanScreening(row Scannable) (*ragserver.Screening, error) {
 		&aScreening.AuthorID,
 		&aScreening.Status,
 		&statusMessage,
-		&aScreening.Created,
-		&aScreening.Updated,
+		&created,
+		&updated,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
@@ -623,12 +606,16 @@ func scanScreening(row Scannable) (*ragserver.Screening, error) {
 		aScreening.StatusMessage = statusMessage.String
 	}
 
+	aScreening.Created = created.Time.UTC()
+	aScreening.Updated = updated.Time.UTC()
+
 	return aScreening, nil
 }
 
 type selectQuestionsQuery struct {
 	filter  ragserver.QuestionFilter
 	partial authz.Partial
+	params  ragserver.SortParams
 }
 
 func (q selectQuestionsQuery) SQL() (string, []any) {
@@ -641,7 +628,7 @@ func (q selectQuestionsQuery) SQL() (string, []any) {
 			q."screening",
 			q."created",
 			q."answered"
-		from "question" q
+		from "ragserver"."question" q
 		inner join "question_type" qt on q."type" = qt."id"
 	`
 	args := []any{}
@@ -663,7 +650,11 @@ func (q selectQuestionsQuery) SQL() (string, []any) {
 		args = append(args, whereArgs...)
 	}
 
-	return query, args
+	if !q.params.Empty() {
+		query += q.params.SQL()
+	}
+
+	return toPostgresParams(query), args
 }
 
 func questionFilterClauses(filter ragserver.QuestionFilter) (string, []any) {
@@ -685,7 +676,11 @@ func questionFilterClauses(filter ragserver.QuestionFilter) (string, []any) {
 }
 
 func scanQuestion(row Scannable) (*ragserver.Question, error) {
-	var aQuestion = new(ragserver.Question)
+	var (
+		aQuestion = new(ragserver.Question)
+		created   sql.NullTime
+		answered  sql.NullTime
+	)
 
 	if err := row.Scan(
 		&aQuestion.ID,
@@ -693,13 +688,18 @@ func scanQuestion(row Scannable) (*ragserver.Question, error) {
 		&aQuestion.Type,
 		&aQuestion.Content,
 		&aQuestion.ScreeningID,
-		&aQuestion.Created,
-		&aQuestion.Answered,
+		&created,
+		&answered,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan question failed: %w", err)
+	}
+
+	aQuestion.Created = created.Time.UTC()
+	if answered.Valid {
+		aQuestion.Answered = answered.Time.UTC()
 	}
 
 	return aQuestion, nil
@@ -719,7 +719,7 @@ func (q selectAnswersQuery) SQL() (string, []any) {
 			a."question",
 			a."response",
 			a."created"
-		from "answer" a
+		from "ragserver"."answer" a
 		where a."question" in (?
 	`
 	args := make([]any, 0, len(q.questions))
@@ -730,22 +730,27 @@ func (q selectAnswersQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 func scanAnswer(row Scannable) (ragserver.Answer, error) {
-	var anAnswer = ragserver.Answer{}
+	var (
+		anAnswer = ragserver.Answer{}
+		created  sql.NullTime
+	)
 
 	if err := row.Scan(
 		&anAnswer.QuestionID,
 		&anAnswer.Response,
-		&anAnswer.Created,
+		&created,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ragserver.Answer{}, ragserver.ErrNotFound
 		}
 		return ragserver.Answer{}, fmt.Errorf("scan answer failed: %w", err)
 	}
+
+	anAnswer.Created = created.Time.UTC()
 
 	return anAnswer, nil
 }
@@ -769,109 +774,13 @@ type insertAnswerQuery struct {
 }
 
 func (q insertAnswerQuery) SQL() (string, []any) {
-	sql := `
-		insert into "answer" ("question", "response", "created")
+	query := `
+		insert into "ragserver"."answer" ("question", "response", "created")
 		values (?, ?, ?)
 	`
 	args := []any{q.QuestionID, q.Response, q.Created}
 
-	return sql, args
-}
-
-// ListScreeningsForProcessing lists IDs of screenings are in REQUESTED state and ready for GENERATING.
-// It starts with an UPDATE query to escalate transaction from read to write, this way concurrent
-// transactions will not be able to select the same screenings even within the same sqlite DB connection.
-func (a *Adapter) ListScreeningsForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial, limit int) ([]ragserver.ScreeningID, error) {
-	if limit < 1 {
-		return nil, nil
-	}
-
-	var ids []ragserver.ScreeningID
-	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
-		// First, update files from UPLOADED to PROCESSING to lock them for this transaction
-		sql, args := listScreeningsForProcessing{
-			now:     now,
-			partial: partial,
-			limit:   limit,
-		}.SQL()
-
-		stmt, err := tx.Prepare(sql)
-		if err != nil {
-			return fmt.Errorf("prepare statement failed: %w", err)
-		}
-		defer stmt.Close()
-
-		rows, err := stmt.QueryContext(ctx, args...)
-		if err != nil {
-			return fmt.Errorf("query context failed: %w", err)
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id ragserver.ScreeningID
-			if err := rows.Scan(&id); err != nil {
-				return fmt.Errorf("scan file ID failed: %w", err)
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-
-		if len(ids) == 0 {
-			return nil
-		}
-
-		// Append screening lifecycle events for the screenings we just updated
-		screenings := make([]*ragserver.Screening, 0, len(ids))
-		for _, id := range ids {
-			screenings = append(screenings, &ragserver.Screening{
-				ID:      id,
-				Status:  ragserver.ScreeningStatusGenerating,
-				Created: now,
-			})
-		}
-		if err := execQueryCheckRowsAffected(ctx, tx, insertScreeningStatusEventsQuery{screenings: screenings}); err != nil {
-			return fmt.Errorf("exec insert screening status events query failed: %w", err)
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return ids, nil
-}
-
-type listScreeningsForProcessing struct {
-	now     ragserver.Time
-	partial authz.Partial
-	limit   int
-}
-
-func (q listScreeningsForProcessing) SQL() (string, []any) {
-	query := fmt.Sprintf(`
-		update "screening" set 
-			"status" = (select "id" from "screening_status" ss where ss."name" = ?), 
-			"updated" = ?
-		where 
-			"id" in (
-				select "id" from "screening" 
-				where "status" = (select "id" from "screening_status" ss where ss."name" = ?) 
-				order by "created" asc limit %d
-			)
-	`, q.limit)
-	args := []any{ragserver.ScreeningStatusGenerating, q.now, ragserver.ScreeningStatusRequested}
-
-	// Add where clauses from the partial if any
-	partialClauses, partialArgs := q.partial.SQL()
-	if partialClauses != "" {
-		query += " and " + partialClauses
-
-		args = append(args, partialArgs...)
-	}
-
-	query += ` returning "id"`
-
-	return query, args
+	return toPostgresParams(query), args
 }
 
 func (a *Adapter) DeleteScreenings(ctx context.Context, screenings ...*ragserver.Screening) error {
@@ -913,7 +822,7 @@ func (q deleteScreeningFilesQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "screening_file" where "screening" in (?`
+	query := `delete from "ragserver"."screening_file" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
@@ -922,7 +831,7 @@ func (q deleteScreeningFilesQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type deleteScreeningQuestionsQuery struct {
@@ -934,7 +843,7 @@ func (q deleteScreeningQuestionsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "question" where "screening" in (?`
+	query := `delete from "ragserver"."question" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
@@ -943,7 +852,7 @@ func (q deleteScreeningQuestionsQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type deleteScreeningStatusEventsQuery struct {
@@ -955,7 +864,7 @@ func (q deleteScreeningStatusEventsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "screening_status_evt" where "screening" in (?`
+	query := `delete from "ragserver"."screening_status_evt" where "screening" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
@@ -964,7 +873,7 @@ func (q deleteScreeningStatusEventsQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type deleteScreeningsQuery struct {
@@ -976,7 +885,7 @@ func (q deleteScreeningsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "screening" where "id" in (?`
+	query := `delete from "ragserver"."screening" where "id" in (?`
 	args := make([]any, 0, len(q.screenings))
 	args = append(args, q.screenings[0].ID)
 	for i := range q.screenings[1:] {
@@ -985,5 +894,5 @@ func (q deleteScreeningsQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }

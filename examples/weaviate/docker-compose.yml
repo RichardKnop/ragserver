@@ -1,12 +1,35 @@
 ---
 version: '3.4'
 services:
+  db:
+    image: postgres:17.6-alpine3.22
+    restart: always
+    shm_size: 512mb
+    environment:
+      - POSTGRES_DB=ragserver
+      - POSTGRES_USER=ragserver
+      - POSTGRES_PASSWORD=ragserver
+      - PGDATA=/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: redis/redis-stack-server:7.2.0-v18
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+    volumes:
+      - redis_data:/data
   ragserver:
     container_name: ragserver-weaviate
     image: ragserver-weaviate:latest
     depends_on:
+      - db
       - weaviate
     links:
+      - db
       - weaviate
     build:
       context: ./../../
@@ -15,8 +38,8 @@ services:
         CMD_PKG: examples/weaviate
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      DB_NAME: /data/ragserver-weaviate.sqlite
-      DB_OPTS: _fk=true&_journal=WAL&_timeout=5000
+      DB_USER: ragserver
+      DB_NAME: ragserver
       WEAVIATE_ADDR: weaviate:9035
       ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/google-genai/
     volumes:
@@ -52,6 +75,6 @@ services:
       CLUSTER_HOSTNAME: 'node1'
       DISABLE_TELEMETRY: true
 volumes:
-  ragserver_data:
+  postgres_data:
+  redis_data:
   ragserver_models:
-  weaviate_data:

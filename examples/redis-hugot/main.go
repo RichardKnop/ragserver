@@ -17,7 +17,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/knights-analytics/hugot"
 	hugotOptions "github.com/knights-analytics/hugot/options"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
@@ -55,8 +55,19 @@ func main() {
 	}
 
 	// Connect to the database
-	log.Println("connecting to db: ", viper.GetString("db.name"), "opts: ", viper.GetString("db.opts"))
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?%s", viper.GetString("db.name"), viper.GetString("db.opts")))
+	log.Println("connecting to db: ", viper.GetString("db.name"))
+	db, err := sql.Open(
+		"postgres",
+		fmt.Sprintf(
+			"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+			viper.GetString("db.user"),
+			viper.GetString("db.password"),
+			viper.GetString("db.host"),
+			viper.GetString("db.port"),
+			viper.GetString("db.name"),
+			viper.GetString("db.sslmode"),
+		),
+	)
 	if err != nil {
 		log.Fatal("db open:", err)
 	}

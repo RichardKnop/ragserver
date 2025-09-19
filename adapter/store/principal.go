@@ -28,19 +28,19 @@ type insertPrincipalQuery struct {
 
 func (q insertPrincipalQuery) SQL() (string, []any) {
 	query := `
-		insert into "principal" (
+		insert into "ragserver"."principal" (
 			"id", 
 			"name"
 		)
 		values (?, ?)
 		on conflict("id") do update set
 			"name"=excluded."name",
-			"updated"=strftime('%Y-%m-%dT%H:%M:%fZ')
+			"updated"=now()
 	`
 	args := []any{
 		q.ID(),
 		sql.NullString{String: q.Name(), Valid: q.Name() != ""},
 	}
 
-	return query, args
+	return toPostgresParams(query), args
 }

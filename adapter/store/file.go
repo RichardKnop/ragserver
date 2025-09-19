@@ -43,8 +43,22 @@ func (q insertFilesQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)
+		insert into "ragserver"."file" (
+			"id",
+			"author",
+			"file_name", 
+			"content_type", 
+			"extension",
+			"file_size", 
+			"file_hash",
+			"embedder",
+			"retriever",
+			"location",
+			"status",
+			"created",
+			"updated"
+		)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)			
 	`
 	args := make([]any, 0, len(q.files)*13)
 	args = append(
@@ -64,7 +78,7 @@ func (q insertFilesQuery) SQL() (string, []any) {
 		q.files[0].Updated,
 	)
 	for i := range q.files[1:] {
-		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.files[i+1].ID,
@@ -83,25 +97,6 @@ func (q insertFilesQuery) SQL() (string, []any) {
 		)
 	}
 	query += `
-		)
-		insert into "file" (
-			"id",
-			"author",
-			"file_name", 
-			"content_type", 
-			"extension",
-			"file_size", 
-			"file_hash",
-			"embedder",
-			"retriever",
-			"location",
-			"status",
-			"created",
-			"updated"
-		)
-		select * 
-		from cte
-		where 1
 		on conflict("id") do update set
 			"author"=excluded."author",
 			"file_name"=excluded."file_name",
@@ -115,8 +110,7 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			"status"=excluded."status",
 			"updated"=excluded."updated"
 	`
-
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type insertFileStatusEventsQuery struct {
@@ -129,8 +123,13 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 	}
 
 	query := `
-		with cte as (
-			values (?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)
+		insert into "ragserver"."file_status_evt" (
+			"file", 
+			"status",
+			"message",
+			"created"
+		)
+		values (?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)
 	`
 	args := make([]any, 0, len(q.files)*4)
 	args = append(
@@ -141,7 +140,7 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 		q.files[0].Created,
 	)
 	for i := range q.files[1:] {
-		query += `, (?, (select "id" from "file_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.files[i+1].ID,
@@ -150,20 +149,8 @@ func (q insertFileStatusEventsQuery) SQL() (string, []any) {
 			q.files[i+1].Created,
 		)
 	}
-	query += `
-		)
-		insert into "file_status_evt" (
-			"file", 
-			"status",
-			"message",
-			"created"
-		)
-		select * 
-		from cte
-		where 1
-	`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 var (
@@ -179,21 +166,17 @@ var (
 func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, partial authz.Partial, params ragserver.SortParams) ([]*ragserver.File, error) {
 	var files []*ragserver.File
 
+	// Validate params
+	if !params.Empty() && !params.Valid(validFileSortFields) {
+		return nil, fmt.Errorf("invalid sort params: %v", params)
+	}
+
 	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
 		sql, args := selectFilesQuery{
 			filter:  filter,
 			partial: partial,
+			params:  params,
 		}.SQL()
-
-		// Add order by clause and/or limit if any
-		if params.Empty() {
-			params = defaultFileSortParams
-		}
-		if params.Valid(validFileSortFields) {
-			sql += params.SQL()
-		} else {
-			return fmt.Errorf("invalid sort params: %v", params)
-		}
 
 		rows, err := tx.QueryContext(ctx, sql, args...)
 		if err != nil {
@@ -221,6 +204,7 @@ func (a *Adapter) ListFiles(ctx context.Context, filter ragserver.FileFilter, pa
 type selectFilesQuery struct {
 	filter  ragserver.FileFilter
 	partial authz.Partial
+	params  ragserver.SortParams
 }
 
 func (q selectFilesQuery) SQL() (string, []any) {
@@ -240,11 +224,17 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			fse."message" as "status_message",
 			f."created",
 			f."updated"
-		from "file" f
+		from "ragserver"."file" f
 		inner join "file_status" fs on f."status" = fs."id"
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id"
-		left join "screening_file" sf on sf."file" = f."id"
 	`
+
+	if !q.filter.ScreeningID.UUID.IsNil() {
+		query += `
+			left join "screening_file" sf on sf."file" = f."id"
+		`
+	}
+
 	args := []any{}
 
 	// Add where clauses from the filter and/or partial if any
@@ -264,7 +254,17 @@ func (q selectFilesQuery) SQL() (string, []any) {
 		args = append(args, whereArgs...)
 	}
 
-	return query, args
+	// Add order by clause and/or limit if any
+	if q.params.Empty() {
+		q.params = defaultFileSortParams
+	}
+	query += q.params.SQL()
+
+	if q.filter.Lock {
+		query += " for update skip locked"
+	}
+
+	return toPostgresParams(query), args
 }
 
 func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
@@ -288,7 +288,7 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 		args = append(args, filter.Status)
 	}
 
-	if !filter.LastUpdatedBefore.T.IsZero() {
+	if !filter.LastUpdatedBefore.IsZero() {
 		clauses = append(clauses, `f."updated" < ?`)
 		args = append(args, filter.LastUpdatedBefore)
 	}
@@ -355,7 +355,7 @@ func (q findFileQuery) SQL() (string, []any) {
 			fse."message" as "status_message",
 			f."created",
 			f."updated"
-		from "file" f
+		from "ragserver"."file" f
 		inner join "file_status" fs on f."status" = fs."id"	
 		inner join "file_status_evt" fse on fse."file" = f."id" and fse."status" = fs."id" 
 		where f."id" = ?
@@ -370,13 +370,15 @@ func (q findFileQuery) SQL() (string, []any) {
 		args = append(args, partialArgs...)
 	}
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 func scanFile(row Scannable) (*ragserver.File, error) {
 	var (
 		aFile         = new(ragserver.File)
 		statusMessage = sql.NullString{}
+		created       sql.NullTime
+		updated       sql.NullTime
 	)
 
 	if err := row.Scan(
@@ -392,8 +394,8 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 		&aFile.Location,
 		&aFile.Status,
 		&statusMessage,
-		&aFile.Created,
-		&aFile.Updated,
+		&created,
+		&updated,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ragserver.ErrNotFound
@@ -405,103 +407,10 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 		aFile.StatusMessage = statusMessage.String
 	}
 
+	aFile.Created = created.Time.UTC()
+	aFile.Updated = updated.Time.UTC()
+
 	return aFile, nil
-}
-
-// ListFilesForProcessing lists IDs of files are in UPLOADED state and ready for PROCESSING.
-// It starts with an UPDATE query to escalate transaction from read to write, this way concurrent
-// transactions will not be able to select the same files even within the same sqlite DB connection.
-func (a *Adapter) ListFilesForProcessing(ctx context.Context, now ragserver.Time, partial authz.Partial, limit int) ([]ragserver.FileID, error) {
-	if limit < 1 {
-		return nil, nil
-	}
-
-	var ids []ragserver.FileID
-	if err := a.inTxDo(ctx, &sql.TxOptions{}, func(ctx context.Context, tx *sql.Tx) error {
-		// First, update files from UPLOADED to PROCESSING to lock them for this transaction
-		sql, args := listFilesForProcessing{
-			now:     now,
-			partial: partial,
-			limit:   limit,
-		}.SQL()
-
-		stmt, err := tx.Prepare(sql)
-		if err != nil {
-			return fmt.Errorf("prepare statement failed: %w", err)
-		}
-		defer stmt.Close()
-
-		rows, err := stmt.QueryContext(ctx, args...)
-		if err != nil {
-			return fmt.Errorf("query context failed: %w", err)
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id ragserver.FileID
-			if err := rows.Scan(&id); err != nil {
-				return fmt.Errorf("scan file ID failed: %w", err)
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-
-		if len(ids) == 0 {
-			return nil
-		}
-
-		// Append file lifecycle events for the files we just updated
-		files := make([]*ragserver.File, 0, len(ids))
-		for _, id := range ids {
-			files = append(files, &ragserver.File{
-				ID:      id,
-				Status:  ragserver.FileStatusProcessing,
-				Created: now,
-			})
-		}
-		if err := execQueryCheckRowsAffected(ctx, tx, insertFileStatusEventsQuery{files: files}); err != nil {
-			return fmt.Errorf("exec insert file status events query failed: %w", err)
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return ids, nil
-}
-
-type listFilesForProcessing struct {
-	now     ragserver.Time
-	partial authz.Partial
-	limit   int
-}
-
-func (q listFilesForProcessing) SQL() (string, []any) {
-	query := fmt.Sprintf(`
-		update "file" set 
-			"status" = (select "id" from "file_status" fs where fs."name" = ?), 
-			"updated" = ?
-		where 
-			"id" in (
-				select "id" from "file" 
-				where "status" = (select "id" from "file_status" fs where fs."name" = ?) 
-				order by "created" asc limit %d
-			)
-	`, q.limit)
-	args := []any{ragserver.FileStatusProcessing, q.now, ragserver.FileStatusUploaded}
-
-	// Add where clauses from the partial if any
-	partialClauses, partialArgs := q.partial.SQL()
-	if partialClauses != "" {
-		query += " and " + partialClauses
-
-		args = append(args, partialArgs...)
-	}
-
-	query += ` returning "id"`
-
-	return query, args
 }
 
 func (a *Adapter) DeleteFiles(ctx context.Context, files ...*ragserver.File) error {
@@ -535,7 +444,7 @@ func (q deleteFileStatusEventsQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "file_status_evt" where "file" in (?`
+	query := `delete from "ragserver"."file_status_evt" where "file" in (?`
 	args := make([]any, 0, len(q.files))
 	args = append(args, q.files[0].ID)
 	for i := range q.files[1:] {
@@ -544,7 +453,7 @@ func (q deleteFileStatusEventsQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }
 
 type deleteFilesQuery struct {
@@ -556,7 +465,7 @@ func (q deleteFilesQuery) SQL() (string, []any) {
 		return "", nil
 	}
 
-	query := `delete from "file" where "id" in (?`
+	query := `delete from "ragserver"."file" where "id" in (?`
 	args := make([]any, 0, len(q.files))
 	args = append(args, q.files[0].ID)
 	for i := range q.files[1:] {
@@ -565,5 +474,5 @@ func (q deleteFilesQuery) SQL() (string, []any) {
 	}
 	query += `)`
 
-	return query, args
+	return toPostgresParams(query), args
 }

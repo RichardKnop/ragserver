@@ -1,7 +1,5 @@
 .env
 *.txt
-*.sqlite
-*.sqlite-*
 data/
 models/
 debug/
