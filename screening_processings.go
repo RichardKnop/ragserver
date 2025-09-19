@@ -186,7 +186,7 @@ func (rs *ragServer) answwerQuestion(ctx context.Context, aQuestion *Question, f
 		return fmt.Errorf("embedding query content: %v", err)
 	}
 
-	// Search weaviate to find the most relevant (closest in vector space)
+	// Search redis/weaviate to find the most relevant (closest in vector space)
 	// documents to the query.
 	documents, err := rs.retriever.SearchDocuments(ctx, DocumentFilter{
 		Vector:  vector,

@@ -3,8 +3,6 @@ package ragserver
 import (
 	"context"
 	"fmt"
-
-	"github.com/RichardKnop/ragserver/pkg/authz"
 )
 
 type Vector []float32
@@ -21,49 +19,6 @@ type Response struct {
 	Metric    MetricValue  `json:"metric"`
 	Boolean   BooleanValue `json:"boolean"`
 	Documents []Document   `json:"documents"`
-}
-
-func (rs *ragServer) Generate(ctx context.Context, principal authz.Principal, question Question, fileIDs ...FileID) ([]Response, error) {
-	switch question.Type {
-	case QuestionTypeText, QuestionTypeMetric, QuestionTypeBoolean:
-	default:
-		return nil, fmt.Errorf("invalid question type: %s", question.Type)
-	}
-
-	_, err := rs.processedFilesFromIDs(ctx, fileIDs...)
-	if err != nil {
-		return nil, err
-	}
-	rs.logger.Sugar().With("question", question.ID, "file_ids", fileIDs).Info("generating answer for question")
-
-	// Embed the query contents.
-	vector, err := rs.embedder.EmbedContent(ctx, question.Content)
-	if err != nil {
-		return nil, fmt.Errorf("embedding query content: %v", err)
-	}
-
-	// Search weaviate to find the most relevant (closest in vector space)
-	// documents to the query.
-	documents, err := rs.retriever.SearchDocuments(ctx, DocumentFilter{
-		Vector:  vector,
-		FileIDs: fileIDs,
-	}, 25)
-	if err != nil {
-		return nil, fmt.Errorf("searching documents: %v", err)
-	}
-
-	if len(documents) == 0 {
-		return nil, fmt.Errorf("no documents found for question: %s", question)
-	}
-
-	rs.logger.Sugar().With("question", question.ID).Infof("found %d documents", len(documents))
-
-	responses, err := rs.generative.Generate(ctx, question, documents)
-	if err != nil {
-		return nil, fmt.Errorf("calling generative model: %v", err)
-	}
-
-	return responses, nil
 }
 
 func (rs *ragServer) processedFilesFromIDs(ctx context.Context, ids ...FileID) ([]*File, error) {

@@ -71,23 +71,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Documents"
-  /query:
-    post:
-      summary: Query the RAG server.
-      operationId: query
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Query"
-      responses:
-        "200":
-          description: Responses to the query
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Response"
   /screenings:
     post:
       summary: Create a screening.
@@ -356,29 +339,3 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Screening"
-    Query:
-      type: object
-      required:
-        - file_ids
-        - question
-      properties:
-        question:
-          $ref: "#/components/schemas/Question"
-        file_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-    Response:
-      type: object
-      required:
-        - question
-        - answers
-      properties:
-        question:
-          $ref: "#/components/schemas/Question"
-        answers:
-          type: array
-          items:
-            type: object
-            $ref: "#/components/schemas/Answer"

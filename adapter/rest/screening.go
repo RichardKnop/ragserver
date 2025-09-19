@@ -54,6 +54,18 @@ func (a *Adapter) CreateScreening(w http.ResponseWriter, r *http.Request) {
 	renderJSON(w, apiScreening)
 }
 
+func mapApiFileIDs(ids []openapi_types.UUID) ([]ragserver.FileID, error) {
+	fileIDs := make([]ragserver.FileID, 0, len(ids))
+	for _, id := range ids {
+		fileID, err := uuid.FromString(id.String())
+		if err != nil {
+			return nil, err
+		}
+		fileIDs = append(fileIDs, ragserver.FileID{UUID: fileID})
+	}
+	return fileIDs, nil
+}
+
 func mapApiQuestions(apiQuestions []api.QuestionParams) []ragserver.Question {
 	questions := make([]ragserver.Question, 0, len(apiQuestions))
 	for _, apiQuestion := range apiQuestions {

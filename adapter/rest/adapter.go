@@ -19,7 +19,6 @@ type RagServer interface {
 	ListFiles(ctx context.Context, principal authz.Principal) ([]*ragserver.File, error)
 	FindFile(ctx context.Context, principal authz.Principal, id ragserver.FileID) (*ragserver.File, error)
 	ListFileDocuments(ctx context.Context, principal authz.Principal, id ragserver.FileID) ([]ragserver.Document, error)
-	Generate(ctx context.Context, principal authz.Principal, question ragserver.Question, fileIDs ...ragserver.FileID) ([]ragserver.Response, error)
 	CreateScreening(ctx context.Context, principal authz.Principal, params ragserver.ScreeningParams) (*ragserver.Screening, error)
 	ListScreenings(ctx context.Context, principal authz.Principal) ([]*ragserver.Screening, error)
 	FindScreening(ctx context.Context, principal authz.Principal, id ragserver.ScreeningID) (*ragserver.Screening, error)

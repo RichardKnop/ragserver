@@ -99,12 +99,6 @@ type MetricValue struct {
 	Value float64 `json:"value"`
 }
 
-// Query defines model for Query.
-type Query struct {
-	FileIds  []openapi_types.UUID `json:"file_ids"`
-	Question Question             `json:"question"`
-}
-
 // Question defines model for Question.
 type Question struct {
 	Content string             `json:"content"`
@@ -123,12 +117,6 @@ type QuestionParams struct {
 
 // QuestionParamsType defines model for QuestionParams.Type.
 type QuestionParamsType string
-
-// Response defines model for Response.
-type Response struct {
-	Answers  []Answer `json:"answers"`
-	Question Question `json:"question"`
-}
 
 // Screening defines model for Screening.
 type Screening struct {
@@ -165,9 +153,6 @@ type UploadFileMultipartBody struct {
 // UploadFileMultipartRequestBody defines body for UploadFile for multipart/form-data ContentType.
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
-// QueryJSONRequestBody defines body for Query for application/json ContentType.
-type QueryJSONRequestBody = Query
-
 // CreateScreeningJSONRequestBody defines body for CreateScreening for application/json ContentType.
 type CreateScreeningJSONRequestBody = ScreeningParams
 
@@ -185,9 +170,6 @@ type ServerInterface interface {
 	// List file documents
 	// (GET /files/{id}/documents)
 	ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
-	// Query the RAG server.
-	// (POST /query)
-	Query(w http.ResponseWriter, r *http.Request)
 	// List screenings
 	// (GET /screenings)
 	ListScreenings(w http.ResponseWriter, r *http.Request)
@@ -280,20 +262,6 @@ func (siw *ServerInterfaceWrapper) ListFileDocuments(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListFileDocuments(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// Query operation middleware
-func (siw *ServerInterfaceWrapper) Query(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Query(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -505,7 +473,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/files", wrapper.UploadFile)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}", wrapper.GetFileById)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}/documents", wrapper.ListFileDocuments)
-	m.HandleFunc("POST "+options.BaseURL+"/query", wrapper.Query)
 	m.HandleFunc("GET "+options.BaseURL+"/screenings", wrapper.ListScreenings)
 	m.HandleFunc("POST "+options.BaseURL+"/screenings", wrapper.CreateScreening)
 	m.HandleFunc("DELETE "+options.BaseURL+"/screenings/{id}", wrapper.DeleteScreeningById)
