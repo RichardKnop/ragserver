@@ -40,7 +40,7 @@ hugot:
 
 adapter:
   filestorage:
-    dir: /files
+    dir: ./files
   extract: 
     name: pdf
     #model: gemini-2.5-flash

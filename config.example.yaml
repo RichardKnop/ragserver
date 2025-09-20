@@ -43,7 +43,7 @@ hugot:
 
 adapter:
   filestorage:
-    dir: /files
+    dir: ./files
   # Supported adapters for extracting text from PDFs:
   # 1. pdf (extracts text from PDF locally using code)
   # 2. document (uses Gemini document vision)

@@ -54,6 +54,7 @@ services:
       DB_USER: ragserver
       DB_NAME: ragserver
       WEAVIATE_ADDR: weaviate:9035
+      ADAPTER_FILESTORAGE_DIR: /files
       ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/google-genai/
     volumes:
       - ragserver_models:/models

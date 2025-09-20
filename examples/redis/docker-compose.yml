@@ -41,6 +41,7 @@ services:
       DB_USER: ragserver
       DB_NAME: ragserver
       REDIS_ADDR: redis:6379
+      ADAPTER_FILESTORAGE_DIR: /files
       ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/google-genai/
     volumes:
       - ragserver_models:/models
