@@ -2,7 +2,6 @@ package hugot
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -99,29 +98,11 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 		response.Boolean = ragserver.BooleanValue(structuredResp.Boolean)
 	}
 
-	documentMap := make(map[string]ragserver.Document)
-	for _, doc := range documents {
-		hash := md5.Sum([]byte(strings.ReplaceAll(strings.TrimSpace(doc.Content), "\n", " ")))
-		documentMap[string(hash[:])] = doc
+	matchedDocuments, unmatchedSnippets := ragserver.MatchSnippetsToDocuments(structuredResp.RelevantSnippets, documents)
+	if len(unmatchedSnippets) > 0 {
+		a.logger.Sugar().Warnf("unmatched snippets: %v", unmatchedSnippets)
 	}
-
-	for _, possibleSnippet := range structuredResp.RelevantSnippets {
-		// Sometimes the model returns multiple snippets separated by new lines as one snippet,
-		// so we need to split them and treat each one individually.
-		for _, aSnippet := range strings.Split(possibleSnippet, "\n") {
-			aSnippet = strings.TrimSpace(aSnippet)
-			if aSnippet == "" {
-				continue
-			}
-			hash := md5.Sum([]byte(aSnippet))
-			doc, ok := documentMap[string(hash[:])]
-			if !ok {
-				a.logger.Sugar().Warnf("could not find document for snippet: %s", aSnippet)
-				continue
-			}
-			response.Documents = append(response.Documents, doc)
-		}
-	}
+	response.Documents = matchedDocuments
 
 	return []ragserver.Response{response}, nil
 }

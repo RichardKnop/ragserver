@@ -71,3 +71,48 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 
 	return documents, nil
 }
+
+// MatchSnippetsToDocuments tries to match snippets to documents by exact match or by containment.
+// It returns matched documents and remaining snippets that could not be matched to any document.
+func MatchSnippetsToDocuments(possibleSnippets []string, documents []Document) ([]Document, []string) {
+	var (
+		snippets         = make([]string, 0, len(possibleSnippets))
+		matchedDocuments = make([]Document, 0, len(documents))
+	)
+
+	// First sanitize snippets. It is not always possible to force LLM to always return snippets
+	// exactly matching the documents, so we need to be a bit flexible.
+	for _, possibleSnippet := range possibleSnippets {
+		// Sometimes the model returns multiple snippets separated by new lines as one snippet,
+		// so we need to split them and treat each one individually.
+		for _, aSnippet := range strings.Split(possibleSnippet, "\n") {
+			if strings.TrimSpace(aSnippet) == "" {
+				continue
+			}
+			snippets = append(snippets, strings.TrimSpace(aSnippet))
+		}
+	}
+
+	for _, aDocument := range documents {
+		if len(snippets) == 0 {
+			break
+		}
+		for i, aSnippet := range snippets {
+			if aSnippet == aDocument.Content || strings.Contains(aDocument.Content, aSnippet) {
+				matchedDocuments = append(matchedDocuments, aDocument)
+				if len(snippets) == 1 {
+					snippets = nil
+					break
+				}
+				snippets = append(snippets[:i], snippets[i+1:]...)
+				break
+			}
+		}
+	}
+
+	if len(matchedDocuments) == 0 {
+		return nil, snippets
+	}
+
+	return matchedDocuments, snippets
+}
