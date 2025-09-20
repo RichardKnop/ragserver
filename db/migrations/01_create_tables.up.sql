@@ -28,7 +28,6 @@ create table "ragserver"."file" (
   "file_hash" text not null,
   "embedder" text not null,
   "retriever" text not null,
-  "location" text not null,
   "status" integer not null references "ragserver"."file_status"("id"),
   "created" timestamp not null default now(),
   "updated" timestamp not null default now()

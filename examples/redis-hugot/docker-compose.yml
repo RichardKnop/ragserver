@@ -53,8 +53,8 @@ services:
       ADAPTER_GENERATIVE_EXTERNAL_DATA_PATH: onnx/model.onnx_data
       ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/hugot/
     volumes:
-      - ragserver_data:/data
       - ragserver_models:/models
+      - ragserver_files:/files
       - type: bind
         source: config.yaml
         target: /config.yaml
@@ -67,3 +67,4 @@ volumes:
   postgres_data:
   redis_data:
   ragserver_models:
+  ragserver_files:

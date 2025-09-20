@@ -24,6 +24,7 @@ import (
 
 	"github.com/RichardKnop/ragserver"
 	"github.com/RichardKnop/ragserver/adapter/document"
+	"github.com/RichardKnop/ragserver/adapter/filestorage"
 	googlegenai "github.com/RichardKnop/ragserver/adapter/google-genai"
 	"github.com/RichardKnop/ragserver/adapter/pdf"
 	"github.com/RichardKnop/ragserver/adapter/rest"
@@ -168,11 +169,26 @@ func main() {
 		ragserver.WithLogger(logger),
 	}
 
+	fileStorage, err := filestorage.New(
+		filestorage.WithDir(viper.GetString("adapter.filestorage.dir")),
+	)
+	if err != nil {
+		log.Fatal("file storage: ", err)
+	}
+
 	var (
 		storeAdapter = store.New(db)
-		rs           = ragserver.New(extractor, embebber, retriever, gm, storeAdapter, opts...)
-		restAdapter  = rest.New(rs, rest.WithLogger(logger))
-		mux          = http.NewServeMux()
+		rs           = ragserver.New(
+			extractor,
+			embebber,
+			retriever,
+			gm,
+			storeAdapter,
+			fileStorage,
+			opts...,
+		)
+		restAdapter = rest.New(rs, rest.WithLogger(logger))
+		mux         = http.NewServeMux()
 		// get an `http.Handler` that we can use
 		h       = api.HandlerFromMux(restAdapter, mux)
 		address = ":" + viper.GetString("http.port")

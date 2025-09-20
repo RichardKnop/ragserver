@@ -59,3 +59,12 @@ type ScreeningStgore interface {
 	DeleteScreenings(ctx context.Context, screenings ...*Screening) error
 	SaveAnswer(ctx context.Context, answer Answer) error
 }
+
+type FileStorage interface {
+	NewTempFile() (TempFile, error)
+	DeleteTempFile(name string) error
+	Write(filename string, data io.Reader) error
+	Exists(filename string) (bool, error)
+	Read(filename string) (io.ReadSeekCloser, error)
+	Delete(filename string) error
+}

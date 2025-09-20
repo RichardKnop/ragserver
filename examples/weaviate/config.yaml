@@ -24,6 +24,8 @@ relevant_topics:
     - net zero target
 
 adapter:
+  filestorage:
+    dir: /files
   extract: 
     name: pdf
     model: gemini-2.5-flash

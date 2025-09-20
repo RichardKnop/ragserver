@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"sync"
 	"time"
 )
@@ -170,20 +169,20 @@ func (rs *ragServer) checkFileConcurrency(ctx context.Context) (int, error) {
 }
 
 func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
-	content, err := os.Open(aFile.Location)
+	content, err := rs.filestorage.Read(aFile.Hash)
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
 	defer func() {
-		if err := os.Remove(aFile.Location); err != nil {
-			rs.logger.Sugar().With("location", aFile.Location, "error", err).Error("error removing file")
+		if err := rs.filestorage.Delete(aFile.Hash); err != nil {
+			rs.logger.Sugar().With("hash", aFile.Hash, "error", err).Error("error removing file")
 		}
 		if err := content.Close(); err != nil {
-			rs.logger.Sugar().With("location", aFile.Location, "error", err).Error("error closing file")
+			rs.logger.Sugar().With("hash", aFile.Hash, "error", err).Error("error closing file")
 		}
 	}()
 
-	rs.logger.Sugar().With("id", aFile.ID, "location", aFile.Location).Info("processing file")
+	rs.logger.Sugar().With("id", aFile.ID, "hash", aFile.Hash).Info("processing file")
 
 	switch aFile.ContentType {
 	case "application/pdf":

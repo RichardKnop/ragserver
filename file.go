@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -54,7 +53,6 @@ type File struct {
 	Hash          string
 	Embedder      string // adapter used to generate embeddings for this file
 	Retriever     string // adapter used to store/retrieve embeddings for this file
-	Location      string
 	Status        FileStatus
 	StatusMessage string
 	Created       time.Time
@@ -85,8 +83,14 @@ type FileFilter struct {
 	Lock              bool
 }
 
+type TempFile interface {
+	io.ReadSeekCloser
+	io.Writer
+	Name() string
+}
+
 func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*File, error) {
-	tempFile, err := os.CreateTemp("", "file*")
+	tempFile, err := rs.filestorage.NewTempFile()
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %v", err)
 	}
@@ -115,16 +119,28 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("error copying to temp file: %w", err)
 	}
 
+	fileHash := hex.EncodeToString(hashWriter.Sum(nil))
+
+	exists, err := rs.filestorage.Exists(fileHash)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if file exists: %w", err)
+	}
+	if !exists {
+		if err := rs.filestorage.Write(fileHash, tempFile); err != nil {
+			return nil, fmt.Errorf("error writing to file storage: %w", err)
+		}
+	}
+	defer rs.filestorage.DeleteTempFile(tempFile.Name())
+
 	aFile := &File{
 		ID:          NewFileID(),
 		AuthorID:    AuthorID{principal.ID().UUID},
 		FileName:    header.Filename,
 		ContentType: contentType,
 		Size:        fileSize,
-		Hash:        hex.EncodeToString(hashWriter.Sum(nil)),
+		Hash:        fileHash,
 		Embedder:    rs.embedder.Name(),
 		Retriever:   rs.retriever.Name(),
-		Location:    tempFile.Name(),
 		Status:      FileStatusUploaded,
 		Created:     rs.now(),
 		Updated:     rs.now(),

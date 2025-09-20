@@ -23,6 +23,7 @@ type ragServer struct {
 	retriever      Retriever
 	generative     GenerativeModel
 	store          Store
+	filestorage    FileStorage
 	now            clock
 	relevantTopics RelevantTopics
 	logger         *zap.Logger
@@ -42,15 +43,16 @@ func WithLogger(logger *zap.Logger) Option {
 	}
 }
 
-func New(extractor Extractor, embedder Embedder, retriever Retriever, gm GenerativeModel, storeAdapter Store, options ...Option) *ragServer {
+func New(extractor Extractor, embedder Embedder, retriever Retriever, gm GenerativeModel, storeAdapter Store, fileStorage FileStorage, options ...Option) *ragServer {
 	rs := &ragServer{
-		extractor:  extractor,
-		embedder:   embedder,
-		retriever:  retriever,
-		generative: gm,
-		store:      storeAdapter,
-		now:        func() time.Time { return time.Now().UTC() },
-		logger:     zap.NewNop(),
+		extractor:   extractor,
+		embedder:    embedder,
+		retriever:   retriever,
+		generative:  gm,
+		store:       storeAdapter,
+		filestorage: fileStorage,
+		now:         func() time.Time { return time.Now().UTC() },
+		logger:      zap.NewNop(),
 	}
 
 	for _, o := range options {

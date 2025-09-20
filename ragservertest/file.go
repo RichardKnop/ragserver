@@ -64,7 +64,6 @@ func (g *DataGen) File(options ...FileOption) *ragserver.File {
 		Hash:        g.LetterN(25),
 		Embedder:    g.Name(),
 		Retriever:   g.Name(),
-		Location:    g.Word(),
 		Status:      fileStates[0],
 		Created:     g.now,
 		Updated:     g.now,

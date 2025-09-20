@@ -53,12 +53,11 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			"file_hash",
 			"embedder",
 			"retriever",
-			"location",
 			"status",
 			"created",
 			"updated"
 		)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)			
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)			
 	`
 	args := make([]any, 0, len(q.files)*13)
 	args = append(
@@ -72,13 +71,12 @@ func (q insertFilesQuery) SQL() (string, []any) {
 		q.files[0].Hash,
 		q.files[0].Embedder,
 		q.files[0].Retriever,
-		q.files[0].Location,
 		q.files[0].Status,
 		q.files[0].Created,
 		q.files[0].Updated,
 	)
 	for i := range q.files[1:] {
-		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)`
+		query += `, (?, ?, ?, ?, ?, ?, ?, ?, ?, (select "id" from "ragserver"."file_status" fs where fs."name" = ?), ?, ?)`
 		args = append(
 			args,
 			q.files[i+1].ID,
@@ -90,7 +88,6 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			q.files[i+1].Hash,
 			q.files[i+1].Embedder,
 			q.files[i+1].Retriever,
-			q.files[i+1].Location,
 			q.files[i+1].Status,
 			q.files[i+1].Created,
 			q.files[i+1].Updated,
@@ -106,7 +103,6 @@ func (q insertFilesQuery) SQL() (string, []any) {
 			"file_hash"=excluded."file_hash",
 			"embedder"=excluded."embedder",
 			"retriever"=excluded."retriever",
-			"location"=excluded."location",
 			"status"=excluded."status",
 			"updated"=excluded."updated"
 	`
@@ -219,7 +215,6 @@ func (q selectFilesQuery) SQL() (string, []any) {
 			f."file_hash",
 			f."embedder",
 			f."retriever",
-			f."location",
 			fs."name" as "status",
 			fse."message" as "status_message",
 			f."created",
@@ -350,7 +345,6 @@ func (q findFileQuery) SQL() (string, []any) {
 			f."file_hash",
 			f."embedder",
 			f."retriever",
-			f."location",
 			fs."name" as "status",
 			fse."message" as "status_message",
 			f."created",
@@ -391,7 +385,6 @@ func scanFile(row Scannable) (*ragserver.File, error) {
 		&aFile.Hash,
 		&aFile.Embedder,
 		&aFile.Retriever,
-		&aFile.Location,
 		&aFile.Status,
 		&statusMessage,
 		&created,

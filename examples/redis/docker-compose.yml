@@ -44,6 +44,7 @@ services:
       ADAPTER_GENERATIVE_TEMPLATES_DIR: /templates/google-genai/
     volumes:
       - ragserver_models:/models
+      - ragserver_files:/files
       - type: bind
         source: config.yaml
         target: /config.yaml
@@ -56,3 +57,4 @@ volumes:
   postgres_data:
   redis_data:
   ragserver_models:
+  ragserver_files:
