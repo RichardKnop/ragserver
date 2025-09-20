@@ -43,7 +43,7 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return err
 }
 
-func (a *Adapter) ListDocumentsByFileID(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -79,6 +79,10 @@ func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.Document
 	}
 
 	return decodeGetDocumentResults(graphqlResponse)
+}
+
+func (a *Adapter) DeleteFileDocuments(ctx context.Context, id ragserver.FileID) error {
+	return fmt.Errorf("not implemented")
 }
 
 func fileIDsToStrings(fileIDs []ragserver.FileID) []string {

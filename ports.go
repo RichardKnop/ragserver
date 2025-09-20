@@ -24,8 +24,9 @@ type Embedder interface {
 type Retriever interface {
 	Name() string
 	SaveDocuments(ctx context.Context, documents []Document, vectors []Vector) error
-	ListDocumentsByFileID(ctx context.Context, id FileID) ([]Document, error)
+	ListFileDocuments(ctx context.Context, id FileID) ([]Document, error)
 	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
+	DeleteFileDocuments(ctx context.Context, id FileID) error
 }
 
 // GenerativeModel uses generative AI to generate responses based on a query and relevant documents.
@@ -48,6 +49,7 @@ type FileStore interface {
 	SaveFiles(ctx context.Context, file ...*File) error
 	ListFiles(ctx context.Context, filter FileFilter, partial authz.Partial, params SortParams) ([]*File, error)
 	FindFile(ctx context.Context, id FileID, partial authz.Partial) (*File, error)
+	DeleteFiles(ctx context.Context, files ...*File) error
 }
 
 type ScreeningStgore interface {

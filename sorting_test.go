@@ -42,12 +42,10 @@ func TestSortParams_Valid(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			valid := tt.params.Valid(tt.sortableBy)
-			assert.Equal(t, tt.valid, valid)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			valid := tc.params.Valid(tc.sortableBy)
+			assert.Equal(t, tc.valid, valid)
 		})
 	}
 }
@@ -106,12 +104,10 @@ func TestSortParams_SQL(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			actual := tt.params.SQL()
-			assert.Equal(t, tt.expected, actual)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.params.SQL()
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

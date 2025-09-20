@@ -104,7 +104,7 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("invalid file type")
 	}
 
-	// Reset the temp file offset to the beginning for further reading
+	// Reset the file offset to the beginning for further reading
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("error seeking file to start: %w", err)
@@ -126,6 +126,12 @@ func (rs *ragServer) CreateFile(ctx context.Context, principal authz.Principal, 
 		return nil, fmt.Errorf("error checking if file exists: %w", err)
 	}
 	if !exists {
+		// Reset the temp file offset to the beginning for further reading
+		_, err := tempFile.Seek(0, io.SeekStart)
+		if err != nil {
+			return nil, fmt.Errorf("error seeking temp file to start: %w", err)
+		}
+
 		if err := rs.filestorage.Write(fileHash, tempFile); err != nil {
 			return nil, fmt.Errorf("error writing to file storage: %w", err)
 		}
@@ -198,6 +204,49 @@ func (rs *ragServer) FindFile(ctx context.Context, principal authz.Principal, id
 		return nil, err
 	}
 	return aFile, nil
+}
+
+func (rs *ragServer) DeleteFile(ctx context.Context, principal authz.Principal, id FileID) error {
+	rs.logger.Sugar().With("id", id).Info("deleting file")
+
+	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
+		var err error
+		aFile, err := rs.store.FindFile(ctx, id, rs.filePpartial())
+		if err != nil {
+			return err
+		}
+
+		screenings, err := rs.store.ListScreenings(ctx, ScreeningFilter{
+			FileID: id,
+		}, authz.NilPartial, SortParams{})
+		if err != nil {
+			return fmt.Errorf("error listing screenings: %w", err)
+		}
+		if len(screenings) > 0 {
+			return fmt.Errorf("cannot delete file with associated screenings")
+		}
+
+		if aFile.Status == FileStatusUploaded || aFile.Status == FileStatusProcessing {
+			return fmt.Errorf("cannot delete file in status %s", aFile.Status)
+		}
+
+		if err := rs.store.DeleteFiles(ctx, aFile); err != nil {
+			return fmt.Errorf("error deleting file: %w", err)
+		}
+
+		if err := rs.retriever.DeleteFileDocuments(ctx, id); err != nil {
+			return fmt.Errorf("error deleting file documents from retriever: %w", err)
+		}
+
+		if err := rs.filestorage.Delete(aFile.Hash); err != nil {
+			return fmt.Errorf("error deleting file from storage: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 var allowedContentTypes = map[string]struct{}{

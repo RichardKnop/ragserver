@@ -170,6 +170,22 @@ func (s *StoreTestSuite) TestListScreenings() {
 		s.Len(screenings, 1)
 	})
 
+	s.Run("List all screenings filtered by file ID", func() {
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{
+			FileID: file1.ID,
+		}, authz.NilPartial, ragserver.SortParams{})
+		s.Require().NoError(err)
+		s.Len(screenings, 1)
+		s.Equal(screenings[0], screening1)
+
+		screenings, err = s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{
+			FileID: file2.ID,
+		}, authz.NilPartial, ragserver.SortParams{})
+		s.Require().NoError(err)
+		s.Len(screenings, 1)
+		s.Equal(screenings[0], screening2)
+	})
+
 	s.Run("For update skip locked", func() {
 		files, err := s.adapter.ListScreenings(ctx, ragserver.ScreeningFilter{
 			Status: ragserver.ScreeningStatusRequested,

@@ -9,6 +9,13 @@ type MetricValue struct {
 
 type BooleanValue bool
 
+type ModelResponse struct {
+	Text             TextValue    `json:"text"`
+	Metric           MetricValue  `json:"metric"`
+	Boolean          BooleanValue `json:"boolean"`
+	RelevantSnippets []string     `json:"relevant_snippets"`
+}
+
 type Response struct {
 	Text      TextValue    `json:"text"`
 	Metric    MetricValue  `json:"metric"`

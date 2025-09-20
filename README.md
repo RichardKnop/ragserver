@@ -64,9 +64,10 @@ rs := ragserver.New(
   embebber, 
   retriever, 
   gm, 
-  storeAdapter
+  storeAdapter,
+  fileStorage,
 )
-restAdapter := rest.New(rs)
+restAdapter := rest.New(rs, rest.WithLogger(logger))
 mux := http.NewServeMux()
 h := api.HandlerFromMux(restAdapter, mux)
 httpServer := &http.Server{
@@ -193,8 +194,8 @@ More types will be added later.
     }
   ],
   "file_ids": [
-    "faea3092-204b-4db6-a303-fc8a431647f8",
-    "a463d9c4-900a-4b79-b2fb-74942855d4ba"
+    "56a27945-4c74-4bf4-8319-3a094c84e7f0",
+    "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d"
   ]
 }
 EOF
@@ -211,7 +212,7 @@ Example response:
     {
       "evidence": [
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 43,
           "text": "Total Scope 1 for year 2022 is 77476 MTCO2e"
         }
@@ -220,55 +221,75 @@ Example response:
         "unit": "MTCO2e",
         "value": 77476
       },
-      "question_id": "08717eb5-bd9a-4079-8c0f-eb9de4230a7a",
+      "question_id": "f3082fbc-be78-4aa9-ac4f-deb6c15dcbb1",
       "text": "The company's total Scope 1 emissions for the year 2022 is 77476 MTCO2e."
     },
     {
       "boolean": true,
       "evidence": [
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 3,
           "text": "By 2050, our goal is to achieve net-zero greenhouse gas emissions, including our financed emissions."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 20,
           "text": "• Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15)."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 58,
           "text": "We continue to work toward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and purchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 (market-based) emissions."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 13,
           "text": "To facilitate its oversight of climate-related matters, the Corporate Responsibility Committee receives regular updates from our Chief Sustainability Officer and other leaders on matters such as climate-related finance and our goal of achieving net-zero GHG emissions, including financed emissions, by 2050."
+        },
+        {
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
+          "page": 46,
+          "text": "As detailed in the Strategy section, in May 2022, we published CO2eMission , our methodology for aligning our financial portfolios with pathways to net-zero by 2050 and for setting interim emissions-based targets to track that alignment."
         }
       ],
-      "question_id": "0a4af467-eff1-49f1-8c58-e7fb9a938f4c",
-      "text": "Yes, the company has a net-zero target year of 2050. This goal is to achieve net-zero greenhouse gas emissions, including operational and financed emissions, by 2050."
+      "question_id": "0e1acb69-0091-41b9-a82b-ce7ce95d94bd",
+      "text": "Yes, the company has a net-zero target year, which is 2050. The goal is to achieve net-zero greenhouse gas emissions, including financed emissions, by 2050, covering operational emissions (Scope 1 and 2) and emissions attributable to financing (Scope 3, Category 15)."
     },
     {
       "evidence": [
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 3,
           "text": "By 2050, our goal is to achieve net-zero greenhouse gas emissions, including our financed emissions."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
+          "page": 20,
+          "text": "• Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15)."
+        },
+        {
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 58,
           "text": "We continue to work toward net-zero financed emissions by 2050, and have implemented carbon reduction strategies and purchased renewable energy certificates and carbon offsets sufficient to cover our own Scope 1 and 2 (market-based) emissions."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
+          "page": 47,
+          "text": "(6) Metric tons of CO2 per metric ton of steel (7) We set our target using the International Energy Agency Net-Zero Emissions by 2050 scenario."
+        },
+        {
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 13,
           "text": "To facilitate its oversight of climate-related matters, the Corporate Responsibility Committee receives regular updates from our Chief Sustainability Officer and other leaders on matters such as climate-related finance and our goal of achieving net-zero GHG emissions, including financed emissions, by 2050."
         },
         {
-          "file_id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
+          "page": 47,
+          "text": "(9) Our Aviation target – to reduce by 20% the emissions intensity of our Aviation portfolio – is not based on a climate scenario aligned to net zero by 2050."
+        },
+        {
+          "file_id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
           "page": 46,
           "text": "As detailed in the Strategy section, in May 2022, we published CO2eMission , our methodology for aligning our financial portfolios with pathways to net-zero by 2050 and for setting interim emissions-based targets to track that alignment."
         }
@@ -277,58 +298,58 @@ Example response:
         "unit": "year",
         "value": 2050
       },
-      "question_id": "4511f740-274a-439b-9680-0244cecc1e21",
-      "text": "The company's specified net zero target year is 2050."
+      "question_id": "286c87a2-33c9-4364-ab69-89902c82fa5c",
+      "text": "The company's specified net-zero target year is 2050."
     }
   ],
-  "created_at": "2025-09-19T20:55:20.575587Z",
+  "created_at": "2025-09-20T22:49:22.631974Z",
   "files": [
     {
       "content_type": "application/pdf",
-      "created_at": "2025-09-19T20:54:40.033792Z",
+      "created_at": "2025-09-20T22:48:17.154497Z",
       "extension": "pdf",
       "file_name": "Statement on Emissions.pdf",
       "hash": "65fa6d0a26e38f8a6edee1d6455d90ef6bc4ad11fd80ad69eab30f648fc0e0e4",
-      "id": "faea3092-204b-4db6-a303-fc8a431647f8",
+      "id": "56a27945-4c74-4bf4-8319-3a094c84e7f0",
       "size": 191945,
       "status": "PROCESSED_SUCCESSFULLY",
       "status_message": "",
-      "updated_at": "2025-09-19T20:54:41.186872Z"
+      "updated_at": "2025-09-20T22:48:18.48834Z"
     },
     {
       "content_type": "application/pdf",
-      "created_at": "2025-09-19T20:54:46.824896Z",
+      "created_at": "2025-09-20T22:48:57.623084Z",
       "extension": "pdf",
       "file_name": "TCFD Report.pdf",
       "hash": "5498dc445bd261b635d47316828c3a0cea48e3af641b0279a667fa1e2a0c0e47",
-      "id": "a463d9c4-900a-4b79-b2fb-74942855d4ba",
+      "id": "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d",
       "size": 1500685,
       "status": "PROCESSED_SUCCESSFULLY",
       "status_message": "",
-      "updated_at": "2025-09-19T20:54:48.427092Z"
+      "updated_at": "2025-09-20T22:49:00.033408Z"
     }
   ],
-  "id": "714d8692-e4d1-4124-bfb4-37c16d1e25ce",
+  "id": "3972895d-1656-4451-9f70-38619c90cf6d",
   "questions": [
     {
       "content": "What is the company's total scope 1 emissions value in 2022?",
-      "id": "08717eb5-bd9a-4079-8c0f-eb9de4230a7a",
+      "id": "f3082fbc-be78-4aa9-ac4f-deb6c15dcbb1",
       "type": "METRIC"
     },
     {
       "content": "Does the company have a net zero target year?",
-      "id": "0a4af467-eff1-49f1-8c58-e7fb9a938f4c",
+      "id": "0e1acb69-0091-41b9-a82b-ce7ce95d94bd",
       "type": "BOOLEAN"
     },
     {
       "content": "What is the company's specified net zero target year?",
-      "id": "4511f740-274a-439b-9680-0244cecc1e21",
+      "id": "286c87a2-33c9-4364-ab69-89902c82fa5c",
       "type": "METRIC"
     }
   ],
   "status": "COMPLETED",
   "status_message": "",
-  "updated_at": "2025-09-19T20:55:33.531599Z"
+  "updated_at": "2025-09-20T22:49:32.365879Z"
 }
 ```
 

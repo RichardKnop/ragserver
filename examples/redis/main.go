@@ -181,6 +181,7 @@ func main() {
 
 	fileStorage, err := filestorage.New(
 		filestorage.WithDir(viper.GetString("adapter.filestorage.dir")),
+		filestorage.WithLogger(logger),
 	)
 	if err != nil {
 		log.Fatal("file storage: ", err)

@@ -70,6 +70,7 @@ type ScreeningFilter struct {
 	Status            ScreeningStatus
 	LastUpdatedBefore time.Time
 	Lock              bool
+	FileID            FileID
 }
 
 type QuestionType string

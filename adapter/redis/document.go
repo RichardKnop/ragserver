@@ -42,7 +42,7 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return nil
 }
 
-func (a *Adapter) ListDocumentsByFileID(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
 	query := fmt.Sprintf("@file_id:{%s}", escapeUUID(id.UUID))
 
 	results, err := a.client.FTSearchWithArgs(ctx,
@@ -120,6 +120,33 @@ func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.Document
 	}
 
 	return mapRedisDocuments(results.Docs)
+}
+
+func (a *Adapter) DeleteFileDocuments(ctx context.Context, id ragserver.FileID) error {
+	query := fmt.Sprintf("@file_id:{%s}", escapeUUID(id.UUID))
+
+	results, err := a.client.FTSearchWithArgs(ctx,
+		a.indexName,
+		query,
+		&redis.FTSearchOptions{
+			Return: []redis.FTSearchReturn{
+				{FieldName: "file_id"},
+			},
+			DialectVersion: a.dialectVersion,
+			Limit:          100, // Override default limit of 10
+		},
+	).Result()
+	if err != nil {
+		return err
+	}
+
+	for _, doc := range results.Docs {
+		if _, err := a.client.Del(ctx, doc.ID).Result(); err != nil {
+			return fmt.Errorf("error deleting document %s: %w", doc.ID, err)
+		}
+	}
+
+	return nil
 }
 
 func mapRedisDocuments(rds []redis.Document) ([]ragserver.Document, error) {

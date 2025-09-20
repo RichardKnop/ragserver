@@ -59,9 +59,9 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 			return err
 		}
 
-		documents, err = rs.retriever.ListDocumentsByFileID(ctx, id)
+		documents, err = rs.retriever.ListFileDocuments(ctx, id)
 		if err != nil {
-			return fmt.Errorf("list documents by file ID: %w", err)
+			return fmt.Errorf("list file documents: %w", err)
 		}
 
 		return nil

@@ -4,11 +4,14 @@ import (
 	"io"
 	"os"
 
+	"go.uber.org/zap"
+
 	"github.com/RichardKnop/ragserver"
 )
 
 type Adapter struct {
-	dir string
+	dir    string
+	logger *zap.Logger
 }
 
 type Option func(*Adapter)
@@ -19,8 +22,17 @@ func WithDir(dir string) Option {
 	}
 }
 
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
+	}
+}
+
 func New(opts ...Option) (*Adapter, error) {
-	a := &Adapter{dir: os.TempDir()}
+	a := &Adapter{
+		dir:    os.TempDir(),
+		logger: zap.NewNop(),
+	}
 
 	for _, o := range opts {
 		o(a)
@@ -30,6 +42,10 @@ func New(opts ...Option) (*Adapter, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	a.logger.Sugar().With(
+		"directory", a.dir,
+	).Info("init filestorage adapter")
 
 	return a, nil
 }

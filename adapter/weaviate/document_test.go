@@ -70,16 +70,16 @@ func TestDecodeGetDocumentResults(t *testing.T) {
 		},
 	}
 
-	for i, tst := range tests {
-		t.Run(fmt.Sprintf("#%v_%v", i, tst.title), func(t *testing.T) {
-			actual, err := decodeGetDocumentResults(tst.given)
-			if tst.expectedErr != nil {
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("#%v_%v", i, tc.title), func(t *testing.T) {
+			actual, err := decodeGetDocumentResults(tc.given)
+			if tc.expectedErr != nil {
 				require.Error(t, err)
-				assert.Equal(t, tst.expectedErr, err)
+				assert.Equal(t, tc.expectedErr, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tst.expected, actual)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

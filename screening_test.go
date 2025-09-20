@@ -50,24 +50,21 @@ func TestScreening_CompleteWithStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := &Screening{
-				Status: tt.from,
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			aScreening := &Screening{
+				Status: tc.from,
 			}
-			err := s.CompleteWithStatus(tt.to, tt.message, updatedAt)
-			if tt.wantErr {
+			err := aScreening.CompleteWithStatus(tc.to, tc.message, updatedAt)
+			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.to, s.Status)
-			assert.Equal(t, tt.message, s.StatusMessage)
-			assert.Equal(t, updatedAt, s.Updated)
+			assert.Equal(t, tc.to, aScreening.Status)
+			assert.Equal(t, tc.message, aScreening.StatusMessage)
+			assert.Equal(t, updatedAt, aScreening.Updated)
 		})
 	}
 }

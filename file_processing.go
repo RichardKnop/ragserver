@@ -174,9 +174,6 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 		return fmt.Errorf("opening file: %w", err)
 	}
 	defer func() {
-		if err := rs.filestorage.Delete(aFile.Hash); err != nil {
-			rs.logger.Sugar().With("hash", aFile.Hash, "error", err).Error("error removing file")
-		}
 		if err := content.Close(); err != nil {
 			rs.logger.Sugar().With("hash", aFile.Hash, "error", err).Error("error closing file")
 		}

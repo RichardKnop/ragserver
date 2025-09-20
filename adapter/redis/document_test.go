@@ -58,7 +58,7 @@ func (s *RedisTestSuite) TestSearchDocuments() {
 	s.Equal(documents[0].Content, results[2].Content)
 }
 
-func (s *RedisTestSuite) TestListDocumentsByFileID() {
+func (s *RedisTestSuite) TestListFileDocuments() {
 	ctx, cancel := testContext()
 	defer cancel()
 
@@ -92,16 +92,31 @@ func (s *RedisTestSuite) TestListDocumentsByFileID() {
 	err := s.adapter.SaveDocuments(ctx, documents, vectors)
 	s.Require().NoError(err)
 
-	results, err := s.adapter.ListDocumentsByFileID(ctx, fileID1)
-	s.Require().NoError(err)
-	s.Require().Len(results, 2)
-	s.Contains(results, documents[0])
-	s.Contains(results, documents[1])
+	s.Run("Test listing documents by file ID", func() {
+		results, err := s.adapter.ListFileDocuments(ctx, fileID1)
+		s.Require().NoError(err)
+		s.Require().Len(results, 2)
+		s.Contains(results, documents[0])
+		s.Contains(results, documents[1])
 
-	results, err = s.adapter.ListDocumentsByFileID(ctx, fileID2)
-	s.Require().NoError(err)
-	s.Require().Len(results, 1)
-	s.Equal(documents[2].Content, results[0].Content)
+		results, err = s.adapter.ListFileDocuments(ctx, fileID2)
+		s.Require().NoError(err)
+		s.Require().Len(results, 1)
+		s.Equal(documents[2].Content, results[0].Content)
+	})
+
+	s.Run("Test listing documents after deleting some", func() {
+		err := s.adapter.DeleteFileDocuments(ctx, fileID1)
+		s.Require().NoError(err)
+
+		results, err := s.adapter.ListFileDocuments(ctx, fileID1)
+		s.Require().NoError(err)
+		s.Require().Empty(results)
+
+		results, err = s.adapter.ListFileDocuments(ctx, fileID2)
+		s.Require().NoError(err)
+		s.Require().Len(results, 1)
+	})
 }
 
 func testVector(dim int, min, max float32) ragserver.Vector {

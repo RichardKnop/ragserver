@@ -13,18 +13,6 @@ import (
 	"github.com/RichardKnop/ragserver"
 )
 
-type MetricValue struct {
-	Value float64 `json:"value"`
-	Unit  string  `json:"unit"`
-}
-
-type Response struct {
-	Text             string      `json:"text"`
-	Metric           MetricValue `json:"metric"`
-	Boolean          bool        `json:"boolean"`
-	RelevantSnippets []string    `json:"relevant_snippets"`
-}
-
 func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, documents []ragserver.Document) ([]ragserver.Response, error) {
 	contexts := make([]string, 0, len(documents))
 	for _, doc := range documents {
@@ -79,26 +67,23 @@ func (a *Adapter) Generate(ctx context.Context, question ragserver.Question, doc
 	result = strings.TrimPrefix(result, "```json")
 	result = strings.TrimSuffix(result, "```")
 
-	structuredResp := Response{}
-	if err := json.Unmarshal([]byte(result), &structuredResp); err != nil {
-		return nil, fmt.Errorf("unmarshalling response: %v", err)
+	modelResponse := ragserver.ModelResponse{}
+	if err := json.Unmarshal([]byte(result), &modelResponse); err != nil {
+		return nil, fmt.Errorf("unmarshalling model response: %v", err)
 	}
 
 	response := ragserver.Response{
-		Text: ragserver.TextValue(structuredResp.Text),
+		Text: modelResponse.Text,
 	}
 
 	switch question.Type {
 	case ragserver.QuestionTypeMetric:
-		response.Metric = ragserver.MetricValue{
-			Value: structuredResp.Metric.Value,
-			Unit:  structuredResp.Metric.Unit,
-		}
+		response.Metric = modelResponse.Metric
 	case ragserver.QuestionTypeBoolean:
-		response.Boolean = ragserver.BooleanValue(structuredResp.Boolean)
+		response.Boolean = modelResponse.Boolean
 	}
 
-	matchedDocuments, unmatchedSnippets := ragserver.MatchSnippetsToDocuments(structuredResp.RelevantSnippets, documents)
+	matchedDocuments, unmatchedSnippets := ragserver.MatchSnippetsToDocuments(modelResponse.RelevantSnippets, documents)
 	if len(unmatchedSnippets) > 0 {
 		a.logger.Sugar().Warnf("unmatched snippets: %v", unmatchedSnippets)
 	}

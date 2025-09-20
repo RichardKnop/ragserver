@@ -445,6 +445,11 @@ func screeningFilterClauses(filter ragserver.ScreeningFilter) (string, []any) {
 		args = append(args, filter.LastUpdatedBefore)
 	}
 
+	if !filter.FileID.UUID.IsNil() {
+		clauses = append(clauses, `s."id" in (select "screening" from "ragserver"."screening_file" where "file" = ?)`)
+		args = append(args, filter.FileID)
+	}
+
 	if len(clauses) == 0 {
 		return "", nil
 	}

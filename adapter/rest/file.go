@@ -156,6 +156,35 @@ func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id o
 	renderJSON(w, mapDocuments(documents))
 }
 
+// Delete a file by ID
+// (DELETE /files/{id})
+func (a *Adapter) DeleteFileById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var (
+		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
+		principal   = a.principalFromRequest(r)
+	)
+	defer cancel()
+
+	fileID, err := uuid.FromString(id.String())
+	if err != nil {
+		a.logger.Sugar().With("error", err).Error("invalid file ID")
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("invalid file ID: %w", err))
+		return
+	}
+
+	if err := a.ragServer.DeleteFile(ctx, principal, ragserver.FileID{UUID: fileID}); err != nil {
+		if errors.Is(err, ragserver.ErrNotFound) {
+			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file not found"))
+			return
+		}
+		a.logger.Sugar().With("error", err).Error("error deleting file")
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error deleting file: %w", err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func mapDocument(document ragserver.Document) api.Document {
 	return api.Document{
 		Content: document.Content,

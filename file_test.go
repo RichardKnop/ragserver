@@ -50,23 +50,20 @@ func TestFile_CompleteWithStatus(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			f := &File{
-				Status: tt.from,
+				Status: tc.from,
 			}
-			err := f.CompleteWithStatus(tt.to, tt.message, updatedAt)
-			if tt.wantErr {
+			err := f.CompleteWithStatus(tc.to, tc.message, updatedAt)
+			if tc.wantErr {
 				require.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.to, f.Status)
-			assert.Equal(t, tt.message, f.StatusMessage)
+			assert.Equal(t, tc.to, f.Status)
+			assert.Equal(t, tc.message, f.StatusMessage)
 			assert.Equal(t, updatedAt, f.Updated)
 		})
 	}

@@ -20,8 +20,44 @@ type Adapter struct {
 
 type Option func(*Adapter)
 
+func WithIndexName(indexName string) Option {
+	return func(a *Adapter) {
+		a.indexName = indexName
+	}
+}
+
+func WithIndexPrefix(prefix string) Option {
+	return func(a *Adapter) {
+		a.indexPrefix = prefix
+	}
+}
+
+func WithDialectVersion(version int) Option {
+	return func(a *Adapter) {
+		a.dialectVersion = version
+	}
+}
+
+func WithVectorDim(dim int) Option {
+	return func(a *Adapter) {
+		a.vectorDim = dim
+	}
+}
+
+func WithVectorDistanceMetric(metric string) Option {
+	return func(a *Adapter) {
+		a.vectorDistanceMetric = metric
+	}
+}
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
+	}
+}
+
 const (
-	defaultIndexName            = "vector-idx"
+	defaultIndexName            = "ragserver-idx"
 	defaultIndexPrefix          = "doc:"
 	defaultDialectVersion       = 2
 	defaultVectorDim            = 768
@@ -59,42 +95,6 @@ func New(ctx context.Context, client *redis.Client, options ...Option) (*Adapter
 	).Info("init redis adapter")
 
 	return a, a.init(ctx)
-}
-
-func WithLogger(logger *zap.Logger) Option {
-	return func(a *Adapter) {
-		a.logger = logger
-	}
-}
-
-func WithIndexName(indexName string) Option {
-	return func(a *Adapter) {
-		a.indexName = indexName
-	}
-}
-
-func WithIndexPrefix(prefix string) Option {
-	return func(a *Adapter) {
-		a.indexPrefix = prefix
-	}
-}
-
-func WithDialectVersion(version int) Option {
-	return func(a *Adapter) {
-		a.dialectVersion = version
-	}
-}
-
-func WithVectorDim(dim int) Option {
-	return func(a *Adapter) {
-		a.vectorDim = dim
-	}
-}
-
-func WithVectorDistanceMetric(metric string) Option {
-	return func(a *Adapter) {
-		a.vectorDistanceMetric = metric
-	}
 }
 
 const adapterName = "redis"

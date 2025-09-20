@@ -52,6 +52,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/File"
+    delete:
+      summary: Delete a file by ID
+      operationId: deleteFileById
+      parameters:
+        - name: id
+          in: path
+          description: File ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: File deleted successfully
   /files/{id}/documents:
     get:
       summary: List file documents

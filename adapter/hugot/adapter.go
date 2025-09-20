@@ -32,12 +32,6 @@ type Adapter struct {
 
 type Option func(*Adapter)
 
-func WithLogger(logger *zap.Logger) Option {
-	return func(a *Adapter) {
-		a.logger = logger
-	}
-}
-
 func WithEmbeddingModelName(name string) Option {
 	return func(a *Adapter) {
 		a.embeddingConfig.name = name
@@ -77,6 +71,12 @@ func WithTemplatesDir(dir string) Option {
 func WithModelsDir(path string) Option {
 	return func(a *Adapter) {
 		a.modelsDir = path
+	}
+}
+
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *Adapter) {
+		a.logger = logger
 	}
 }
 

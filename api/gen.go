@@ -164,6 +164,9 @@ type ServerInterface interface {
 	// Upload a file and add documents extracted from it to the knowledge base
 	// (POST /files)
 	UploadFile(w http.ResponseWriter, r *http.Request)
+	// Delete a file by ID
+	// (DELETE /files/{id})
+	DeleteFileById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Get a single file by ID
 	// (GET /files/{id})
 	GetFileById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
@@ -212,6 +215,31 @@ func (siw *ServerInterfaceWrapper) UploadFile(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UploadFile(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteFileById operation middleware
+func (siw *ServerInterfaceWrapper) DeleteFileById(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteFileById(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -471,6 +499,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc("GET "+options.BaseURL+"/files", wrapper.ListFiles)
 	m.HandleFunc("POST "+options.BaseURL+"/files", wrapper.UploadFile)
+	m.HandleFunc("DELETE "+options.BaseURL+"/files/{id}", wrapper.DeleteFileById)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}", wrapper.GetFileById)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}/documents", wrapper.ListFileDocuments)
 	m.HandleFunc("GET "+options.BaseURL+"/screenings", wrapper.ListScreenings)

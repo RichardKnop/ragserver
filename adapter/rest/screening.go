@@ -261,8 +261,8 @@ func (a *Adapter) DeleteScreeningById(w http.ResponseWriter, r *http.Request, id
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("screening not found"))
 			return
 		}
-		a.logger.Sugar().With("error", err).Error("error finding screening")
-		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error finding screening: %w", err))
+		a.logger.Sugar().With("error", err).Error("error deleting screening")
+		renderJSONError(w, http.StatusInternalServerError, fmt.Errorf("error deleting screening: %w", err))
 		return
 	}
 
