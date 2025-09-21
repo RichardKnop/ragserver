@@ -238,6 +238,8 @@ func (rs *ragServer) DeleteFile(ctx context.Context, principal authz.Principal, 
 			return fmt.Errorf("error deleting file documents from retriever: %w", err)
 		}
 
+		// TODO - check if any other files share the same hash before deleting
+		// the file from storage
 		if err := rs.filestorage.Delete(aFile.Hash); err != nil {
 			return fmt.Errorf("error deleting file from storage: %w", err)
 		}

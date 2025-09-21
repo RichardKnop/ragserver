@@ -101,8 +101,8 @@ func New(ctx context.Context, session *hugot.Session, options ...Option) (*Adapt
 	}
 
 	a.logger.Sugar().With(
-		"embedding model config", a.embeddingConfig,
-		"generative model config", a.generativeConfig,
+		"embedding model config", fmt.Sprintf("%+v", a.embeddingConfig),
+		"generative model config", fmt.Sprintf("%+v", a.generativeConfig),
 		"templates dir", a.templatesDir,
 		"models dir", a.modelsDir,
 	).Info("init hugot adapter")

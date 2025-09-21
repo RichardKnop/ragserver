@@ -105,7 +105,7 @@ You can choose between [weaviate](https://github.com/weaviate/weaviate) and [red
 
 For a quick test drive, you can run one of the examples:
 
-Redis retriever backend, local PDF extractor, Gemini text embedding and generative model:
+Redis retriever backend, local PDF extractor, configurable to either use Gemini text embedding and generative model or hugot open source models:
 
 ```sh
 docker compose -f examples/redis/docker-compose.yml up -d
@@ -115,12 +115,6 @@ Weaviate retriever backend, local PDF extractor, Gemini text embedding and gener
 
 ```sh
 docker compose -f examples/weaviate/docker-compose.yml up -d
-```
-
-Redis retriever backend, local PDF extractor, hugot open source text embedding and Gemini generative model:
-
-```sh
-docker compose -f examples/redis-hugot/docker-compose.yml up -d
 ```
 
 # Database
@@ -156,10 +150,16 @@ You can list all current files:
 ./scripts/list-files.sh
 ```
 
-You can also list documents extracted from a specific file (currently limited to 100 documents, no pagination support):
+To list documents extracted from a specific file (currently limited to 100 documents, no pagination support):
 
 ```sh
-./scripts/list-file-documents.sh bc4509b4-c156-4478-890d-8d98a44abf03
+./scripts/list-file-documents.sh 9b3e8b3d-b62b-4434-920f-858f44429596
+```
+
+To perform similary search on file documents limited to top 25 documents:
+
+```sh
+./scripts/list-file-documents.sh 9b3e8b3d-b62b-4434-920f-858f44429596 --similar_to="What is the company's total scope 1 emissions value in 2022?"
 ```
 
 # Screening
@@ -194,8 +194,8 @@ More types will be added later.
     }
   ],
   "file_ids": [
-    "56a27945-4c74-4bf4-8319-3a094c84e7f0",
-    "3438f1e8-d97d-4cff-8f6a-4b46b7464d3d"
+    "9b3e8b3d-b62b-4434-920f-858f44429596",
+    "b00e5274-dd11-455c-a355-ca09a83e9ace"
   ]
 }
 EOF

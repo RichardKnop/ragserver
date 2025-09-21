@@ -12,14 +12,16 @@ import (
 type Vector []float32
 
 type Document struct {
-	FileID  FileID `json:"file_id"`
-	Content string `json:"content"`
-	Page    int    `json:"page"`
+	FileID   FileID   `json:"file_id"`
+	Content  string   `json:"content"`
+	Page     int      `json:"page"`
+	Distance *float64 `json:"distance,omitempty"`
 }
 
 type DocumentFilter struct {
-	Vector  Vector
-	FileIDs []FileID
+	SimilarTo string
+	Vector    Vector
+	FileIDs   []FileID
 }
 
 type Topic struct {
@@ -51,7 +53,7 @@ func (rt RelevantTopics) IsRelevant(content string) (Topic, bool) {
 	return Topic{}, false
 }
 
-func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID) ([]Document, error) {
+func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID, filter DocumentFilter) ([]Document, error) {
 	var documents []Document
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		_, err := rs.store.FindFile(ctx, id, rs.filePpartial())
@@ -59,6 +61,26 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 			return err
 		}
 
+		// If a SimilarTo string is provided, embed it and search for similar documents.
+		if filter.SimilarTo != "" {
+			rs.logger.Sugar().With("similar to", filter.SimilarTo).Info("searching similar documents")
+
+			// Embed the query contents.
+			vector, err := rs.embedder.EmbedContent(ctx, filter.SimilarTo)
+			if err != nil {
+				return fmt.Errorf("embedding query content: %v", err)
+			}
+
+			// Search redis/weaviate to find the most relevant (closest in vector space)
+			// documents to the query.
+			documents, err = rs.retriever.SearchDocuments(ctx, DocumentFilter{
+				Vector:  vector,
+				FileIDs: []FileID{id},
+			}, 25)
+			return err
+		}
+
+		// Otherwise, list all documents for the file.
 		documents, err = rs.retriever.ListFileDocuments(ctx, id)
 		if err != nil {
 			return fmt.Errorf("list file documents: %w", err)
@@ -98,7 +120,11 @@ func MatchSnippetsToDocuments(possibleSnippets []string, documents []Document) (
 			break
 		}
 		for i, aSnippet := range snippets {
-			if aSnippet == aDocument.Content || strings.Contains(aDocument.Content, aSnippet) {
+			var (
+				lowerCaseSnippet  = strings.ToLower(aSnippet)
+				lowerCaseDocument = strings.ToLower(aDocument.Content)
+			)
+			if lowerCaseSnippet == lowerCaseDocument || strings.Contains(lowerCaseDocument, lowerCaseSnippet) {
 				matchedDocuments = append(matchedDocuments, aDocument)
 				if len(snippets) == 1 {
 					snippets = nil

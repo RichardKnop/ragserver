@@ -71,16 +71,19 @@ func TestMatchSnippetsToDocuments(t *testing.T) {
 				"(7) We set our target using the International Energy Agency Net-Zero Emissions by 2050 scenario.",
 				"nonexistent2",
 				"Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15).",
+				"While the Company set sector- specific targets to enable it to track the alignment of its financing activities to its net-zero goal, these targets, even if met, do not guarantee reductions of absolute greenhouse gas emissions in the real economy.",
 			},
 			[]Document{
 				{Content: "snippet1"},
 				{Content: "(6) Metric tons of CO2 per metric ton of steel (7) We set our target using the International Energy Agency Net-Zero Emissions by 2050 scenario."},
 				{Content: "snippet2"},
 				{Content: "• Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15)."},
+				{Content: "Also, while the Company set sector- specific targets to enable it to track the alignment of its financing activities to its net-zero goal, these targets, even if met, do not guarantee reductions of absolute greenhouse gas emissions in the real economy."},
 			},
 			[]Document{
 				{Content: "(6) Metric tons of CO2 per metric ton of steel (7) We set our target using the International Energy Agency Net-Zero Emissions by 2050 scenario."},
 				{Content: "• Achieve net-zero GHG emissions by 2050, including operational emissions (Scope 1 and 2) and emissions attributable to our financing (Scope 3, Category 15)."},
+				{Content: "Also, while the Company set sector- specific targets to enable it to track the alignment of its financing activities to its net-zero goal, these targets, even if met, do not guarantee reductions of absolute greenhouse gas emissions in the real economy."},
 			},
 			[]string{
 				"nonexistent2",

@@ -51,6 +51,8 @@ services:
         CMD_PKG: examples/weaviate
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      DB_HOST: db
+      DB_PORT: 5432
       DB_USER: ragserver
       DB_NAME: ragserver
       WEAVIATE_ADDR: weaviate:9035

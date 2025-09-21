@@ -43,19 +43,36 @@ func (s *RedisTestSuite) TestSearchDocuments() {
 	err := s.adapter.SaveDocuments(ctx, documents, vectors)
 	s.Require().NoError(err)
 
-	results, err := s.adapter.SearchDocuments(
-		ctx,
-		ragserver.DocumentFilter{
-			Vector:  searchVector,
-			FileIDs: []ragserver.FileID{fileID1, fileID2},
-		},
-		25,
-	)
-	s.Require().NoError(err)
-	s.Require().Len(results, 3)
-	s.Equal(documents[1].Content, results[0].Content)
-	s.Equal(documents[2].Content, results[1].Content)
-	s.Equal(documents[0].Content, results[2].Content)
+	s.Run("Search documents by single file ID", func() {
+		results, err := s.adapter.SearchDocuments(
+			ctx,
+			ragserver.DocumentFilter{
+				Vector:  searchVector,
+				FileIDs: []ragserver.FileID{fileID2},
+			},
+			25,
+		)
+		s.Require().NoError(err)
+		s.Require().Len(results, 1)
+		s.Equal(documents[2].Content, results[0].Content)
+		s.NotEmpty(results[0].Distance)
+	})
+
+	s.Run("Search documents by multiple file IDs", func() {
+		results, err := s.adapter.SearchDocuments(
+			ctx,
+			ragserver.DocumentFilter{
+				Vector:  searchVector,
+				FileIDs: []ragserver.FileID{fileID1, fileID2},
+			},
+			25,
+		)
+		s.Require().NoError(err)
+		s.Require().Len(results, 3)
+		s.Equal(documents[1].Content, results[0].Content)
+		s.Equal(documents[2].Content, results[1].Content)
+		s.Equal(documents[0].Content, results[2].Content)
+	})
 }
 
 func (s *RedisTestSuite) TestListFileDocuments() {

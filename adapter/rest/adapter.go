@@ -18,7 +18,7 @@ type RagServer interface {
 	CreateFile(ctx context.Context, principal authz.Principal, file io.ReadSeeker, header *multipart.FileHeader) (*ragserver.File, error)
 	ListFiles(ctx context.Context, principal authz.Principal) ([]*ragserver.File, error)
 	FindFile(ctx context.Context, principal authz.Principal, id ragserver.FileID) (*ragserver.File, error)
-	ListFileDocuments(ctx context.Context, principal authz.Principal, id ragserver.FileID) ([]ragserver.Document, error)
+	ListFileDocuments(ctx context.Context, principal authz.Principal, id ragserver.FileID, filter ragserver.DocumentFilter) ([]ragserver.Document, error)
 	DeleteFile(ctx context.Context, principal authz.Principal, id ragserver.FileID) error
 	CreateScreening(ctx context.Context, principal authz.Principal, params ragserver.ScreeningParams) (*ragserver.Screening, error)
 	ListScreenings(ctx context.Context, principal authz.Principal) ([]*ragserver.Screening, error)

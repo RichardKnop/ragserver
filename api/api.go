@@ -20,6 +20,13 @@ func Boolean(v bool) *bool {
 	return &v
 }
 
+func FromString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func RecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {

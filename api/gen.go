@@ -150,6 +150,15 @@ type UploadFileMultipartBody struct {
 	File *openapi_types.File `json:"file,omitempty"`
 }
 
+// ListFileDocumentsParams defines parameters for ListFileDocuments.
+type ListFileDocumentsParams struct {
+	// SimilarTo Max number of documents to return
+	SimilarTo *string `form:"similar_to,omitempty" json:"similar_to,omitempty"`
+
+	// Limit Max number of documents to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // UploadFileMultipartRequestBody defines body for UploadFile for multipart/form-data ContentType.
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
@@ -172,7 +181,7 @@ type ServerInterface interface {
 	GetFileById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// List file documents
 	// (GET /files/{id}/documents)
-	ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params ListFileDocumentsParams)
 	// List screenings
 	// (GET /screenings)
 	ListScreenings(w http.ResponseWriter, r *http.Request)
@@ -288,8 +297,27 @@ func (siw *ServerInterfaceWrapper) ListFileDocuments(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListFileDocumentsParams
+
+	// ------------- Optional query parameter "similar_to" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "similar_to", r.URL.Query(), &params.SimilarTo)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "similar_to", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListFileDocuments(w, r, id)
+		siw.Handler.ListFileDocuments(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

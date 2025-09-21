@@ -23,12 +23,20 @@ relevant_topics:
     - net-zero target
     - net zero target
 
+# hugot:
+#   # Supported backends:
+#   # 1. go
+#   # 2. ort
+#   backend: ort
+#   nnxruntime_path: /usr/lib64/onnxruntime.so
+#   models_dir: /models
+
 adapter:
   filestorage:
     dir: ./files
   extract: 
     name: pdf
-    model: gemini-2.5-flash
+    #model: gemini-2.5-flash
   embed: 
     name: google-genai
     model: text-embedding-004

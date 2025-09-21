@@ -15,6 +15,8 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/knights-analytics/hugot"
+	hugotOptions "github.com/knights-analytics/hugot/options"
 	_ "github.com/lib/pq"
 	"github.com/neurosnap/sentences"
 	"github.com/redis/go-redis/v9"
@@ -26,6 +28,7 @@ import (
 	"github.com/RichardKnop/ragserver/adapter/document"
 	"github.com/RichardKnop/ragserver/adapter/filestorage"
 	googlegenai "github.com/RichardKnop/ragserver/adapter/google-genai"
+	hugotAdapter "github.com/RichardKnop/ragserver/adapter/hugot"
 	"github.com/RichardKnop/ragserver/adapter/pdf"
 	redisAdapter "github.com/RichardKnop/ragserver/adapter/redis"
 	"github.com/RichardKnop/ragserver/adapter/rest"
@@ -55,7 +58,7 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 
 	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
-	genaiClient, err := genai.NewClient(ctx, nil)
+	genaiClient, err := initGenaiClient(ctx)
 	if err != nil {
 		log.Fatal("genai client: ", err)
 	}
@@ -109,9 +112,21 @@ func main() {
 		log.Fatalf("unknown extract adapter: %s", name)
 	}
 
+	//Hugot session
+	hAdapter, hugotCancel, err := initHugot(ctx, logger)
+	if err != nil {
+		log.Fatal("hugot init: ", err)
+	}
+	if hugotCancel != nil {
+		defer hugotCancel()
+	}
+
 	// Embedder
 	var embebber ragserver.Embedder
 	switch name := viper.GetString("adapter.embed.name"); name {
+	case "hugot":
+		log.Println("embed adapter: hugot")
+		embebber = hAdapter
 	case "google-genai":
 		log.Println("embed adapter: google-genai")
 		embebber = googlegenai.New(
@@ -155,6 +170,9 @@ func main() {
 	// Generative model
 	var gm ragserver.GenerativeModel
 	switch name := viper.GetString("adapter.generative.name"); name {
+	case "hugot":
+		log.Println("generative adapter: hugot")
+		gm = hAdapter
 	case "google-genai":
 		log.Println("generative adapter: google-genai")
 		gm = googlegenai.New(
@@ -251,4 +269,75 @@ func relevantTopicsFromConfig() (ragserver.RelevantTopics, error) {
 		})
 	}
 	return relevantTopics, nil
+}
+
+func initGenaiClient(ctx context.Context) (*genai.Client, error) {
+	if viper.GetString("adapter.extract.name") != "document" &&
+		viper.GetString("adapter.embed.name") != "google-genai" &&
+		viper.GetString("adapter.generative.name") != "google-genai" {
+		return nil, nil
+	}
+	// The client gets the API key from the environment variable `GEMINI_API_KEY`.
+	genaiClient, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("genai client: %w", err)
+	}
+
+	return genaiClient, nil
+}
+
+func initHugot(ctx context.Context, logger *zap.Logger) (*hugotAdapter.Adapter, func(), error) {
+	if viper.GetString("hugot.backend") == "" {
+		return nil, nil, nil
+	}
+	// Hugot session
+	var session *hugot.Session
+	switch backend := viper.GetString("hugot.backend"); backend {
+	case "go":
+		log.Println("hugot backend: go")
+		var err error
+		session, err = hugot.NewGoSession()
+		if err != nil {
+			return nil, nil, fmt.Errorf("hugot session: %w", err)
+		}
+	case "ort":
+		log.Println("hugot backend: ort")
+
+		// Check if onnxruntime was installed
+		onnxPath := viper.GetString("hugot.onnxruntime_path")
+		if _, err := os.Stat(onnxPath); errors.Is(err, os.ErrNotExist) {
+			return nil, nil, fmt.Errorf("onnxruntime backend selected but %s does not exist", onnxPath)
+		}
+		var err error
+		session, err = hugot.NewORTSession(
+			hugotOptions.WithOnnxLibraryPath(onnxPath),
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("hugot session: %w", err)
+		}
+	default:
+		return nil, nil, fmt.Errorf("unknown hugot backend: %s", backend)
+	}
+	cancel := func() {
+		err := session.Destroy()
+		if err != nil {
+			log.Fatal("hugot session destroy: ", err)
+		}
+	}
+	hAdapter, err := hugotAdapter.New(
+		ctx,
+		session,
+		hugotAdapter.WithEmbeddingModelName(viper.GetString("adapter.embed.model")),
+		hugotAdapter.WithEmbeddingModelOnnxFilePath(viper.GetString("adapter.embed.onx_file_path")),
+		hugotAdapter.WithGenerativeModelName(viper.GetString("adapter.generative.model")),
+		hugotAdapter.WithGenerativeModelOnnxFilePath(viper.GetString("adapter.generative.onx_file_path")),
+		hugotAdapter.WithGenerativeModelExternalDataPath(viper.GetString("adapter.generative.external_data_path")),
+		hugotAdapter.WithTemplatesDir(viper.GetString("adapter.generative.templates_dir")),
+		hugotAdapter.WithModelsDir(viper.GetString("hugot.models_dir")),
+		hugotAdapter.WithLogger(logger),
+	)
+	if err != nil {
+		log.Fatal("hugot adapter: ", err)
+	}
+	return hAdapter, cancel, nil
 }

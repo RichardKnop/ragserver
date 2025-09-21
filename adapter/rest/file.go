@@ -128,7 +128,7 @@ func (a *Adapter) GetFileById(w http.ResponseWriter, r *http.Request, id openapi
 
 // List file documents
 // (GET /files/{id}/documents)
-func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id openapi_types.UUID, params api.ListFileDocumentsParams) {
 	var (
 		ctx, cancel = context.WithTimeout(r.Context(), defaultTimeout)
 		principal   = a.principalFromRequest(r)
@@ -142,7 +142,9 @@ func (a *Adapter) ListFileDocuments(w http.ResponseWriter, r *http.Request, id o
 		return
 	}
 
-	documents, err := a.ragServer.ListFileDocuments(ctx, principal, ragserver.FileID{UUID: fileID})
+	documents, err := a.ragServer.ListFileDocuments(ctx, principal, ragserver.FileID{UUID: fileID}, ragserver.DocumentFilter{
+		SimilarTo: api.FromString(params.SimilarTo),
+	})
 	if err != nil {
 		if errors.Is(err, ragserver.ErrNotFound) {
 			renderJSONError(w, http.StatusNotFound, fmt.Errorf("file documents not found"))

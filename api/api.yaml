@@ -78,6 +78,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - in: query
+          name: similar_to
+          schema:
+            type: string
+          description: Max number of documents to return
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Max number of documents to return
       responses:
         "200":
           description: Array of document extracted from a file

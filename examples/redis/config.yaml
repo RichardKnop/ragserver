@@ -9,9 +9,6 @@ db:
   name: "ragserver"
   sslmode: disable
 
-weaviate:
-  addr: localhost:9035
-
 redis:
   addr: localhost:6379
   password: ""
@@ -33,18 +30,28 @@ relevant_topics:
     - net-zero target
     - net zero target
 
+hugot:
+  backend: go
+  onnxruntime_path: /usr/lib64/onnxruntime.so
+  models_dir: ./models
+
 adapter:
   filestorage:
     dir: ./files
   extract: 
     name: pdf
-    model: gemini-2.5-flash
+    #model: gemini-2.5-flash
   embed: 
-    name: google-genai
-    model: text-embedding-004
+    name: hugot
+    model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    onx_file_path: onnx/model.onnx
+    # name: google-genai
+    # model: text-embedding-004
   retrieve: 
     name: redis
   generative: 
-    name: google-genai
-    model: gemini-2.5-flash
-    templates_dir: templates/google-genai/
+    name: hugot
+    model: onnx-community/gemma-3-1b-it-ONNX-GQA
+    onx_file_path: onnx/model.onnx
+    templates_dir: templates/hugot/
+    external_data_path: onnx/model.onnx_data
