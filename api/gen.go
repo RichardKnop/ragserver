@@ -55,8 +55,9 @@ type Answer struct {
 
 // Document defines model for Document.
 type Document struct {
-	Content string `json:"content"`
-	Page    int32  `json:"page"`
+	Content  string   `json:"content"`
+	Distance *float64 `json:"distance,omitempty"`
+	Page     int32    `json:"page"`
 }
 
 // Documents defines model for Documents.
@@ -152,7 +153,7 @@ type UploadFileMultipartBody struct {
 
 // ListFileDocumentsParams defines parameters for ListFileDocuments.
 type ListFileDocumentsParams struct {
-	// SimilarTo Max number of documents to return
+	// SimilarTo Return documents similar to this text (using vector search)
 	SimilarTo *string `form:"similar_to,omitempty" json:"similar_to,omitempty"`
 
 	// Limit Max number of documents to return

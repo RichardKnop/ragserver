@@ -43,7 +43,7 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return err
 }
 
-func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID, limit int) ([]ragserver.Document, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

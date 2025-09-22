@@ -16,7 +16,7 @@ redis:
   protocol: 2
   index: ragserver-idx
   index_prefix: "doc:"
-  vector_dim: 768
+  vector_dim: 384
   vector_distance_metric: L2
 
 relevant_topics:
@@ -43,7 +43,7 @@ adapter:
     #model: gemini-2.5-flash
   embed: 
     name: hugot
-    model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    model: sentence-transformers/all-MiniLM-L6-v2
     onx_file_path: onnx/model.onnx
     # name: google-genai
     # model: text-embedding-004

@@ -27,6 +27,13 @@ func FromString(v *string) string {
 	return *v
 }
 
+func FromInt(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
 func RecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {

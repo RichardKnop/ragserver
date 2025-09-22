@@ -42,7 +42,7 @@ func (a *Adapter) SaveDocuments(ctx context.Context, documents []ragserver.Docum
 	return nil
 }
 
-func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID) ([]ragserver.Document, error) {
+func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID, limit int) ([]ragserver.Document, error) {
 	query := fmt.Sprintf("@file_id:{%s}", escapeUUID(id.UUID))
 
 	results, err := a.client.FTSearchWithArgs(ctx,
@@ -55,7 +55,7 @@ func (a *Adapter) ListFileDocuments(ctx context.Context, id ragserver.FileID) ([
 				{FieldName: "page"},
 			},
 			DialectVersion: a.dialectVersion,
-			Limit:          100, // Override default limit of 10
+			Limit:          limit,
 		},
 	).Result()
 	if err != nil {
@@ -112,12 +112,12 @@ func (a *Adapter) SearchDocuments(ctx context.Context, filter ragserver.Document
 		return nil, err
 	}
 
-	// for _, doc := range results.Docs {
-	// 	fmt.Printf(
-	// 		"ID: %v, Distance:%v, Content:'%v'\n",
-	// 		doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
-	// 	)
-	// }
+	for _, doc := range results.Docs {
+		fmt.Printf(
+			"ID: %v, Distance:%v, Content:'%v'\n",
+			doc.ID, doc.Fields["vector_distance"], doc.Fields["content"],
+		)
+	}
 
 	return mapRedisDocuments(results.Docs)
 }
@@ -187,7 +187,7 @@ func mapRedisDocument(rd redis.Document) (ragserver.Document, error) {
 
 	_, ok = rd.Fields["vector_distance"]
 	if ok {
-		distance, err := strconv.ParseFloat(rd.Fields["vector_distance"], 64)
+		distance, err := strconv.ParseFloat(rd.Fields["vector_distance"], 32)
 		if err != nil {
 			return ragserver.Document{}, fmt.Errorf("invalid vector_distance value: %v", err)
 		}

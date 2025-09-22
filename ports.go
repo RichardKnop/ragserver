@@ -24,7 +24,7 @@ type Embedder interface {
 type Retriever interface {
 	Name() string
 	SaveDocuments(ctx context.Context, documents []Document, vectors []Vector) error
-	ListFileDocuments(ctx context.Context, id FileID) ([]Document, error)
+	ListFileDocuments(ctx context.Context, id FileID, limit int) ([]Document, error)
 	SearchDocuments(ctx context.Context, filter DocumentFilter, limit int) ([]Document, error)
 	DeleteFileDocuments(ctx context.Context, id FileID) error
 }

@@ -293,6 +293,11 @@ func fileFilterClauses(filter ragserver.FileFilter) (string, []any) {
 		args = append(args, filter.ScreeningID)
 	}
 
+	if filter.Hash != "" {
+		clauses = append(clauses, `f."hash" = ?`)
+		args = append(args, filter.Hash)
+	}
+
 	if len(clauses) == 0 {
 		return "", nil
 	}

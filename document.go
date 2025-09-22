@@ -53,7 +53,7 @@ func (rt RelevantTopics) IsRelevant(content string) (Topic, bool) {
 	return Topic{}, false
 }
 
-func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID, filter DocumentFilter) ([]Document, error) {
+func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Principal, id FileID, filter DocumentFilter, limit int) ([]Document, error) {
 	var documents []Document
 	if err := rs.store.Transactional(ctx, &sql.TxOptions{}, func(ctx context.Context) error {
 		_, err := rs.store.FindFile(ctx, id, rs.filePpartial())
@@ -76,12 +76,12 @@ func (rs *ragServer) ListFileDocuments(ctx context.Context, principal authz.Prin
 			documents, err = rs.retriever.SearchDocuments(ctx, DocumentFilter{
 				Vector:  vector,
 				FileIDs: []FileID{id},
-			}, 25)
+			}, limit)
 			return err
 		}
 
 		// Otherwise, list all documents for the file.
-		documents, err = rs.retriever.ListFileDocuments(ctx, id)
+		documents, err = rs.retriever.ListFileDocuments(ctx, id, limit)
 		if err != nil {
 			return fmt.Errorf("list file documents: %w", err)
 		}

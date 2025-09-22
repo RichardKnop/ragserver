@@ -14,7 +14,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-curl \
+curl -X GET -G \
     -H 'Content-Type: application/json' \
     --data-urlencode "similar_to=${SIMILAR_TO}" \
+    --data-urlencode "limit=10" \
     http://localhost:8080/files/${FILE_ID}/documents | jq .

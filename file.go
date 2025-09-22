@@ -80,6 +80,7 @@ type FileFilter struct {
 	Status            FileStatus
 	LastUpdatedBefore time.Time
 	ScreeningID       ScreeningID
+	Hash              string
 	Lock              bool
 }
 
@@ -230,18 +231,23 @@ func (rs *ragServer) DeleteFile(ctx context.Context, principal authz.Principal, 
 			return fmt.Errorf("cannot delete file in status %s", aFile.Status)
 		}
 
+		filesWithHash, err := rs.store.ListFiles(ctx, FileFilter{
+			Hash: aFile.Hash,
+		}, authz.NilPartial, SortParams{})
+
 		if err := rs.store.DeleteFiles(ctx, aFile); err != nil {
 			return fmt.Errorf("error deleting file: %w", err)
 		}
 
-		if err := rs.retriever.DeleteFileDocuments(ctx, id); err != nil {
-			return fmt.Errorf("error deleting file documents from retriever: %w", err)
+		// Only delete from file storage if no other files share the same hash
+		if len(filesWithHash) == 1 {
+			if err := rs.filestorage.Delete(aFile.Hash); err != nil {
+				return fmt.Errorf("error deleting file from storage: %w", err)
+			}
 		}
 
-		// TODO - check if any other files share the same hash before deleting
-		// the file from storage
-		if err := rs.filestorage.Delete(aFile.Hash); err != nil {
-			return fmt.Errorf("error deleting file from storage: %w", err)
+		if err := rs.retriever.DeleteFileDocuments(ctx, id); err != nil {
+			return fmt.Errorf("error deleting file documents from retriever: %w", err)
 		}
 
 		return nil

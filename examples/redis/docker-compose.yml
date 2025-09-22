@@ -43,7 +43,8 @@ services:
       DB_USER: ragserver
       DB_NAME: ragserver
       REDIS_ADDR: redis:6379
-      REDIS_VECTOR_DISTANCE_METRIC: COSINE
+      REDIS_VECTOR_DIM: 768
+      REDIS_VECTOR_DISTANCE_METRIC: L2
       HUGOT_BACKEND: ort
       HUGOT_ONNXRUNTIME_PATH: /usr/lib64/onnxruntime.so
       HUGOT_MODELS_DIR: /models

@@ -110,13 +110,13 @@ func (s *RedisTestSuite) TestListFileDocuments() {
 	s.Require().NoError(err)
 
 	s.Run("Test listing documents by file ID", func() {
-		results, err := s.adapter.ListFileDocuments(ctx, fileID1)
+		results, err := s.adapter.ListFileDocuments(ctx, fileID1, 100)
 		s.Require().NoError(err)
 		s.Require().Len(results, 2)
 		s.Contains(results, documents[0])
 		s.Contains(results, documents[1])
 
-		results, err = s.adapter.ListFileDocuments(ctx, fileID2)
+		results, err = s.adapter.ListFileDocuments(ctx, fileID2, 100)
 		s.Require().NoError(err)
 		s.Require().Len(results, 1)
 		s.Equal(documents[2].Content, results[0].Content)
@@ -126,11 +126,11 @@ func (s *RedisTestSuite) TestListFileDocuments() {
 		err := s.adapter.DeleteFileDocuments(ctx, fileID1)
 		s.Require().NoError(err)
 
-		results, err := s.adapter.ListFileDocuments(ctx, fileID1)
+		results, err := s.adapter.ListFileDocuments(ctx, fileID1, 100)
 		s.Require().NoError(err)
 		s.Require().Empty(results)
 
-		results, err = s.adapter.ListFileDocuments(ctx, fileID2)
+		results, err = s.adapter.ListFileDocuments(ctx, fileID2, 100)
 		s.Require().NoError(err)
 		s.Require().Len(results, 1)
 	})

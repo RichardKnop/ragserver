@@ -82,7 +82,7 @@ paths:
           name: similar_to
           schema:
             type: string
-          description: Max number of documents to return
+          description: Return documents similar to this text (using vector search)
         - in: query
           name: limit
           schema:
@@ -226,6 +226,9 @@ components:
         page:
           type: integer
           format: int32
+        distance:
+          type: number
+          format: double
     QuestionParams:
       type: object
       required:
