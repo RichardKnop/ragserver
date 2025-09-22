@@ -10,7 +10,7 @@ import (
 
 // Extractor extracts documents from various contents, optionally limited by relevant topics.
 type Extractor interface {
-	Extract(ctx context.Context, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
+	Extract(ctx context.Context, fileName string, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
 }
 
 // Embedder encodes document passages as vectors

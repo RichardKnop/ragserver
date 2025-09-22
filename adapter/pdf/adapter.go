@@ -1,7 +1,8 @@
 package pdf
 
 import (
-	"math"
+	"net/http"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -9,9 +10,10 @@ import (
 )
 
 type Adapter struct {
-	extractor *extractor
-	training  *sentences.Storage
-	logger    *zap.Logger
+	httpClient *http.Client
+	baseURL    string
+	training   *sentences.Storage
+	logger     *zap.Logger
 }
 
 type Option func(*Adapter)
@@ -22,22 +24,33 @@ func WithLogger(logger *zap.Logger) Option {
 	}
 }
 
+func WithBaseURL(url string) Option {
+	return func(a *Adapter) {
+		a.baseURL = url
+	}
+}
+
+func WithHttpClient(client *http.Client) Option {
+	return func(a *Adapter) {
+		a.httpClient = client
+	}
+}
+
 func New(training *sentences.Storage, options ...Option) *Adapter {
 	a := &Adapter{
-		extractor: &extractor{
-			pageMin:         1,
-			pageMax:         1000,
-			xRangeMin:       math.Inf(-1),
-			xRangeMax:       math.Inf(1),
-			showPageNumbers: false,
-		},
-		training: training,
-		logger:   zap.NewNop(),
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "http://pdf-document-layout-analysis:5060",
+		training:   training,
+		logger:     zap.NewNop(),
 	}
 
 	for _, o := range options {
 		o(a)
 	}
+
+	a.logger.Sugar().With(
+		"base URL", a.baseURL,
+	).Info("init pdf adapter")
 
 	return a
 }

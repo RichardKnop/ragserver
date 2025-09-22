@@ -26,7 +26,7 @@ type RedisTestSuite struct {
 }
 
 func (s *RedisTestSuite) SetupSuite() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	r, err := startRedisContainer(ctx)

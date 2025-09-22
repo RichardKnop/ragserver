@@ -32,7 +32,7 @@ These are defined as interfaces. You can implement your own components that impl
 ```go
 // Extractor extracts documents from various contents, optionally limited by relevant topics.
 type Extractor interface {
-	Extract(ctx context.Context, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
+	Extract(ctx context.Context, fileName string, contents io.ReadSeeker, topics RelevantTopics) ([]Document, error)
 }
 
 // Embedder encodes document passages as vectors
@@ -194,8 +194,8 @@ More types will be added later.
     }
   ],
   "file_ids": [
-    "9b3e8b3d-b62b-4434-920f-858f44429596",
-    "b00e5274-dd11-455c-a355-ca09a83e9ace"
+    "db0f8303-5bef-415b-b392-f03131853500",
+    "bc78aeb5-b8d5-46d1-9e9b-cec8c191bb40"
   ]
 }
 EOF

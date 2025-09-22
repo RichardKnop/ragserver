@@ -1,6 +1,18 @@
+
 ---
 version: '3.4'
 services:
+  pdf-document-layout-analysis:
+    image: huridocs/pdf-document-layout-analysis:v0.0.24
+    container_name: pdf-document-layout-analysis
+    entrypoint: [ "gunicorn", "-k", "uvicorn.workers.UvicornWorker", "--chdir", "./src", "app:app", "--bind", "0.0.0.0:5060", "--timeout", "10000"]
+    init: true
+    restart: unless-stopped
+    ports:
+      - "5060:5060"
+    # runtime: amd
+    # environment:
+    #   - AMD_VISIBLE_DEVICES=all
   db:
     image: postgres:17.6-alpine3.22
     restart: always
@@ -28,9 +40,11 @@ services:
     depends_on:
       - db
       - redis
+      - pdf-document-layout-analysis
     links:
       - db
       - redis
+      - pdf-document-layout-analysis
     build:
       context: ./../../
       dockerfile: Dockerfile
@@ -43,14 +57,14 @@ services:
       DB_USER: ragserver
       DB_NAME: ragserver
       REDIS_ADDR: redis:6379
-      REDIS_VECTOR_DIM: 768
+      REDIS_VECTOR_DIM: 384
       REDIS_VECTOR_DISTANCE_METRIC: L2
       HUGOT_BACKEND: ort
       HUGOT_ONNXRUNTIME_PATH: /usr/lib64/onnxruntime.so
       HUGOT_MODELS_DIR: /models
       ADAPTER_EXTRACT_NAME: pdf
       ADAPTER_EMBED_NAME: hugot
-      ADAPTER_EMBED_MODEL: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+      ADAPTER_EMBED_MODEL: sentence-transformers/all-MiniLM-L6-v2
       ADAPTER_EMBED_ONX_FILE_PATH: onnx/model.onnx
       ADAPTER_RETRIEVE_NAME: redis
       ADAPTER_GENERATIVE_NAME: hugot

@@ -17,5 +17,5 @@ done
 curl -X GET -G \
     -H 'Content-Type: application/json' \
     --data-urlencode "similar_to=${SIMILAR_TO}" \
-    --data-urlencode "limit=10" \
+    --data-urlencode "limit=100" \
     http://localhost:8080/files/${FILE_ID}/documents | jq .

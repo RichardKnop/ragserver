@@ -1,8 +1,13 @@
 package pdf
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
+	"mime/multipart"
+	"net/http"
 	"strings"
 
 	"github.com/neurosnap/sentences"
@@ -10,38 +15,44 @@ import (
 	"github.com/RichardKnop/ragserver"
 )
 
-func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
-	pageBytes, numPages, err := a.extractor.extractText(tempFile)
+type item struct {
+	Left       float64 `json:"left"`
+	Top        float64 `json:"top"`
+	Width      float64 `json:"width"`
+	Height     float64 `json:"height"`
+	PageNumber int     `json:"page_number"`
+	PageWidth  float64 `json:"page_width"`
+	PageHeight float64 `json:"page_height"`
+	Text       string  `json:"text"`
+	Type       string  `json:"type"`
+}
+
+//	curl -X POST \
+//	  -F 'file=@/Users/richardknop/Desktop/Statement on Emissions.pdf' \
+//	  -F 'fast=true' \
+//	  -F 'types=all' \
+//	  http://localhost:5060
+func (a *Adapter) Extract(ctx context.Context, fileName string, contents io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
+	items, err := a.extractItems(ctx, fileName, contents)
 	if err != nil {
 		return nil, err
 	}
 
-	a.logger.Sugar().Infof("extracted text from PDF file, pages: %d", numPages)
+	// TODO - extract tables too
 
 	var (
 		// Create the default sentence tokenizer
 		tokenizer  = sentences.NewSentenceTokenizer(a.training)
 		documents  = make([]ragserver.Document, 0, 100)
-		numTables  int
 		topicCount = map[string]int{}
 	)
 
-	for i, page := range pageBytes {
-		pageNum := i + 1
-		a.logger.Sugar().Infof("processing page %d/%d", pageNum, numPages)
+	for _, anItem := range items {
+		if anItem.Type != "Text" && anItem.Type != "Footnote" && anItem.Type != "List item" && anItem.Type != "Table" {
+			continue
+		}
 
-		// // Just saving the text to a file for debugging purposes
-		// f, err := os.Create(fmt.Sprintf("extracted_text_page_%d.txt", pageNum))
-		// if err != nil {
-		// 	return nil, fmt.Errorf("error extracting text: %w", err)
-		// }
-		// defer f.Close()
-		// _, err = f.Write(page.Bytes())
-		// if err != nil {
-		// 	return nil, fmt.Errorf("error extracting text: %w", err)
-		// }
-
-		for _, aSentence := range tokenizer.Tokenize(page.String()) {
+		for _, aSentence := range tokenizer.Tokenize(anItem.Text) {
 			if len(topics) > 0 {
 				aTopic, ok := topics.IsRelevant(aSentence.Text)
 				if !ok {
@@ -56,36 +67,10 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 				}
 			}
 
-			// In case of scope-related sentence, we want to first try to extract yearly scope tables,
-			// to get better context for the LLM. These are tables with years as columns and categories
-			// as rows, with numeric values for each year.
-			tables, err := NewTables(aSentence.Text)
-			if err != nil {
-				documents = append(documents, ragserver.Document{
-					Content: strings.TrimSpace(aSentence.Text),
-					Page:    i + 1,
-				})
-				continue
-			}
-
-			if len(tables) > 0 {
-				numTables += len(tables)
-				for _, aTable := range tables {
-					tableContexts := aTable.ToContexts()
-					a.logger.Sugar().Infof("table title: %s, contexts: %d", aTable.Title, len(tableContexts))
-					for _, aContext := range tableContexts {
-						documents = append(documents, ragserver.Document{
-							Content: strings.TrimSpace(aContext),
-							Page:    i + 1,
-						})
-					}
-				}
-			} else {
-				documents = append(documents, ragserver.Document{
-					Content: strings.TrimSpace(aSentence.Text),
-					Page:    i + 1,
-				})
-			}
+			documents = append(documents, ragserver.Document{
+				Content: strings.TrimSpace(aSentence.Text),
+				Page:    anItem.PageNumber,
+			})
 		}
 	}
 
@@ -96,4 +81,102 @@ func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ra
 	a.logger.Sugar().Infof("number of documents: %d", len(documents))
 
 	return documents, nil
+}
+
+func (a *Adapter) extractItems(ctx context.Context, fileName string, contents io.ReadSeeker) ([]item, error) {
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	defer writer.Close()
+
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return nil, err
+	}
+	_, err = io.Copy(part, contents)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := writer.WriteField("fast", "true"); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("types", "text,list item"); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", a.baseURL, buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, errors.New(string(respData))
+	}
+
+	items := []item{}
+	if err := json.Unmarshal(respData, &items); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (a *Adapter) extractHTMLTables(ctx context.Context, fileName string, contents io.ReadSeeker) ([]Table, error) {
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	defer writer.Close()
+
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return nil, err
+	}
+	_, err = io.Copy(part, contents)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := writer.WriteField("fast", "true"); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("types", "table"); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", a.baseURL+"/html", buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respData, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New(string(respData))
+	}
+
+	return parseTables(a.logger, resp.Body)
 }

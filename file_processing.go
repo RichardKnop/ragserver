@@ -184,7 +184,7 @@ func (rs *ragServer) processFile(ctx context.Context, aFile *File) error {
 	switch aFile.ContentType {
 	case "application/pdf":
 		var err error
-		documents, err := rs.extractor.Extract(ctx, content, rs.relevantTopics)
+		documents, err := rs.extractor.Extract(ctx, aFile.FileName, content, rs.relevantTopics)
 		if err != nil {
 			return fmt.Errorf("error processing PDF file: %w", err)
 		}

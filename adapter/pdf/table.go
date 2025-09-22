@@ -2,30 +2,135 @@ package pdf
 
 import (
 	"fmt"
+	"io"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"go.uber.org/zap"
 )
 
-// Table represents a structured table with one or more years and as header columns
-// and rows representing categories with numeric values for each year.
 type Table struct {
-	Title   string
-	Rows    []TableRow
-	years   []int
-	hasUnit bool
+	Title string
+	Rows  []Row
 }
 
-type TableRow struct {
-	Name        string
-	Unit        string
-	YearNumbers []YearNumber
+type Row []string
+
+type Cell struct {
+	Text string
 }
 
-type YearNumber struct {
-	Year   int
-	Number Number
+func parseTables(logger *zap.Logger, html io.Reader) ([]Table, error) {
+	contents, err := io.ReadAll(html)
+	if err != nil {
+		return nil, err
+	}
+
+	unescaped := strings.Replace(string(contents), `\"`, `"`, -1)
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(unescaped))
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		tables              = []Table{}
+		rowSpan, rowSpanIdx int
+		rowSpanCell         string
+	)
+
+	doc.Find("table").Each(func(i int, tableSel *goquery.Selection) {
+		aTable := Table{}
+		tableSel.Find("tr").Each(func(index int, rowSel *goquery.Selection) {
+			aRow := Row{}
+			idx := 0
+			rowSel.Find("td").Each(func(index int, cellSel *goquery.Selection) {
+				if cellSel != nil {
+					cellSpanStr, cellSpanExists := cellSel.Attr("rowspan")
+					if cellSpanExists {
+						span, err := strconv.Atoi(cellSpanStr)
+						if err != nil {
+							logger.Sugar().With("error", err).Error("failed to parse rowspan attribute")
+						} else {
+							rowSpan = span - 1
+							rowSpanIdx = idx
+							rowSpanCell = cellSel.Text()
+						}
+					} else if rowSpan > 0 && rowSpanIdx == idx {
+						aRow = append(aRow, rowSpanCell)
+						rowSpan -= 1
+						idx += 1
+					}
+					aRow = append(aRow, cellSel.Text())
+				}
+				idx += 1
+			})
+			if !emptyRow(aRow) {
+				aTable.Rows = append(aTable.Rows, aRow)
+			} else {
+				tables = append(tables, aTable)
+				aTable = Table{}
+			}
+		})
+		tables = append(tables, aTable)
+	})
+
+	for i, aTable := range tables {
+		if len(aTable.Rows) > 1 && len(aTable.Rows[0]) < len(aTable.Rows[1]) {
+			// Remove header row if it has fewer columns than the next row
+			tables[i].Title = strings.Join(aTable.Rows[0], " ")
+			tables[i].Rows = aTable.Rows[1:]
+		}
+	}
+
+	return tables, nil
+}
+
+func (t Table) ToContexts() []string {
+	if len(t.Rows) <= 1 {
+		return nil
+	}
+
+	if len(t.Rows[0]) < 1 {
+		return nil
+	}
+
+	contexts := make([]string, 0, len(t.Rows)-1)
+	for _, aRow := range t.Rows[1:] {
+		var (
+			leftSide  = aRow[0]
+			rightSide = make([]string, 0, len(aRow)-1)
+		)
+		for i, aCell := range aRow[1:] {
+			var (
+				left  = strings.TrimSpace(t.Rows[0][i+1])
+				right = strings.TrimSpace(aCell)
+			)
+			if right == "" {
+				continue
+			}
+			if isNum, ok := isNumber(left); ok && isNum.ValidYear() {
+				left = fmt.Sprintf("For year %d", int(isNum.Value))
+			}
+			rightSide = append(rightSide, fmt.Sprintf("%s: %s", left, right))
+		}
+		if len(rightSide) == 0 {
+			continue
+		}
+		contexts = append(contexts, fmt.Sprintf("%s: %s", leftSide, strings.Join(rightSide, ", ")))
+	}
+	return contexts
+}
+
+func emptyRow(row []string) bool {
+	for _, cell := range row {
+		if cell != "" {
+			return false
+		}
+	}
+	return true
 }
 
 type Number struct {
@@ -45,421 +150,7 @@ func (n Number) ValidYear() bool {
 	return n.Valid && n.Value >= 1900 && n.Value <= 2100
 }
 
-func (n Number) ToString() string {
-	if !n.Valid {
-		return "N/A"
-	}
-	if n.Value == float64(int(n.Value)) {
-		return strconv.Itoa(int(n.Value))
-	}
-	return fmt.Sprintf("%.2f", n.Value)
-}
-
-func (t Table) IsValid() bool {
-	if len(t.Rows) == 0 {
-		return false
-	}
-	if len(t.years) == 0 {
-		return false
-	}
-	return true
-}
-
-func (t Table) ToContexts() []string {
-	if len(t.Rows) == 0 {
-		return nil
-	}
-	contexts := make([]string, 0, len(t.Rows)*len(t.Rows[0].YearNumbers))
-	for _, aRow := range t.Rows {
-		for _, yearNumber := range aRow.YearNumbers {
-			aContext := strings.TrimSpace(fmt.Sprintf(
-				"%s for year %d is %s %s",
-				aRow.Name,
-				yearNumber.Year,
-				yearNumber.Number.ToString(),
-				aRow.Unit,
-			))
-			contexts = append(contexts, aContext)
-		}
-	}
-	return contexts
-}
-
-func NewTables(text string) ([]*Table, error) {
-	return newUnitTable(text)
-}
-
-func newUnitTable(text string) ([]*Table, error) {
-	var (
-		tables = make([]*Table, 0, 1)
-		lines  = strings.Split(text, "\n")
-		row    int
-	)
-	for i := 0; i < len(lines); i++ {
-		if i == 0 {
-			continue
-		}
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-
-		if len(tables) == 0 {
-			tables = append(tables, new(Table))
-		}
-		table := tables[len(tables)-1]
-
-		if row == 0 {
-			// More complex tables will have a unit as a second column followed by columns for multiple years.
-			// Table title should be on the previous line. However, there could be a footnote there as well,
-			// so we need to check for that and skip it if it is a footnote.
-			if strings.ToLower(line) == "unit" && table.Title == "" {
-				for j := i - 1; j > 0; j-- {
-					_, ok := isNumber(lines[j])
-					if ok {
-						continue
-					}
-					table.Title = strings.TrimSpace(lines[j])
-					table.hasUnit = true
-					break
-				}
-				if table.Title == "" {
-					return nil, fmt.Errorf("could not extract table title")
-				}
-				continue
-			}
-
-			// Simpler table will not have unit and their second column will be a year
-			// If we don't have a table title yet, assume it's a previous column
-			year, ok := isNumber(line)
-			if ok && year.ValidYear() && table.Title == "" {
-				for j := i - 1; j > 0; j-- {
-					_, ok := isNumber(lines[j])
-					if ok {
-						continue
-					}
-					table.Title = strings.TrimSpace(lines[j])
-					table.years = append(table.years, int(year.Value))
-					break
-				}
-				if table.Title == "" {
-					return nil, fmt.Errorf("could not extract table title")
-				}
-				continue
-			}
-
-			// We haven't found the title yet so keep skipping until we get to unit
-			// or first year column and set title from previous line
-			if table.Title == "" {
-				continue
-			}
-
-			// One or more year columns
-			year, ok = isNumber(line)
-			if ok && !year.ValidYear() {
-				// This is probably a footnote, skip
-				continue
-			}
-			if ok && year.ValidYear() {
-				table.years = append(table.years, int(year.Value))
-				continue
-			}
-
-			if len(table.years) == 0 {
-				return nil, fmt.Errorf("could not extract years from table header")
-			}
-
-			// This means we are on a new row, header row has ended as we have processed last valid year
-			processed, err := table.addNewRow(lines, i)
-			if err != nil {
-				return nil, err
-			}
-			i += processed
-			row += 1
-			continue
-		}
-
-		number, ok := isNumberOrNotAvailable(line)
-
-		// We want to potentially create a new table here in case number appears to be a year
-		// and it is a first number in the row. This probably means this is a second table
-		// right under the first one with previous line being its title.
-		if ok && number.ValidYear() && len(table.Rows) > 0 && len(table.Rows[row-1].YearNumbers) == 0 {
-			tables = append(tables, new(Table))
-			table = tables[len(tables)-1]
-			table.Title = strings.TrimSpace(lines[i-1])
-			table.years = []int{int(number.Value)}
-			row = 0
-			continue
-		}
-
-		// Otherwise we are just adding a new yearly value to our existing row
-		if ok {
-			var year int
-			if len(table.Rows[row-1].YearNumbers) < len(table.years) {
-				year = table.years[len(table.Rows[row-1].YearNumbers)]
-			}
-			table.Rows[row-1].YearNumbers = append(table.Rows[row-1].YearNumbers, YearNumber{
-				Year:   year,
-				Number: number,
-			})
-
-			continue
-		}
-
-		if len(table.Rows[row-1].YearNumbers) > len(table.years) {
-			table.removeExtraYearlyValues(row)
-		}
-
-		if len(table.Rows[row-1].YearNumbers) == len(table.years) {
-			processed, err := table.addNewRow(lines, i)
-			if err != nil {
-				return nil, err
-			}
-
-			i += processed
-			row += 1
-			continue
-		}
-	}
-
-	for _, table := range tables {
-		table.removeExtraRows()
-	}
-
-	validTables := make([]*Table, 0, len(tables))
-	for _, table := range tables {
-		if !table.IsValid() {
-			continue
-		}
-		validTables = append(validTables, table)
-	}
-
-	return validTables, nil
-}
-
-type orderedNumber struct {
-	Number
-	idx int
-}
-
-func (t *Table) removeExtraYearlyValues(row int) {
-	// There could be a footnote after the table if it's end of the page.
-	// Or there could be a footnote after a unit/title before yearly values begin.
-	// There isn't a deterministic way to know which of the values we have captured
-	// is a footnote. Footnotes are usually small numbers, up to mid double digits.
-	// If out of all values all presumed yearly values are at least >50 as extra values,
-	// we will asuume lowest extra values are footnotes and delete them.
-	// Otherwise, we will assume footnotes are leftmost extra elements and remove those.
-	// This is not a bulletproof logic, but it will work in good amount of cases.
-	var (
-		values                    = make([]orderedNumber, 0, len(t.Rows[row-1].YearNumbers))
-		extraValues               = len(t.Rows[row-1].YearNumbers) - len(t.years)
-		deleteSmallestExtraValues = true
-	)
-
-	for j := 0; j < len(t.Rows[row-1].YearNumbers); j++ {
-		values = append(values, orderedNumber{
-			Number: t.Rows[row-1].YearNumbers[j].Number,
-			idx:    j,
-		})
-	}
-	sort.Slice(values, func(i, j int) bool {
-		return values[i].Value < values[j].Value
-	})
-
-	for j := 0; j < extraValues; j++ {
-		extraValue := values[j]
-		for k := extraValues; k < len(values); k++ {
-			if values[k].Number.Value-extraValue.Number.Value <= 50 {
-				deleteSmallestExtraValues = false
-				break
-			}
-		}
-	}
-
-	if deleteSmallestExtraValues {
-		values = values[extraValues:]
-		sort.Slice(values, func(i, j int) bool {
-			return values[i].idx < values[j].idx
-		})
-
-		newYearNumbers := make([]YearNumber, 0, len(t.years))
-		for _, v := range values {
-			newYearNumbers = append(newYearNumbers, YearNumber{
-				Number: v.Number,
-			})
-		}
-
-		t.Rows[row-1].YearNumbers = newYearNumbers
-	} else {
-		t.Rows[row-1].YearNumbers = t.Rows[row-1].YearNumbers[extraValues:]
-	}
-
-	for idx := range t.Rows[row-1].YearNumbers {
-		t.Rows[row-1].YearNumbers[idx].Year = t.years[idx]
-	}
-}
-
-func (t *Table) removeExtraRows() {
-	newRows := make([]TableRow, 0, len(t.Rows))
-	for _, aRow := range t.Rows {
-		if len(aRow.YearNumbers) != len(t.years) {
-			continue
-		}
-		newRows = append(newRows, aRow)
-	}
-
-	// For  single column tables, a list of footnotes at the end of the page
-	// can be confused a continuation of the table. In such case, footnotes
-	// will all be listed in ascending order with each one being +1 from the
-	// previous one. Remove any rows from the end that are a sequence of +1 numbers.
-	if len(t.years) == 1 {
-		toRemove := 0
-		for i := len(newRows) - 1; i > 0; i-- {
-			if int(newRows[i].YearNumbers[0].Number.Value) == int(newRows[i-1].YearNumbers[0].Number.Value)+1 {
-				toRemove += 1
-			}
-		}
-		if toRemove > 0 {
-			newRows = newRows[:len(newRows)-toRemove-1]
-		}
-	}
-
-	t.Rows = newRows
-}
-
-func (t *Table) addNewRow(lines []string, i int) (int, error) {
-	if t.hasUnit {
-		return t.newRowWithUnit(lines, i)
-	}
-	return t.newRow(lines, i)
-}
-
-func (t *Table) newRowWithUnit(lines []string, i int) (int, error) {
-	aRow := TableRow{
-		Name:        strings.TrimSpace(lines[i]),
-		YearNumbers: make([]YearNumber, 0, len(t.years)),
-	}
-	if len(lines) <= i-1 {
-		return 0, fmt.Errorf("could not complete table row")
-	}
-
-	var (
-		l                  = len(lines)
-		firstIdx           = -1
-		consecutiveNumbers = 0
-		j                  int
-		numbers            = map[int]struct{}{}
-	)
-	max := i + 7
-	if max > l {
-		max = l
-	}
-	for j = i + 1; j < max; j++ {
-		_, ok := isNumberOrNotAvailable(lines[j])
-		if !ok {
-			firstIdx = -1
-			consecutiveNumbers = 0
-			continue
-		}
-		numbers[j] = struct{}{}
-		if firstIdx == -1 {
-			firstIdx = j
-		}
-		consecutiveNumbers += 1
-
-		if consecutiveNumbers != len(t.years) {
-			continue
-		}
-
-		aRow.Unit = strings.TrimSpace(lines[firstIdx-1])
-		for k := i + 1; k < firstIdx-1; k++ {
-			_, ok := numbers[k]
-			if ok {
-				continue
-			}
-			aRow.Name += " " + strings.TrimSpace(lines[k])
-		}
-
-		break
-	}
-
-	t.Rows = append(t.Rows, aRow)
-
-	return j - i - consecutiveNumbers, nil
-}
-
-func (t *Table) newRow(lines []string, i int) (int, error) {
-	aRow := TableRow{
-		Name:        strings.TrimSpace(lines[i]),
-		YearNumbers: make([]YearNumber, 0, len(t.years)),
-	}
-	if len(lines) <= i-1 {
-		return 0, fmt.Errorf("could not complete table row")
-	}
-
-	var (
-		l                  = len(lines)
-		firstIdx           = -1
-		consecutiveNumbers = 0
-		j                  int
-		numbers            = map[int]struct{}{}
-	)
-	max := i + 6
-	if l < max {
-		max = l
-	}
-	for j = i + 1; j < max; j++ {
-		_, ok := isNumberOrNotAvailable(lines[j])
-		if !ok {
-			firstIdx = -1
-			consecutiveNumbers = 0
-			continue
-		}
-
-		numbers[j] = struct{}{}
-		if firstIdx == -1 {
-			firstIdx = j
-		}
-		consecutiveNumbers += 1
-
-		if consecutiveNumbers != len(t.years) {
-			continue
-		}
-
-		for k := i + 1; k < firstIdx; k++ {
-			_, ok := numbers[k]
-			if ok {
-				continue
-			}
-			aRow.Name += " " + strings.TrimSpace(lines[k])
-		}
-
-		break
-	}
-
-	t.Rows = append(t.Rows, aRow)
-
-	return j - i - consecutiveNumbers, nil
-}
-
 var numRe, _ = regexp.Compile(`^(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?)$`)
-
-func isNumberOrNotAvailable(s string) (Number, bool) {
-	if isNotAvailable(s) {
-		return Number{}, true
-	}
-	return isNumber(s)
-}
-
-func isNotAvailable(s string) bool {
-	s = strings.TrimSpace(s)
-	if s == "-—" || s == "—" || s == "-" || strings.ToLower(s) == "n/a" || s == "" {
-		return true
-	}
-	return false
-}
 
 func isNumber(s string) (Number, bool) {
 	s = strings.TrimSpace(s)

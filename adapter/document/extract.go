@@ -18,7 +18,7 @@ all the data from text on the page and all the data from tables on the page.
 Response is a JSON array, with each item being a full summary of a page.
 `
 
-func (a *Adapter) Extract(ctx context.Context, tempFile io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
+func (a *Adapter) Extract(ctx context.Context, fileName string, tempFile io.ReadSeeker, topics ragserver.RelevantTopics) ([]ragserver.Document, error) {
 	documentBytes, err := io.ReadAll(tempFile)
 	if err != nil {
 		return nil, err
