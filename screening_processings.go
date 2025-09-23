@@ -51,7 +51,7 @@ func (rs *ragServer) ProcessScreenings(ctx context.Context) func() {
 }
 
 const (
-	processScreeningTimeout = 15 * time.Minute
+	processScreeningTimeout = 30 * time.Minute
 )
 
 func (rs *ragServer) processScreenings(ctx context.Context) (int, error) {

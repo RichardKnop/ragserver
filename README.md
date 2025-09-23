@@ -138,9 +138,13 @@ See the [OpenAPI spec](/api/api.yaml) for API reference.
 Upload PDF files which will be used to extract documents:
 
 ```sh
-./scripts/upload-file.sh '/Users/richardknop/Desktop/Statement on Emissions.pdf'
-./scripts/upload-file.sh '/Users/richardknop/Desktop/TCFD Report.pdf'
+./scripts/upload-file.sh '/Users/richardknop/Desktop/statement-greenhouse-gas-emissions.pdf'
+./scripts/upload-file.sh '/Users/richardknop/Desktop/240809_wells_fargo_climatedisclosure.pdf'
 ```
+
+Example files I have used:
+- [statement-greenhouse-gas-emissions.pdf](https://www08.wellsfargomedia.com/assets/pdf/about/corporate-responsibility/statement-greenhouse-gas-emissions.pdf)
+- [240809_wells_fargo_climatedisclosure.pdf](https://www.banktrack.org/download/climate_report_2024_2/240809_wells_fargo_climatedisclosure.pdf)
 
 Keep track of file IDs because those are required to query the LLM for an answer.
 

@@ -64,7 +64,7 @@ func jitter(ctx context.Context, jitterDuration time.Duration) error {
 }
 
 const (
-	processFileTimeout = 5 * time.Minute
+	processFileTimeout = 15 * time.Minute
 )
 
 func (rs *ragServer) processFiles(ctx context.Context) (int, error) {
